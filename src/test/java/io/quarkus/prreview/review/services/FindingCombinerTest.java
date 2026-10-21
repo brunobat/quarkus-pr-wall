@@ -22,8 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pure unit tests for {@link FindingCombiner} (plan §7, §13): the A+B coupling (suppress / downgrade / fail-safe)
- * and the G-corroborates-C linkage, asserted with hand-authored pipeline results and pinned facts — no CDI/network.
+ * Pure unit tests for {@link FindingCombiner} (plan §7, §13): the test-adequacy + exempt-class coupling
+ * (suppress / downgrade / fail-safe) and the inconsistency-corroborates-breaking-change linkage, asserted with
+ * hand-authored pipeline results and pinned facts — no CDI/network.
  */
 class FindingCombinerTest {
 
@@ -42,16 +43,17 @@ class FindingCombinerTest {
         return new TriageOutcome(Map.of(), d, 0, "triage-v1", null, null);
     }
 
-    private static Finding aBlocker() {
-        return Finding.of(Severity.BLOCKER, "test-adequacy", "test-missing", "no test").withRationale("pipeline:A");
+    private static Finding testAdequacyBlocker() {
+        return Finding.of(Severity.BLOCKER, "test-adequacy", "test-missing", "no test")
+                .withRationale("pipeline:test-adequacy");
     }
 
-    private static DeepResult aResult(Finding... findings) {
-        return DeepResult.ok("A", "test-adequacy", List.of(findings), Map.of());
+    private static DeepResult testAdequacyResult(Finding... findings) {
+        return DeepResult.ok("test-adequacy", List.of(findings), Map.of());
     }
 
-    private static DeepResult bResult(Map<String, BandedAnswer> answers) {
-        return DeepResult.silent("B", "exempt-class", answers);
+    private static DeepResult exemptClassResult(Map<String, BandedAnswer> answers) {
+        return DeepResult.silent("exempt-class", answers);
     }
 
     private static BandedAnswer choice(String id, Band band, String option) {
@@ -71,12 +73,14 @@ class FindingCombinerTest {
         return findings.stream().filter(f -> f.concern().equals(concern)).findFirst().orElseThrow();
     }
 
-    // --- A + B -------------------------------------------------------------------------------------
+    // --- test-adequacy + exempt-class ----------------------------------------------------------------
 
     @Test
-    void revertWithConfirmSuppressesABlocker() {
-        Map<String, BandedAnswer> b = Map.of("exempt_class", choice("exempt_class", Band.CONFIRM, "revert"), "is_genuine_revert", noulYes("is_genuine_revert"));
-        List<Finding> out = combiner.combine(triage(), Map.of("A", aResult(aBlocker()), "B", bResult(b)),
+    void revertWithConfirmSuppressesTheTestAdequacyBlocker() {
+        Map<String, BandedAnswer> exempt = Map.of("exempt_class", choice("exempt_class", Band.CONFIRM, "revert"), "is_genuine_revert", noulYes("is_genuine_revert"));
+        List<Finding> out = combiner.combine(triage(),
+                Map.of("test-adequacy", testAdequacyResult(testAdequacyBlocker()),
+                        "exempt-class", exemptClassResult(exempt)),
                 facts(ExemptClass.DELETION_ONLY));
         Finding f = only(out, "test-adequacy");
         assertEquals(Severity.FYI, f.severity(), "a confirmed revert waives the test requirement");
@@ -85,8 +89,10 @@ class FindingCombinerTest {
 
     @Test
     void coveredByExistingDowngradesButNeverSuppresses() {
-        Map<String, BandedAnswer> b = Map.of("exempt_class", choice("exempt_class", Band.CONFIRM, "covered-by-existing-test"));
-        List<Finding> out = combiner.combine(triage(), Map.of("A", aResult(aBlocker()), "B", bResult(b)),
+        Map<String, BandedAnswer> exempt = Map.of("exempt_class", choice("exempt_class", Band.CONFIRM, "covered-by-existing-test"));
+        List<Finding> out = combiner.combine(triage(),
+                Map.of("test-adequacy", testAdequacyResult(testAdequacyBlocker()),
+                        "exempt-class", exemptClassResult(exempt)),
                 facts(ExemptClass.COMMENT_ONLY));
         Finding f = only(out, "test-adequacy");
         assertEquals(Severity.NEEDS_ATTENTION, f.severity(), "covered-by-existing never fully clears");
@@ -94,45 +100,55 @@ class FindingCombinerTest {
     }
 
     @Test
-    void mixedChangeFailSafeIgnoresBWhenANonExemptHunkRemains() {
-        Map<String, BandedAnswer> b = Map.of("exempt_class", choice("exempt_class", Band.CONFIRM, "revert"), "is_genuine_revert", noulYes("is_genuine_revert"));
-        // A not-exempt behavioral hunk is present → no exemption may apply whatever B says (design §4.0).
-        List<Finding> out = combiner.combine(triage(), Map.of("A", aResult(aBlocker()), "B", bResult(b)),
+    void mixedChangeFailSafeIgnoresTheExemptionWhenANonExemptHunkRemains() {
+        Map<String, BandedAnswer> exempt = Map.of("exempt_class", choice("exempt_class", Band.CONFIRM, "revert"), "is_genuine_revert", noulYes("is_genuine_revert"));
+        // A not-exempt behavioral hunk is present → no exemption may apply whatever exempt-class says (§4.0).
+        List<Finding> out = combiner.combine(triage(),
+                Map.of("test-adequacy", testAdequacyResult(testAdequacyBlocker()),
+                        "exempt-class", exemptClassResult(exempt)),
                 facts(ExemptClass.NOT_EXEMPT));
         Finding f = only(out, "test-adequacy");
-        assertEquals(Severity.BLOCKER, f.severity(), "the deterministic fail-safe keeps A's Blocker");
+        assertEquals(Severity.BLOCKER, f.severity(), "the deterministic fail-safe keeps the Blocker");
     }
 
     @Test
-    void subConfirmClassLeavesABlockerStanding() {
-        Map<String, BandedAnswer> b = Map.of("exempt_class", choice("exempt_class", Band.FLAG, "revert"), "is_genuine_revert", noulYes("is_genuine_revert"));
-        List<Finding> out = combiner.combine(triage(), Map.of("A", aResult(aBlocker()), "B", bResult(b)),
+    void subConfirmClassLeavesTheTestAdequacyBlockerStanding() {
+        Map<String, BandedAnswer> exempt = Map.of("exempt_class", choice("exempt_class", Band.FLAG, "revert"), "is_genuine_revert", noulYes("is_genuine_revert"));
+        List<Finding> out = combiner.combine(triage(),
+                Map.of("test-adequacy", testAdequacyResult(testAdequacyBlocker()),
+                        "exempt-class", exemptClassResult(exempt)),
                 facts(ExemptClass.DELETION_ONLY));
         Finding f = only(out, "test-adequacy");
-        assertEquals(Severity.BLOCKER, f.severity(), "an unconfirmed exempt class does not suppress A");
+        assertEquals(Severity.BLOCKER, f.severity(),
+                "an unconfirmed exempt class does not suppress the test-adequacy finding");
     }
 
-    // --- G corroborates C --------------------------------------------------------------------------
+    // --- inconsistency corroborates breaking-change --------------------------------------------------
 
     @Test
-    void gFalseNotBreakingAnnotatesCButNeverCreatesIt() {
-        Finding cFinding = Finding.of(Severity.BLOCKER, "breaking-change", "breaking-change-no-migration", "break")
-                .withRationale("pipeline:C");
-        DeepResult c = DeepResult.ok("C", "breaking-change", List.of(cFinding), Map.of());
-        DeepResult g = DeepResult.ok("G", "inconsistency", List.of(),
+    void falseNotBreakingAnnotatesTheBreakingChangeButNeverCreatesIt() {
+        Finding breakingFinding = Finding.of(Severity.BLOCKER, "breaking-change", "breaking-change-no-migration", "break")
+                .withRationale("pipeline:breaking-change");
+        DeepResult breaking = DeepResult.ok("breaking-change", List.of(breakingFinding), Map.of());
+        DeepResult inconsistency = DeepResult.ok("inconsistency", List.of(),
                 Map.of("mismatch_kind", choice("mismatch_kind", Band.CONFIRM, "false-not-breaking-claim")));
 
-        List<Finding> out = combiner.combine(triage(), Map.of("C", c, "G", g), facts(ExemptClass.NOT_EXEMPT));
+        List<Finding> out = combiner.combine(triage(),
+                Map.of("breaking-change", breaking, "inconsistency", inconsistency),
+                facts(ExemptClass.NOT_EXEMPT));
         Finding f = only(out, "breaking-change");
-        assertTrue(f.rationale().contains("PR text claims non-breaking"), "G corroborates C's rationale");
+        assertTrue(f.rationale().contains("PR text claims non-breaking"),
+                "inconsistency corroborates the breaking-change rationale");
     }
 
     @Test
-    void gNeverCreatesCWhenCDidNotFire() {
-        DeepResult g = DeepResult.ok("G", "inconsistency", List.of(),
+    void inconsistencyNeverCreatesABreakingChangeThatDidNotFire() {
+        DeepResult inconsistency = DeepResult.ok("inconsistency", List.of(),
                 Map.of("mismatch_kind", choice("mismatch_kind", Band.CONFIRM, "false-not-breaking-claim")));
-        List<Finding> out = combiner.combine(triage(), Map.of("G", g), facts(ExemptClass.NOT_EXEMPT));
-        assertFalse(out.stream().anyMatch(f -> f.concern().equals("breaking-change")), "G never feeds C");
+        List<Finding> out = combiner.combine(triage(), Map.of("inconsistency", inconsistency),
+                facts(ExemptClass.NOT_EXEMPT));
+        assertFalse(out.stream().anyMatch(f -> f.concern().equals("breaking-change")),
+                "inconsistency never feeds breaking-change");
     }
 
     // --- dedup -------------------------------------------------------------------------------------

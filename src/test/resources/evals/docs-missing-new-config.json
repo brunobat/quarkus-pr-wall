@@ -1,6 +1,6 @@
 {
   "name": "docs-missing-new-config",
-  "description": "A new user-facing config property ships with tests but no docs file. Pipeline E fires firm (introduces_documentable_surface CONFIRM-yes, has_docs CONFIRM-no) at Needs-attention — never a Blocker — and api_exposure exposure floors review priority to read-closely.",
+  "description": "A new user-facing config property ships with tests but no docs file. The docs-missing pipeline fires firm (introduces_documentable_surface CONFIRM-yes, has_docs CONFIRM-no) at Needs-attention — never a Blocker — and api_exposure exposure floors review priority to read-closely.",
   "clean": false,
   "fullDepth": true,
   "pr": {

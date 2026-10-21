@@ -10,12 +10,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 /**
- * Pipeline B — test-exempt-class judgment (plan §7B, design §4.0). B produces <em>no findings of its own</em>:
- * it only judges which exempt class the runtime surface falls into. A and B meet exactly once, in the app-layer
- * combiner (plan §7B / Phase 4), which reads B's banded answers to suppress or downgrade A's finding. The
- * mixed-change fail-safe stays deterministic there — {@code jev} can never override the all-or-nothing rule.
+ * The exempt-class deep pipeline — test-exempt-class judgment (plan §7 exempt-class, design §4.0). It produces
+ * <em>no findings of its own</em>: it only judges which exempt class the runtime surface falls into. It meets
+ * test-adequacy exactly once, in the app-layer combiner (plan §7 exempt-class / Phase 4), which reads these
+ * banded answers to suppress or downgrade the test-adequacy finding. The mixed-change fail-safe stays
+ * deterministic there — {@code jev} can never override the all-or-nothing rule.
  *
- * <p>Per I-4, PR text is only ever carried as delimited DATA and is never usable to decide an exemption; B's
+ * <p>Per I-4, PR text is only ever carried as delimited DATA and is never usable to decide an exemption; these
  * questions are static templates that judge the hunks alone.
  */
 @ApplicationScoped
@@ -28,26 +29,21 @@ public class ExemptClassPipeline implements DeepPipeline {
     DeepSupport support;
 
     @Override
-    public String id() {
-        return "B";
-    }
-
-    @Override
     public String concern() {
         return CONCERN;
     }
 
     @Override
     public Uni<DeepResult> run(Facts facts, TriageOutcome triage) {
-        // No runtime surface ⇒ nothing for A to fire on, so no exempt-class judgment is needed.
+        // No runtime surface ⇒ nothing for test-adequacy to fire on, so no exempt-class judgment is needed.
         if (!facts.hasRuntimeChange()) {
-            return Uni.createFrom().item(DeepResult.skipped(id(), CONCERN, "no runtime change"));
+            return Uni.createFrom().item(DeepResult.skipped(CONCERN, "no runtime change"));
         }
         ObjectNode state = buildState(facts);
         return support.ask(QUESTIONS, state)
-                // B never emits — it hands its banded answers to the A+B combiner (plan §7B).
-                .map(answers -> DeepResult.silent(id(), CONCERN, answers))
-                .onFailure().recoverWithItem(t -> DeepResult.errored(id(), CONCERN, String.valueOf(t.getMessage())));
+                // Never emits — it hands its banded answers to the test-adequacy combiner (plan §7 exempt-class).
+                .map(answers -> DeepResult.silent(CONCERN, answers))
+                .onFailure().recoverWithItem(t -> DeepResult.errored(CONCERN, String.valueOf(t.getMessage())));
     }
 
     ObjectNode buildState(Facts facts) {

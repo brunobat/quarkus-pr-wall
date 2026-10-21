@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Pipeline E — docs-missing (plan §7E). Needs-attention only, never a Blocker. Fires when the diff introduces
+ * The docs-missing deep pipeline (plan §7 docs-missing). Needs-attention only, never a Blocker. Fires when the diff introduces
  * new user-facing config / public API / a noteworthy feature without corresponding docs. A shaky
  * "docs present" answer is treated as missing (escalate, I-5), never as a clear.
  */
@@ -30,11 +30,6 @@ public class DocsMissingPipeline implements DeepPipeline {
     DeepSupport support;
 
     @Override
-    public String id() {
-        return "E";
-    }
-
-    @Override
     public String concern() {
         return CONCERN;
     }
@@ -42,12 +37,12 @@ public class DocsMissingPipeline implements DeepPipeline {
     @Override
     public Uni<DeepResult> run(Facts facts, TriageOutcome triage) {
         if (!facts.hasRuntimeChange()) {
-            return Uni.createFrom().item(DeepResult.skipped(id(), CONCERN, "no runtime change"));
+            return Uni.createFrom().item(DeepResult.skipped(CONCERN, "no runtime change"));
         }
         ObjectNode state = buildState(facts);
         return support.ask(QUESTIONS, state)
-                .map(answers -> DeepResult.ok(id(), CONCERN, interpret(answers), answers))
-                .onFailure().recoverWithItem(t -> DeepResult.errored(id(), CONCERN, String.valueOf(t.getMessage())));
+                .map(answers -> DeepResult.ok(CONCERN, interpret(answers), answers))
+                .onFailure().recoverWithItem(t -> DeepResult.errored(CONCERN, String.valueOf(t.getMessage())));
     }
 
     ObjectNode buildState(Facts facts) {
@@ -57,7 +52,7 @@ public class DocsMissingPipeline implements DeepPipeline {
         return root;
     }
 
-    /** §7E interpretation. */
+    /** §7 docs-missing interpretation. */
     List<Finding> interpret(Map<String, BandedAnswer> answers) {
         BandedAnswer newSurface = answers.get("introduces_documentable_surface");
         BandedAnswer hasDocs = answers.get("has_docs");
@@ -84,6 +79,6 @@ public class DocsMissingPipeline implements DeepPipeline {
     private Finding finding(boolean tentative) {
         return Finding.of(Severity.NEEDS_ATTENTION, CONCERN, "docs-missing", support.summary("docs-missing"))
                 .tentative(tentative)
-                .withRationale("pipeline:E");
+                .withRationale("pipeline:docs-missing");
     }
 }

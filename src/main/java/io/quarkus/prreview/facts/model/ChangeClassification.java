@@ -10,7 +10,7 @@ import java.util.Map;
  * <p>{@link #allRuntimeExempt()} encodes the §4.0 mixed-change fail-safe: exemption is all-or-nothing
  * across the runtime surface. If <em>any</em> runtime file is {@link ExemptClass#NOT_EXEMPT}, the
  * whole PR is treated as not-exempt and {@code jev} can never override that in the interpretation
- * layer (plan §7 pipeline B, design §4.0).
+ * layer (plan §7 exempt-class, design §4.0).
  */
 public record ChangeClassification(Map<String, ExemptClass> perFile) {
 

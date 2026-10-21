@@ -1,6 +1,6 @@
 {
   "name": "breaking-change-no-migration",
-  "description": "A public static method is renamed on a core runtime class with no migration note. Triage settles it confidently and deep pipeline C confirms the same verdict; the accompanying test keeps test-adequacy silent, so the breaking change is the only finding.",
+  "description": "A public static method is renamed on a core runtime class with no migration note. Triage settles it confidently and the breaking-change deep pipeline confirms the same verdict; the accompanying test keeps test-adequacy silent, so the breaking change is the only finding.",
   "clean": false,
   "fullDepth": true,
   "pr": {

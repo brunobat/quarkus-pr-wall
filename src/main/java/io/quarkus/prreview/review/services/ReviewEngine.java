@@ -27,10 +27,10 @@ import java.util.Set;
  * The single-PR review orchestrator (plan §10): {@code facts → triage → parallel deep fan-out → combine}.
  *
  * <ul>
- *   <li><b>Full depth</b> (a single explicitly-targeted PR) runs every deep pipeline A–G regardless of the
+ *   <li><b>Full depth</b> (a single explicitly-targeted PR) runs every deep pipeline regardless of the
  *       triage gate (design §3.3).</li>
- *   <li><b>Range depth</b> prunes the deep pipelines to the triage escalation set (plus B whenever A runs,
- *       since the A+B coupling needs B's judgment).</li>
+ *   <li><b>Range depth</b> prunes the deep pipelines to the triage escalation set (plus exempt-class
+ *       whenever test-adequacy runs, since their coupling needs the exempt-class judgment).</li>
  * </ul>
  *
  * Pipelines fan out via Mutiny and never throw — a failed pipeline resolves to an {@code ERRORED} result and
@@ -40,7 +40,13 @@ import java.util.Set;
 @ApplicationScoped
 public class ReviewEngine {
 
-    private static final List<String> ALL_PIPELINES = List.of("A", "B", "C", "D", "E", "F", "G");
+    /** Every deep pipeline, named by the concern it owns; also the report's pipeline-run order. */
+    private static final List<String> ALL_PIPELINES = List.of(
+            "test-adequacy", "exempt-class", "breaking-change", "test-weakening",
+            "docs-missing", "domain-routing", "inconsistency");
+
+    private static final String TEST_ADEQUACY = "test-adequacy";
+    private static final String EXEMPT_CLASS = "exempt-class";
 
     @Inject
     FactsService factsService;
@@ -61,14 +67,14 @@ public class ReviewEngine {
 
     @PostConstruct
     void indexPipelines() {
-        Map<String, DeepPipeline> byId = new LinkedHashMap<>();
+        Map<String, DeepPipeline> byConcern = new LinkedHashMap<>();
         for (DeepPipeline p : pipelineBeans) {
-            byId.put(p.id(), p);
+            byConcern.put(p.concern(), p);
         }
-        pipelines = byId;
+        pipelines = byConcern;
     }
 
-    /** Full-depth review of a single targeted PR — runs all A–G. */
+    /** Full-depth review of a single targeted PR — runs every deep pipeline. */
     public Uni<ReviewResult> review(int prNumber) {
         return review(prNumber, true);
     }
@@ -90,13 +96,17 @@ public class ReviewEngine {
                 .onFailure().recoverWithItem(t -> ReviewResult.errored(prNumber, "review: " + message(t)));
     }
 
-    /** Range mode: the triage escalation set, plus B whenever A runs (the A+B coupling needs it). */
+    /**
+     * Range mode: the triage escalation set, plus exempt-class whenever test-adequacy runs (their
+     * coupling in {@link FindingCombiner} needs the exempt-class judgment to be present).
+     */
     private static List<String> pipelinesForRange(TriageOutcome triage) {
         Set<String> escalations = triage.decisions().escalations();
         List<String> toRun = new ArrayList<>();
-        for (String id : ALL_PIPELINES) {
-            if (escalations.contains(id) || (id.equals("B") && escalations.contains("A"))) {
-                toRun.add(id);
+        for (String concern : ALL_PIPELINES) {
+            if (escalations.contains(concern)
+                    || (concern.equals(EXEMPT_CLASS) && escalations.contains(TEST_ADEQUACY))) {
+                toRun.add(concern);
             }
         }
         return toRun;
@@ -115,22 +125,22 @@ public class ReviewEngine {
             return Uni.createFrom().item(Map.of());
         }
         return Uni.combine().all().unis(unis).with(results -> {
-            Map<String, DeepResult> byId = new LinkedHashMap<>();
+            Map<String, DeepResult> byConcern = new LinkedHashMap<>();
             for (Object o : results) {
                 DeepResult r = (DeepResult) o;
-                byId.put(r.pipelineId(), r);
+                byConcern.put(r.concern(), r);
             }
-            return byId;
+            return byConcern;
         });
     }
 
     private ReviewResult assemble(Facts facts, TriageOutcome triage, Map<String, DeepResult> deep) {
         List<io.quarkus.prreview.interpret.model.Finding> findings = combiner.combine(triage, deep, facts);
         List<PipelineRun> runs = new ArrayList<>();
-        for (String id : ALL_PIPELINES) {
-            DeepResult r = deep.get(id);
+        for (String concern : ALL_PIPELINES) {
+            DeepResult r = deep.get(concern);
             if (r != null) {
-                runs.add(new PipelineRun(r.pipelineId(), r.concern(), r.status(), r.note()));
+                runs.add(new PipelineRun(r.concern(), r.status(), r.note()));
             }
         }
         Provenance provenance = new Provenance(

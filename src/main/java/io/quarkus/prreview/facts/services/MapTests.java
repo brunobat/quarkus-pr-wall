@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  * reasoning layer tell a real test from a no-op one.
  *
  * <p>v1 limitation: only tests present in the diff are mapped. Confirming coverage by a pre-existing
- * in-tree test the PR does not modify requires a repo tree walk and is deferred — pipeline B's
+ * in-tree test the PR does not modify requires a repo tree walk and is deferred — the exempt-class pipeline's
  * existing-coverage class therefore downgrades rather than clears (design §4.0).
  */
 @ApplicationScoped

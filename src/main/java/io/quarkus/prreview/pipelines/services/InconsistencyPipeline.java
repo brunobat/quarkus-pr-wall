@@ -16,10 +16,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Pipeline G — inconsistency analysis, PR text vs. diff (plan §7G). The question is a fixed comparison template
- * over PR text carried as explicitly-delimited untrusted DATA — the structural injection defense (I-4). G is
- * independent of C: a {@code false-not-breaking-claim} is reported here as an inconsistency and separately
- * corroborates C in the app layer, but G never feeds C and C never feeds G.
+ * The inconsistency deep pipeline — PR text vs. diff (plan §7 inconsistency). The question is a fixed
+ * comparison template over PR text carried as explicitly-delimited untrusted DATA — the structural injection
+ * defense (I-4). It is independent of breaking-change: a {@code false-not-breaking-claim} is reported here as
+ * an inconsistency and separately corroborates the breaking-change finding in the app layer, but the two
+ * pipelines never feed each other in either direction.
  */
 @ApplicationScoped
 public class InconsistencyPipeline implements DeepPipeline {
@@ -31,11 +32,6 @@ public class InconsistencyPipeline implements DeepPipeline {
     DeepSupport support;
 
     @Override
-    public String id() {
-        return "G";
-    }
-
-    @Override
     public String concern() {
         return CONCERN;
     }
@@ -44,12 +40,12 @@ public class InconsistencyPipeline implements DeepPipeline {
     public Uni<DeepResult> run(Facts facts, TriageOutcome triage) {
         // No PR text ⇒ nothing to compare against the diff.
         if (!facts.pr().hasText()) {
-            return Uni.createFrom().item(DeepResult.skipped(id(), CONCERN, "no PR text"));
+            return Uni.createFrom().item(DeepResult.skipped(CONCERN, "no PR text"));
         }
         ObjectNode state = buildState(facts);
         return support.ask(QUESTIONS, state)
-                .map(answers -> DeepResult.ok(id(), CONCERN, interpret(answers), answers))
-                .onFailure().recoverWithItem(t -> DeepResult.errored(id(), CONCERN, String.valueOf(t.getMessage())));
+                .map(answers -> DeepResult.ok(CONCERN, interpret(answers), answers))
+                .onFailure().recoverWithItem(t -> DeepResult.errored(CONCERN, String.valueOf(t.getMessage())));
     }
 
     ObjectNode buildState(Facts facts) {
@@ -60,7 +56,7 @@ public class InconsistencyPipeline implements DeepPipeline {
         return root;
     }
 
-    /** §7G interpretation — emit the inconsistency line only when the text leans inaccurate. */
+    /** §7 inconsistency interpretation — emit the inconsistency line only when the text leans inaccurate. */
     List<Finding> interpret(Map<String, BandedAnswer> answers) {
         BandedAnswer textMatches = answers.get("text_matches_diff");
         BandedAnswer mismatchKind = answers.get("mismatch_kind");
@@ -77,6 +73,6 @@ public class InconsistencyPipeline implements DeepPipeline {
         String messageKey = undisclosed ? "inconsistency-undisclosed" : "inconsistency";
         return List.of(Finding.of(Severity.NEEDS_ATTENTION, CONCERN, messageKey, support.summary(messageKey))
                 .tentative(!textMatches.isConfirm())
-                .withRationale("pipeline:G"));
+                .withRationale("pipeline:inconsistency"));
     }
 }

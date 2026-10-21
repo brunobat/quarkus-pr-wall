@@ -16,7 +16,7 @@ import java.util.Map;
  * @param name        stable case id, also the fixture file name
  * @param description what the case is meant to pin down
  * @param clean       true when this PR should produce <em>no</em> findings — the false-positive corpus
- * @param fullDepth   run all A–G (single-PR mode) vs. prune to the triage escalation set (range mode)
+ * @param fullDepth   run every deep pipeline (single-PR mode) vs. prune to the triage escalation set (range mode)
  * @param pr          PR metadata served to the stubbed {@code gh pr view}
  * @param author      author context served to {@code gh search prs} / {@code gh api users} / COMMITTERS
  * @param diffFile    sibling {@code .diff} file holding the recorded unified diff

@@ -47,3 +47,4 @@ security-signals.private.txt
 /.quarkus/cli/plugins/
 # TLS Certificates
 .certs/
+/qrspi/

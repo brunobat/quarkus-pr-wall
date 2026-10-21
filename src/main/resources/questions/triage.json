@@ -538,9 +538,9 @@
     },
 
     {
-      "id": "escalate-a-vacuous-flag",
+      "id": "escalate-test-adequacy-vacuous",
       "concern": "test-adequacy",
-      "note": "§5.4d. 'escalate' is additive-only: it reserves a deep pipeline in range/sweep mode (a single explicitly-targeted PR runs all of A-G regardless — that is orchestration, not a rule). The sub-CONFIRM 'low confidence raises, never prunes' escalation for A and C is I-5, enforced in TriagePipeline, not expressible here. Here: tests-vacuous seen only at FLAG, so confirm before raising to blocker.",
+      "note": "§5.4d. 'escalate' is additive-only: it reserves a deep pipeline in range/sweep mode (a single explicitly-targeted PR runs every deep pipeline regardless — that is orchestration, not a rule). The sub-CONFIRM 'low confidence raises, never prunes' escalation for test-adequacy and breaking-change is I-5, enforced in TriagePipeline, not expressible here. Here: tests-vacuous seen only at FLAG, so confirm before raising to blocker.",
       "when": [
         {
           "answer": "test_situation",
@@ -549,11 +549,11 @@
         }
       ],
       "then": "escalate",
-      "pipeline": "A",
+      "pipeline": "test-adequacy",
       "enabled": true
     },
     {
-      "id": "escalate-c-high-exposure",
+      "id": "escalate-breaking-change-high-exposure",
       "concern": "breaking-change",
       "note": "High-stakes exposure at ANY band — always confirm the precise kind and the migration note. scoreAtLeast 3 is the highExposure dial.",
       "when": [
@@ -563,11 +563,11 @@
         }
       ],
       "then": "escalate",
-      "pipeline": "C",
+      "pipeline": "breaking-change",
       "enabled": true
     },
     {
-      "id": "escalate-c-backport",
+      "id": "escalate-breaking-change-backport",
       "concern": "breaking-change",
       "note": "Base is a maintenance/LTS branch: always confirm a possible backported break.",
       "when": [
@@ -577,11 +577,11 @@
         }
       ],
       "then": "escalate",
-      "pipeline": "C",
+      "pipeline": "breaking-change",
       "enabled": true
     },
     {
-      "id": "escalate-d-test-weakening",
+      "id": "escalate-test-weakening",
       "concern": "test-weakening",
       "note": "The diff touches an existing test file alongside a runtime hunk.",
       "when": [
@@ -595,11 +595,11 @@
         }
       ],
       "then": "escalate",
-      "pipeline": "D",
+      "pipeline": "test-weakening",
       "enabled": true
     },
     {
-      "id": "escalate-e-feature",
+      "id": "escalate-docs-missing-feature",
       "concern": "docs-missing",
       "note": "Docs-missing has three triggers: a feature, a wide blast radius, or runtime hunks with no docs file at all.",
       "when": [
@@ -610,11 +610,11 @@
         }
       ],
       "then": "escalate",
-      "pipeline": "E",
+      "pipeline": "docs-missing",
       "enabled": true
     },
     {
-      "id": "escalate-e-blast-radius",
+      "id": "escalate-docs-missing-blast-radius",
       "concern": "docs-missing",
       "note": "scoreAtLeast 2 is the blastRadiusFloor dial — extension-wide or broader.",
       "when": [
@@ -624,11 +624,11 @@
         }
       ],
       "then": "escalate",
-      "pipeline": "E",
+      "pipeline": "docs-missing",
       "enabled": true
     },
     {
-      "id": "escalate-e-runtime-without-docs",
+      "id": "escalate-docs-missing-runtime-without-docs",
       "concern": "docs-missing",
       "when": [
         {
@@ -641,11 +641,11 @@
         }
       ],
       "then": "escalate",
-      "pipeline": "E",
+      "pipeline": "docs-missing",
       "enabled": true
     },
     {
-      "id": "escalate-f-runtime",
+      "id": "escalate-domain-routing-runtime",
       "concern": "domain-routing",
       "note": "Domain-expert routing: any runtime or security-sensitive file present (a cheap noul fan-out).",
       "when": [
@@ -655,11 +655,11 @@
         }
       ],
       "then": "escalate",
-      "pipeline": "F",
+      "pipeline": "domain-routing",
       "enabled": true
     },
     {
-      "id": "escalate-f-security",
+      "id": "escalate-domain-routing-security",
       "concern": "domain-routing",
       "when": [
         {
@@ -668,11 +668,11 @@
         }
       ],
       "then": "escalate",
-      "pipeline": "F",
+      "pipeline": "domain-routing",
       "enabled": true
     },
     {
-      "id": "escalate-g-has-text",
+      "id": "escalate-inconsistency-has-text",
       "concern": "inconsistency",
       "note": "The PR has author-written title or body to compare against the diff.",
       "when": [
@@ -682,7 +682,7 @@
         }
       ],
       "then": "escalate",
-      "pipeline": "G",
+      "pipeline": "inconsistency",
       "enabled": true
     }
   ]

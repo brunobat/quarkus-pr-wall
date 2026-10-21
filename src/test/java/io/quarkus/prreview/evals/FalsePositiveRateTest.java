@@ -2,6 +2,7 @@ package io.quarkus.prreview.evals;
 
 import io.quarkus.prreview.interpret.model.Finding;
 import io.quarkus.prreview.interpret.model.Severity;
+import io.quarkus.prreview.review.model.PipelineRun;
 import io.quarkus.prreview.review.model.ReviewResult;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -91,8 +92,9 @@ class FalsePositiveRateTest {
 
         ReviewResult result = runner.run(c);
 
-        assertEquals(List.of("A", "B", "C", "D", "E", "F", "G"),
-                result.pipelines().stream().map(p -> p.id()).sorted().toList(),
+        assertEquals(List.of("breaking-change", "docs-missing", "domain-routing", "exempt-class",
+                        "inconsistency", "test-adequacy", "test-weakening"),
+                result.pipelines().stream().map(PipelineRun::concern).sorted().toList(),
                 () -> EvalSuiteTest.describe(c, result, "all seven deep pipelines to have run"));
         assertTrue(result.findings().isEmpty(),
                 () -> EvalSuiteTest.describe(c, result, "silence from every pipeline"));

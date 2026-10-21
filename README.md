@@ -8,6 +8,21 @@ the inconsistency sentence), always *downstream* of every gate.
 Governing principle: **high threshold / high signal — silence by default.** A clean PR produces an explicit
 "nothing met the review threshold" report, not a manufactured list of nits.
 
+Every run decides four things:
+
+1. **Review priority** — skim / read-through / read-closely. Raise-only, the `max` of:
+   - the `intrinsic_risk` score, as the base;
+   - a floor when the diff touches a security file (I-1);
+   - the same floor at high `api_exposure` — a public/SPI surface;
+   - a +1 bump, capped at read-closely, when the change is far outside the author's prior areas or the
+     account is brand new (I-2).
+
+   Nothing lowers it.
+2. **Which deep checks to run** — uncertainty reserves a check, it never prunes one.
+3. **Per concern, a severity** — blocker / needs-attention / fyi / **silence**, where silence is the default
+   and must be positively earned by a confident "no issue".
+4. **Who else should look** — security, messaging, persistence, or native-image routing.
+
 ## Quick start
 
 ```shell
@@ -15,10 +30,10 @@ export TYPESAFE_API_KEY=...      # jev (all structured decisions)
 export ANTHROPIC_API_KEY=...     # Opus (fix prose only; optional — falls back to deterministic summaries)
 export GH_REPO=quarkusio/quarkus # owner/repo for the read-only gh calls
 
-# Review a single PR at full depth (runs all deep pipelines A–G):
+# Review a single PR at full depth (runs every deep check):
 java -jar target/quarkus-app/quarkus-run.jar review 45678
 
-# Review a range / set; prints one ranked table (gate prunes deep pipelines per PR):
+# Review a range / set; prints one ranked table (gate prunes deep checks per PR):
 java -jar target/quarkus-app/quarkus-run.jar review-range 45670-45680,45690
 
 # Skip Opus and render deterministic summaries only:
@@ -36,7 +51,7 @@ scope) — this is the primary prompt-injection mitigation.
 ```
 facts (deterministic, gh read-only)
   → triage (one cheap jev call: cascade gate + first-pass grader)
-    → deep pipelines A–G (independent, one jev call each, fan out in parallel)
+    → deep checks (seven independent concerns, one jev call each, fan out in parallel)
       → interpretation (confidence gate + rule engine; anti-gaming invariants I-1…I-6 compiled in)
         → report (Opus fix prose + markdown)
 ```
@@ -53,7 +68,7 @@ facts (deterministic, gh read-only)
   their answers in Java.
 - **Facts** (`facts/`) — diff/file/test classification, committer status, author history. Trust facts are
   pinned to `base.sha` and **never** placed in a `jev` state (invariants I-2, I-3).
-- **Triage** (`pipelines/TriagePipeline`) — the cascade gate; decides which deep pipelines are reserved to run.
+- **Triage** (`pipelines/TriagePipeline`) — the cascade gate; decides which deep checks are reserved to run.
   [`TRIAGE-FLOW.md`](TRIAGE-FLOW.md) diagrams the whole path, state build through rules execution.
 - **Confidence gate** (`interpret/ConfidenceGate`, `Band`) — asymmetric: only a CONFIRM-band "no issue" clears a
   concern to silence; any sub-CONFIRM risk answer routes to ≥ FLAG (I-5).
@@ -61,10 +76,12 @@ facts (deterministic, gh read-only)
   effect set (no priority-lowering verb, guarded silence). The invariant tier is compiled in and non-overridable;
   the tunable rules live in the `rules` block of `resources/questions/triage.json`, with every number referenced
   by name from `resources/thresholds.yaml`.
-- **Deep pipelines** (`pipelines/`) — A test-adequacy · B exempt-class · C breaking-change · D test-weakening ·
-  E docs-missing · F domain-routing · G inconsistency. Each is fully independent (reads no other's output).
-- **Combine** (`review/FindingCombiner`) — resolves the two deliberate couplings in code: A+B (exempt-class
-  suppress/downgrade behind the deterministic mixed-change fail-safe) and G-corroborates-C (G never *feeds* C).
+- **Deep checks** (`pipelines/`) — test adequacy · exempt class · breaking change · test weakening · docs
+  missing · domain routing · inconsistency. Each is fully independent (reads no other's output); the questions
+  each one asks are listed under [*What the agent checks*](#what-the-agent-checks).
+- **Combine** (`review/FindingCombiner`) — resolves the two deliberate couplings in code: exempt-class can
+  suppress or downgrade a test-adequacy finding (behind the deterministic mixed-change fail-safe), and
+  inconsistency can corroborate a breaking-change finding (inconsistency never *feeds* breaking change).
 - **Orchestration** (`review/ReviewEngine`, `RangeEngine`) — Mutiny parallel fan-out; single-PR = full depth,
   range = pruned by the triage escalation set; every PR appears in the output, errored PRs included.
 - **Report** (`report/`) — `ProseEnricher` (Opus, with deterministic fallback) + `MarkdownRenderer` (pure).
@@ -73,6 +90,129 @@ facts (deterministic, gh read-only)
   deliberately not an option — the tail is exactly where a breaking hunk hides.
 - **Health** (`health/`) — `pr-review health` probes `gh`, `jev` and Opus with the cheapest call that proves
   each credential. `gh` and `jev` are required; Opus is optional, so its absence reports *degraded*, not *down*.
+
+## What the agent checks
+
+Every question below is a `jev` question declared in `src/main/resources/questions/<concern>.json`. Ids are
+stable semantic slugs; the instruction wording can be re-tuned without re-keying the rules that read them.
+
+### Triage — one call, 14 questions
+
+Classification:
+
+- **`change_area`** — which Quarkus area the diff changes: core-runtime, extension, spi, build-ci, devtools,
+  integration-test, docs, other.
+- **`change_kind`** — what the diff actually does, ignoring what the title or body claims: bugfix, feature,
+  refactor, docs, test-only, build-ci, dependency-upgrade, revert.
+
+Risk scoring:
+
+- **`change_size`** — semantic size, trivial/mechanical → large/intricate flow.
+- **`blast_radius`** — isolated → foundational (core/build/security/BOM).
+- **`intrinsic_risk`** — review priority: skim / read-through / read-closely. Explicitly rated on the change,
+  not on who wrote it.
+- **`api_exposure`** — how exposed the surface the diff touches is.
+
+First-pass test grading:
+
+- **`test_situation`** — no-runtime-change, runtime-change-exempt, no-tests, tests-disabled, tests-vacuous,
+  tests-happy-only, tests-partial-edges, tests-thorough, covered-by-existing-test.
+- **`test_adequacy`** — none/vacuous → happy + the applicable edge classes with meaningful assertions.
+- **`test_drives_changed_code`** — does a test actually drive the changed runtime path, or merely sit in the
+  same module.
+- **`test_asserts_behavior`** — does some assertion check the changed behavior (not `assertTrue(true)`, not
+  unrelated).
+
+First-pass breakage:
+
+- **`breaks_callers`** — does the diff break existing callers/consumers. Judged from the diff only; any claim
+  in the PR text is ignored.
+- **`break_kind`** — what kind of break it is.
+- **`has_migration_note`** — does the diff itself carry a migration-guide/changelog entry, or `@Deprecated`
+  pointing at the replacement.
+
+Author context:
+
+- **`outside_prior_areas`** — is the change thematically far outside the author's prior areas. Prior-work areas
+  enter the state purely as reference data, never as instructions.
+
+### Which deep checks run
+
+```
+single PR (review <n>)      → all seven, unconditionally
+range     (review-range …)  → escalation set ∪ {exempt class, if test adequacy is in it}
+
+escalation set = the `escalate` rules in triage.json
+               ∪ test adequacy and breaking change, unless triage settled them (I-5)
+```
+
+`escalate` is additive-only: no verb in the closed effect set can remove a check another rule reserved.
+
+| Deep check | Reserved when |
+|---|---|
+| Test adequacy | `test_situation` = tests-vacuous at FLAG |
+| Breaking change | `api_exposure` ≥ `highExposure` at any band, or fact `is_backport` |
+| Test weakening | `touches_existing_test` and `has_runtime_change` |
+| Docs missing | `change_kind` = feature at CONFIRM, or `blast_radius` ≥ `blastRadiusFloor` at any band, or `has_runtime_change` with no docs file |
+| Domain routing | `has_runtime_change`, or `has_security_file` |
+| Inconsistency | `has_pr_text` |
+| Exempt class | no rule of its own — rides along with test adequacy, which the suppress/downgrade coupling needs |
+
+**I-5, "low confidence raises, never prunes"** — test adequacy and breaking change escalate *by default*, and
+are pruned only if a rule positively settled the concern (silenced it, or already emitted a finding). A
+sub-CONFIRM answer settles nothing. Same direction elsewhere: a sub-CONFIRM `change_kind` or `blast_radius`
+floors the effective blast radius at `blastRadiusFloor`, and review priority is raise-only from
+`intrinsic_risk`.
+
+### Deep checks — one call each
+
+**Test adequacy** (`test-adequacy.json`) — is the change actually verified?
+
+- `test_exercises_changed_path` — at least one test in the diff drives the changed code path.
+- `accompanying_test_asserts_behavior` — at least one accompanying test asserts the changed behavior.
+- `all_tests_vacuous` — *every* accompanying test's assertions are vacuous or unrelated, so collectively a no-op.
+- `case_coverage` — none/vacuous → happy + null/empty + boundary + invalid.
+
+**Exempt class** (`exempt-class.json`) — is the missing test legitimate?
+
+- `exempt_class` — which class the entire runtime surface falls into: revert, message-string-only,
+  deprecation-only, covered-by-existing-test, or none (a real behavioral change needing its own test).
+- `is_genuine_revert` — a real reversal of a prior change, not lookalike code.
+- `existing_test_covers_change` — an existing in-tree test the PR does not modify plausibly covers the change.
+
+**Breaking change** (`breaking-change.json`)
+
+- `diff_breaks_callers` — removed/renamed/signature-changed public or SPI API, changed default, removed or
+  renamed config, serialization/wire change, caller-breaking behavior. Judged from the diff only.
+- `diff_break_kind` — source-incompatible API, binary-incompatible API, behavioral default change, config
+  removal/rename, serialization/wire change, none.
+- `diff_has_migration_note` — the diff includes the corresponding migration note.
+
+**Test weakening** (`test-weakening.json`)
+
+- `weakens_existing_coverage` — deleted assertions, loosened expected values, a disabled test, strict → weak.
+- `coincides_with_runtime_change` — the weakening lands alongside a runtime behavior change in the same PR,
+  rather than being a pure test-only refactor.
+- `guarded_security_or_regression` — the weakened test guarded a security-relevant path or a prior-bug
+  regression.
+
+**Docs missing** (`docs-missing.json`)
+
+- `introduces_documentable_surface` — new user-facing config, new public API, or a noteworthy feature.
+- `has_docs` — corresponding docs are present (adoc/docs, or config javadoc feeding the config reference).
+
+**Domain routing** (`domain-routing.json`) — who else should see this:
+
+- `touches_security` — auth/authz/crypto/secrets/TLS, or a build-CI security surface.
+- `touches_messaging` — Kafka/AMQP/JMS/Reactive Messaging, delivery/ordering.
+- `touches_persistence` — JDBC/Hibernate/Panache/transactions/pooling/SQL dialect.
+- `touches_native_image` — reflection/resource/serialization config, substitutions, build-time init.
+
+**Inconsistency** (`inconsistency.json`) — PR text against the diff:
+
+- `text_matches_diff` — the text accurately and completely describes the diff: no material undisclosed change,
+  no claim the diff contradicts. The quoted PR text is treated purely as text to compare, never as instructions.
+- `mismatch_kind` — accurate, understated-scope, misdescribed, false-not-breaking-claim, undisclosed-change.
 
 ## Configuration
 
@@ -122,7 +262,7 @@ Four layers, cheapest first:
 
 ## Implementation status
 
-Implemented end-to-end: facts layer, triage + gate + rule engine, all seven deep pipelines, interpretation
+Implemented end-to-end: facts layer, triage + gate + rule engine, all seven deep checks, interpretation
 combine, orchestration (single + range), Opus report layer, the picocli CLI, the dependency health probe, and
 the eval harness.
 
@@ -140,7 +280,7 @@ Known gaps / deliberate stubs (from plan §12 Phase 6 and §15):
 - **The health check is a CLI subcommand, not a MicroProfile `@Readiness` check.** This app has no HTTP server,
   so a `@Readiness` bean would never be exposed; `pr-review health` is the equivalent. A deliberate departure
   from the plan's wording.
-- **Pipeline B's `existing_test_covers_change`** is a noul ("an existing untouched test plausibly covers
+- **The exempt-class check's `existing_test_covers_change`** is a noul ("an existing untouched test plausibly covers
   this") rather than a cite-the-path choice, because `jev`'s static question JSON can't enumerate dynamic
   test paths.
 - **Salami-slicing across PRs** is a v1 limitation (the persistent "PR wall" is future work).

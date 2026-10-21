@@ -1,6 +1,6 @@
 {
   "name": "security-signal-floor",
-  "description": "Invariant I-1: the diff touches a security signal by CONTENT (not path), so review priority is floored to read-closely even though intrinsic_risk confidently says skim. Pipeline F independently routes it to a security reviewer.",
+  "description": "Invariant I-1: the diff touches a security signal by CONTENT (not path), so review priority is floored to read-closely even though intrinsic_risk confidently says skim. The domain-routing pipeline independently routes it to a security reviewer.",
   "clean": false,
   "fullDepth": true,
   "pr": {

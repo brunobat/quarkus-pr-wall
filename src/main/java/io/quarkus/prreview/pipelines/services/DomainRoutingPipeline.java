@@ -17,9 +17,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Pipeline F — domain-expert routing (plan §7F). Needs-attention only, and it never adjudicates: it only names
- * which domain experts should see the change. Several domains may fire at once, so (unlike the other pipelines)
- * F does not collapse to a single most-severe finding — each flagged domain is its own routing note. Security
+ * The domain-routing deep pipeline — domain-expert routing (plan §7 domain-routing). Needs-attention only, and
+ * it never adjudicates: it only names which domain experts should see the change. Several domains may fire at
+ * once, so (unlike the other pipelines) it does not collapse to a single most-severe finding — each flagged
+ * domain is its own routing note. Security
  * paths are independently floored by I-1 in triage; this is the advisory routing on top.
  */
 @ApplicationScoped
@@ -42,11 +43,6 @@ public class DomainRoutingPipeline implements DeepPipeline {
     DeepSupport support;
 
     @Override
-    public String id() {
-        return "F";
-    }
-
-    @Override
     public String concern() {
         return CONCERN;
     }
@@ -54,12 +50,12 @@ public class DomainRoutingPipeline implements DeepPipeline {
     @Override
     public Uni<DeepResult> run(Facts facts, TriageOutcome triage) {
         if (!facts.hasRuntimeChange()) {
-            return Uni.createFrom().item(DeepResult.skipped(id(), CONCERN, "no runtime change"));
+            return Uni.createFrom().item(DeepResult.skipped(CONCERN, "no runtime change"));
         }
         ObjectNode state = buildState(facts);
         return support.ask(QUESTIONS, state)
-                .map(answers -> DeepResult.ok(id(), CONCERN, interpret(answers), answers))
-                .onFailure().recoverWithItem(t -> DeepResult.errored(id(), CONCERN, String.valueOf(t.getMessage())));
+                .map(answers -> DeepResult.ok(CONCERN, interpret(answers), answers))
+                .onFailure().recoverWithItem(t -> DeepResult.errored(CONCERN, String.valueOf(t.getMessage())));
     }
 
     ObjectNode buildState(Facts facts) {
@@ -68,7 +64,7 @@ public class DomainRoutingPipeline implements DeepPipeline {
         return root;
     }
 
-    /** §7F interpretation — each domain that is FLAG+ (or CONFIRM-yes) yields one routing note. */
+    /** §7 domain-routing interpretation — each domain that is FLAG+ (or CONFIRM-yes) yields one routing note. */
     List<Finding> interpret(Map<String, BandedAnswer> answers) {
         List<Finding> findings = new ArrayList<>();
         for (Domain d : DOMAINS) {
@@ -81,7 +77,7 @@ public class DomainRoutingPipeline implements DeepPipeline {
                 findings.add(Finding.of(Severity.NEEDS_ATTENTION, d.concern(), d.messageKey(),
                                 support.summary(d.messageKey()))
                         .tentative(!a.isConfirm())
-                        .withRationale("pipeline:F"));
+                        .withRationale("pipeline:domain-routing"));
             }
         }
         return findings;

@@ -30,8 +30,8 @@ public class TriageState {
     private static final int MAX_DIFF_CHARS = 60_000;
 
     /**
-     * Triage carries compact test bodies — enough to grade adequacy (plan §5.2). Deep pipeline A re-asks
-     * with the complete bodies when triage escalates.
+     * Triage carries compact test bodies — enough to grade adequacy (plan §5.2). The test-adequacy deep
+     * pipeline re-asks with the complete bodies when triage escalates.
      */
     private static final int COMPACT_TEST_BODY_LINES = 40;
 

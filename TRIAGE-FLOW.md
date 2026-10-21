@@ -3,17 +3,10 @@
 How a PR gets from `gh` to a `TriageOutcome`, including the rules execution. Everything below is the
 *current* implementation, not the plan.
 
-Deep pipelines are named by concern here. The single-letter ids are still what the code and the YAML use:
-
-| id | concern | id | concern |
-|---|---|---|---|
-| A | `test-adequacy` | E | `docs-missing` |
-| B | `exempt-class` | F | `domain-routing` |
-| C | `breaking-change` | G | `inconsistency` |
-| D | `test-weakening` | | |
-
-The letters survive in `DeepPipeline.id()`, in `FindingCombiner`'s `deep.get("A")` lookups and in
-`escalation.yaml`'s `pipeline:` field — the same opacity the question-id slugs were renamed to fix.
+A deep pipeline is named by the concern it owns, and that name is its only identity: `DeepPipeline.concern()`
+returns it, the escalate rules in `questions/triage.json` name it in their `pipeline:` field, `ReviewEngine`
+indexes by it, `FindingCombiner` looks it up with it, and the report shows it. The seven are `test-adequacy`,
+`exempt-class`, `breaking-change`, `test-weakening`, `docs-missing`, `domain-routing` and `inconsistency`.
 
 ## End to end
 
@@ -156,6 +149,6 @@ lets lint check a rule against exactly the ids its own file declares, rather tha
 "triage ships in v1" set. The file keeps two versions: `version` is wire-visible and bumps only when a
 question's wording changes; `rulesVersion` bumps when the interpretation is re-tuned.
 
-**The gate is a cost control, not a safety mechanism.** `escalation.yaml` can only *add* pipelines, and
+**The gate is a cost control, not a safety mechanism.** An `escalate` rule can only *add* pipelines, and
 `withLowConfidenceEscalation` adds two more on uncertainty — but in full-depth mode all seven run anyway,
 so none of it applies. Pruning only happens in range/sweep mode.

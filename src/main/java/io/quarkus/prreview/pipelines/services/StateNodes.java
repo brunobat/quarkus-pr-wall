@@ -44,14 +44,15 @@ final class StateNodes {
         return arr;
     }
 
-    /** Full test bodies — what deep pipeline A gets (plan §7A STATE). */
+    /** Full test bodies — what the test-adequacy deep pipeline gets (plan §7 test-adequacy STATE). */
     static ArrayNode tests(ObjectMapper mapper, List<TestFacts> tests) {
         return tests(mapper, tests, Integer.MAX_VALUE);
     }
 
     /**
      * Test facts with each body capped at {@code maxBodyLines}. Triage carries compact bodies — enough to
-     * grade adequacy (plan §5.2) — and pipeline A re-asks with the complete ones when triage escalates.
+     * grade adequacy (plan §5.2) — and the test-adequacy pipeline re-asks with the complete ones when triage
+     * escalates.
      * The cap is visible in the state so {@code jev} is never left guessing whether it saw the whole test.
      */
     static ArrayNode tests(ObjectMapper mapper, List<TestFacts> tests, int maxBodyLines) {
@@ -75,7 +76,7 @@ final class StateNodes {
         return arr;
     }
 
-    /** Test file <em>paths</em> only (never contents) — e.g. for pipeline B (agent never executes, §8). */
+    /** Test file <em>paths</em> only (never contents) — e.g. for exempt-class (agent never executes, §8). */
     static ArrayNode testPaths(ObjectMapper mapper, List<ChangedFile> testFiles) {
         ArrayNode arr = mapper.createArrayNode();
         testFiles.forEach(f -> arr.add(f.path()));

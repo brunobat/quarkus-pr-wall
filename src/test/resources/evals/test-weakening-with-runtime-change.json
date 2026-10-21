@@ -1,6 +1,6 @@
 {
   "name": "test-weakening-with-runtime-change",
-  "description": "Two exact assertions in an existing test are replaced by one assertNotNull while the runtime method they covered changes behavior. Pipeline D only runs because touches_existing_test is a deterministic fact, and weakens_existing_coverage+coincides_with_runtime_change both CONFIRM-yes make it a Blocker.",
+  "description": "Two exact assertions in an existing test are replaced by one assertNotNull while the runtime method they covered changes behavior. The test-weakening pipeline only runs because touches_existing_test is a deterministic fact, and weakens_existing_coverage+coincides_with_runtime_change both CONFIRM-yes make it a Blocker.",
   "clean": false,
   "fullDepth": true,
   "pr": {

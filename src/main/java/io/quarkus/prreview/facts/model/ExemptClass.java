@@ -6,7 +6,7 @@ package io.quarkus.prreview.facts.model;
  *
  * <p>The judgment-based exempt classes (revert, message-string-only, deprecation-only,
  * covered-by-existing-test) are <em>not</em> here — those are decided by the reasoning layer
- * (deep pipeline B) and must cite a rationale.
+ * (the exempt-class deep pipeline) and must cite a rationale.
  */
 public enum ExemptClass {
     COMMENT_ONLY,

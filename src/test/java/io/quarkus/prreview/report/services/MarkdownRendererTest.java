@@ -25,7 +25,7 @@ class MarkdownRendererTest {
 
     private static ReviewResult reviewed(List<Finding> findings) {
         return new ReviewResult(42, "Fix the thing", 2, 3, findings,
-                List.of(new PipelineRun("A", "test-adequacy", DeepStatus.OK, null)),
+                List.of(new PipelineRun("test-adequacy", DeepStatus.OK, null)),
                 prov(), ReviewResult.Status.REVIEWED, null);
     }
 

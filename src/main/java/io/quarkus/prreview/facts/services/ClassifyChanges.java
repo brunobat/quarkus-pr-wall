@@ -20,7 +20,7 @@ import java.util.Map;
  *
  * <p>A file with any non-exempt behavioral hunk is {@link ExemptClass#NOT_EXEMPT}; mixed changes fail
  * toward requiring a test. The judgment-based classes (revert, message-only, deprecation, existing
- * coverage) are deferred to deep pipeline B.
+ * coverage) are deferred to the exempt-class deep pipeline.
  */
 @ApplicationScoped
 public class ClassifyChanges {

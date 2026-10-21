@@ -64,7 +64,7 @@ class EvalSuiteTest {
         }
         if (expect.pipelinesRun() != null) {
             assertEquals(expect.pipelinesRun(),
-                    result.pipelines().stream().map(PipelineRun::id).toList(),
+                    result.pipelines().stream().map(PipelineRun::concern).toList(),
                     () -> describe(c, result, "deep pipelines run"));
         }
         if (c.clean()) {
@@ -113,7 +113,7 @@ class EvalSuiteTest {
                 .append(expectation).append("\n  priority=").append(result.priority())
                 .append(" blastRadius=").append(result.blastRadius())
                 .append("\n  pipelines=");
-        result.pipelines().forEach(p -> sb.append(p.id()).append(':').append(p.status())
+        result.pipelines().forEach(p -> sb.append(p.concern()).append(':').append(p.status())
                 .append(p.note() == null ? "" : "(" + p.note() + ")").append(' '));
         sb.append("\n  findings=");
         if (result.findings().isEmpty()) {

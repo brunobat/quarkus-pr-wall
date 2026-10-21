@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Pipeline A — test-adequacy / zero-tests confirmation pass (plan §7A). Escalation-only: it resolves the
+ * The test-adequacy deep pipeline — zero-tests confirmation pass (plan §7 test-adequacy). Escalation-only: it resolves the
  * ambiguous middle triage could not settle. Deterministic gates run first (no jev call when facts already
  * decide), then the four deep questions confirm the vacuous/weak cases with full test bodies in
  * view. The committer asymmetry is a pinned fact applied here, never a jev question (I-2/I-3).
@@ -34,11 +34,6 @@ public class TestAdequacyPipeline implements DeepPipeline {
     DeepSupport support;
 
     @Override
-    public String id() {
-        return "A";
-    }
-
-    @Override
     public String concern() {
         return CONCERN;
     }
@@ -47,25 +42,25 @@ public class TestAdequacyPipeline implements DeepPipeline {
     public Uni<DeepResult> run(Facts facts, TriageOutcome triage) {
         // Step 1: nothing to verify — deterministic silence, no jev call.
         if (!facts.hasRuntimeChange() || facts.changeClassification().allRuntimeExempt()) {
-            return Uni.createFrom().item(DeepResult.skipped(id(), CONCERN, "no runtime change / all exempt"));
+            return Uni.createFrom().item(DeepResult.skipped(CONCERN, "no runtime change / all exempt"));
         }
         // Step 2: zero tests / all disabled / none asserting — deterministic hard finding, no jev call.
         if (!hasEnabledAssertingTest(facts)) {
             return Uni.createFrom().item(
-                    DeepResult.ok(id(), CONCERN, List.of(missingTestFinding(facts)), Map.of()));
+                    DeepResult.ok(CONCERN, List.of(missingTestFinding(facts)), Map.of()));
         }
         // Steps 3–5: tests-with-assertions exist — confirm adequacy via jev.
         ObjectNode state = buildState(facts, triage);
         return support.ask(QUESTIONS, state)
-                .map(answers -> DeepResult.ok(id(), CONCERN, interpret(answers, facts), answers))
-                .onFailure().recoverWithItem(t -> DeepResult.errored(id(), CONCERN, String.valueOf(t.getMessage())));
+                .map(answers -> DeepResult.ok(CONCERN, interpret(answers, facts), answers))
+                .onFailure().recoverWithItem(t -> DeepResult.errored(CONCERN, String.valueOf(t.getMessage())));
     }
 
     ObjectNode buildState(Facts facts, TriageOutcome triage) {
         ObjectNode root = support.mapper().createObjectNode();
         root.set("runtime_files", StateNodes.files(support.mapper(), facts.runtimeFiles()));
         root.set("tests", StateNodes.tests(support.mapper(), facts.tests()));
-        // Triage's own test_situation/test_adequacy as a neutral prior to confirm or overturn (§7A STATE).
+        // Triage's own test_situation/test_adequacy as a neutral prior to confirm or overturn (§7 test-adequacy STATE).
         ObjectNode prior = root.putObject("triage_prior");
         putPrior(prior, "test_situation", triage);
         putPrior(prior, "test_adequacy", triage);
@@ -87,7 +82,7 @@ public class TestAdequacyPipeline implements DeepPipeline {
         }
     }
 
-    /** §7A interpretation steps 3–5, pure over banded answers + the pinned committer fact. */
+    /** §7 test-adequacy interpretation steps 3–5, pure over banded answers + the pinned committer fact. */
     List<Finding> interpret(Map<String, BandedAnswer> answers, Facts facts) {
         Severity hard = Verdicts.byCommitter(facts);
         BandedAnswer exercisesPath = answers.get("test_exercises_changed_path");
@@ -139,7 +134,7 @@ public class TestAdequacyPipeline implements DeepPipeline {
     private Finding finding(Severity severity, String messageKey, boolean tentative) {
         return Finding.of(severity, CONCERN, messageKey, support.summary(messageKey))
                 .tentative(tentative)
-                .withRationale("pipeline:A");
+                .withRationale("pipeline:test-adequacy");
     }
 
     private boolean hasEnabledAssertingTest(Facts facts) {

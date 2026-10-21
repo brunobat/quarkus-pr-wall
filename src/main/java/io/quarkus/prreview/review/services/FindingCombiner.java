@@ -21,17 +21,22 @@ import java.util.Map;
  * and they are resolved here in code — never inside a {@code jev} call:
  *
  * <ul>
- *   <li><b>A + B</b> — the exempt-class judgment (B) may suppress or downgrade the test-adequacy finding (A),
- *       but only behind the deterministic mixed-change fail-safe (design §4.0): if any runtime hunk is
- *       deterministically not-exempt, no exemption applies whatever B says.</li>
- *   <li><b>G corroborates C</b> — a {@code false-not-breaking-claim} from G strengthens C's rationale; it never
- *       creates or escalates C (G never feeds C, plan §7G).</li>
+ *   <li><b>test-adequacy + exempt-class</b> — the exempt-class judgment may suppress or downgrade the
+ *       test-adequacy finding, but only behind the deterministic mixed-change fail-safe (design §4.0): if any
+ *       runtime hunk is deterministically not-exempt, no exemption applies whatever exempt-class says.</li>
+ *   <li><b>inconsistency corroborates breaking-change</b> — a {@code false-not-breaking-claim} strengthens the
+ *       breaking-change rationale; it never creates or escalates that finding (plan §7 inconsistency).</li>
  * </ul>
  *
  * Everything is pure over the pipeline outputs + pinned facts, so it is unit-tested with hand-authored results.
  */
 @ApplicationScoped
 public class FindingCombiner {
+
+    private static final String TEST_ADEQUACY = "test-adequacy";
+    private static final String EXEMPT_CLASS = "exempt-class";
+    private static final String BREAKING_CHANGE = "breaking-change";
+    private static final String INCONSISTENCY = "inconsistency";
 
     @Inject
     MessageCatalog messages;
@@ -40,67 +45,69 @@ public class FindingCombiner {
     public List<Finding> combine(TriageOutcome triage, Map<String, DeepResult> deep, Facts facts) {
         List<Finding> all = new ArrayList<>(triage.decisions().findings());
 
-        // A + B coupling (the one place A and B meet).
-        all.addAll(combineAB(deep.get("A"), deep.get("B"), facts));
+        // The one place test-adequacy and exempt-class meet.
+        all.addAll(applyExemptClass(deep.get(TEST_ADEQUACY), deep.get(EXEMPT_CLASS), facts));
 
-        // C, strengthened by G's corroboration but never created by it.
-        all.addAll(corroborateC(deep.get("C"), deep.get("G")));
+        // Breaking-change, strengthened by inconsistency's corroboration but never created by it.
+        all.addAll(corroborateBreakingChange(deep.get(BREAKING_CHANGE), deep.get(INCONSISTENCY)));
 
         // Remaining pipelines contribute their findings directly.
-        addFindings(all, deep.get("D"));
-        addFindings(all, deep.get("E"));
-        addFindings(all, deep.get("F"));
-        addFindings(all, deep.get("G"));
+        addFindings(all, deep.get("test-weakening"));
+        addFindings(all, deep.get("docs-missing"));
+        addFindings(all, deep.get("domain-routing"));
+        addFindings(all, deep.get(INCONSISTENCY));
 
         return mostSeverePerConcern(all);
     }
 
-    // --- A + B -------------------------------------------------------------------------------------
+    // --- test-adequacy + exempt-class ----------------------------------------------------------------
 
-    List<Finding> combineAB(DeepResult a, DeepResult b, Facts facts) {
-        if (a == null || a.findings().isEmpty()) {
+    List<Finding> applyExemptClass(DeepResult testAdequacy, DeepResult exempt, Facts facts) {
+        if (testAdequacy == null || testAdequacy.findings().isEmpty()) {
             return List.of();
         }
-        List<Finding> aFindings = a.findings();
+        List<Finding> testFindings = testAdequacy.findings();
 
-        // No usable B judgment → A stands.
-        if (b == null || b.answers().isEmpty()) {
-            return aFindings;
+        // No usable exempt-class judgment → the test-adequacy finding stands.
+        if (exempt == null || exempt.answers().isEmpty()) {
+            return testFindings;
         }
-        // Deterministic mixed-change fail-safe: any non-exempt behavioral hunk ⇒ no exemption, whatever B says.
+        // Deterministic mixed-change fail-safe: any non-exempt behavioral hunk ⇒ no exemption, whatever
+        // the exempt-class judgment says.
         if (!facts.changeClassification().allRuntimeExempt()) {
-            return aFindings;
+            return testFindings;
         }
 
-        BandedAnswer exemptClass = b.answers().get("exempt_class");
-        BandedAnswer genuineRevert = b.answers().get("is_genuine_revert");
+        BandedAnswer exemptClass = exempt.answers().get("exempt_class");
+        BandedAnswer genuineRevert = exempt.answers().get("is_genuine_revert");
         if (exemptClass == null) {
-            return aFindings;
+            return testFindings;
         }
 
-        // Sub-CONFIRM class judgment → do not suppress; leave A and mark a possible exemption.
+        // Sub-CONFIRM class judgment → do not suppress; keep the finding and mark a possible exemption.
         if (!exemptClass.isConfirm()) {
-            return annotate(aFindings, "possible exemption (" + displayChoice(exemptClass) + ", unconfirmed)", true);
+            return annotate(testFindings, "possible exemption (" + displayChoice(exemptClass) + ", unconfirmed)",
+                    true);
         }
-        // Confident "none" → A stands unchanged.
+        // Confident "none" → the test-adequacy finding stands unchanged.
         if (exemptClass.isChoice("none")) {
-            return aFindings;
+            return testFindings;
         }
 
         boolean revert = exemptClass.isChoice("revert") && genuineRevert != null && genuineRevert.isConfirmYes();
         boolean messageOrDeprecation =
                 exemptClass.isChoice("message-string-only") || exemptClass.isChoice("deprecation-only");
         if (revert || messageOrDeprecation) {
-            // Suppress A's finding, but record the exemption visibly (not silent, design §4.0).
-            Finding note = Finding.of(Severity.FYI, "test-adequacy", "test-exempt", summary("test-exempt"))
+            // Suppress the test-adequacy finding, but record the exemption visibly (not silent, design §4.0).
+            Finding note = Finding.of(Severity.FYI, TEST_ADEQUACY, "test-exempt", summary("test-exempt"))
                     .withRationale("exempt class: " + exemptClass.choice());
             return List.of(note);
         }
         if (exemptClass.isChoice("covered-by-existing-test")) {
-            // Never suppresses — downgrades A's Blocker to Needs-attention and asks a human to confirm coverage.
-            return aFindings.stream().map(this::downgradeToCovered).toList();
+            // Never suppresses — downgrades the Blocker to Needs-attention and asks a human to confirm coverage.
+            return testFindings.stream().map(this::downgradeToCovered).toList();
         }
-        return aFindings;
+        return testFindings;
     }
 
     private Finding downgradeToCovered(Finding f) {
@@ -111,20 +118,20 @@ public class FindingCombiner {
                 f.fixProse());
     }
 
-    // --- G corroborates C --------------------------------------------------------------------------
+    // --- inconsistency corroborates breaking-change --------------------------------------------------
 
-    List<Finding> corroborateC(DeepResult c, DeepResult g) {
-        if (c == null || c.findings().isEmpty()) {
-            return c == null ? List.of() : c.findings();
+    List<Finding> corroborateBreakingChange(DeepResult breaking, DeepResult inconsistency) {
+        if (breaking == null || breaking.findings().isEmpty()) {
+            return breaking == null ? List.of() : breaking.findings();
         }
-        BandedAnswer mismatchKind = g == null ? null : g.answers().get("mismatch_kind");
+        BandedAnswer mismatchKind = inconsistency == null ? null : inconsistency.answers().get("mismatch_kind");
         boolean falseNotBreaking = mismatchKind != null && mismatchKind.isChoice("false-not-breaking-claim");
         if (!falseNotBreaking) {
-            return c.findings();
+            return breaking.findings();
         }
-        return c.findings().stream()
+        return breaking.findings().stream()
                 .map(f -> f.withRationale(appendRationale(f.rationale(),
-                        "PR text claims non-breaking — contradicted by the diff (G)")))
+                        "PR text claims non-breaking — contradicted by the diff (inconsistency)")))
                 .toList();
     }
 

@@ -8,7 +8,7 @@ import jakarta.inject.Inject;
 import picocli.CommandLine;
 
 /**
- * {@code review <pr>} — full-depth review of a single targeted PR (plan §10): runs every deep pipeline A–G
+ * {@code review <pr>} — full-depth review of a single targeted PR (plan §10): runs every deep pipeline
  * regardless of the triage gate. Read-only: the agent never posts, approves, or merges — it prints a markdown
  * report to stdout for a human to act on.
  */

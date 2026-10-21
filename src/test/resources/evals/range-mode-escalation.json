@@ -41,7 +41,7 @@
   },
   "expect": {
     "priority": 2,
-    "pipelinesRun": ["E", "F", "G"],
+    "pipelinesRun": ["docs-missing", "domain-routing", "inconsistency"],
     "findings": [
       { "concern": "test-adequacy", "severity": "BLOCKER", "messageKey": "test-missing", "tentative": false }
     ],

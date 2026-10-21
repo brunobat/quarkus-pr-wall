@@ -38,8 +38,6 @@ public class TriagePipeline {
 
     private static final String TEST_CONCERN = "test-adequacy";
     private static final String BREAKING_CONCERN = "breaking-change";
-    private static final String PIPELINE_A = "A";
-    private static final String PIPELINE_C = "C";
 
     @Inject
     JevService jev;
@@ -98,16 +96,18 @@ public class TriagePipeline {
      * settle (neither silenced nor emitted) routes to its deep confirmation pipeline rather than to
      * silence. This covers both the sub-CONFIRM answers and the confident-but-ambiguous middle (e.g.
      * happy-path-only), on top of the fact-based escalate rules already in the ruleset.
+     *
+     * <p>A pipeline is named by the concern it owns, so the escalation key <em>is</em> the concern key.
      */
     private static Set<String> withLowConfidenceEscalation(Decisions decisions, Map<String, BandedAnswer> answers) {
         Set<String> escalations = new LinkedHashSet<>(decisions.escalations());
         Set<String> emitted = emittedConcerns(decisions);
 
         if (!decisions.silenced().contains(TEST_CONCERN) && !emitted.contains(TEST_CONCERN)) {
-            escalations.add(PIPELINE_A);
+            escalations.add(TEST_CONCERN);
         }
         if (!decisions.silenced().contains(BREAKING_CONCERN) && !emitted.contains(BREAKING_CONCERN)) {
-            escalations.add(PIPELINE_C);
+            escalations.add(BREAKING_CONCERN);
         }
         return escalations;
     }

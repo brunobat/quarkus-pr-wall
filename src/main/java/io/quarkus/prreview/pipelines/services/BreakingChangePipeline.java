@@ -16,10 +16,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Pipeline C — breaking-change + migration/backport confirmation pass (plan §7C). Escalation-only: it fires
- * on the diff alone, confirms the break, pins the kind, and checks the migration note. The backport test is a
- * deterministic fact ({@code is_backport}); the PR-text "not breaking" claim is never judged here — pipeline G
- * surfaces that independently (C never feeds G, G never feeds C).
+ * The breaking-change deep pipeline — break + migration/backport confirmation pass (plan §7 breaking-change).
+ * Escalation-only: it fires on the diff alone, confirms the break, pins the kind, and checks the migration
+ * note. The backport test is a deterministic fact ({@code is_backport}); the PR-text "not breaking" claim is
+ * never judged here — the inconsistency pipeline surfaces that independently, and the two never feed each
+ * other in either direction.
  */
 @ApplicationScoped
 public class BreakingChangePipeline implements DeepPipeline {
@@ -31,11 +32,6 @@ public class BreakingChangePipeline implements DeepPipeline {
     DeepSupport support;
 
     @Override
-    public String id() {
-        return "C";
-    }
-
-    @Override
     public String concern() {
         return CONCERN;
     }
@@ -43,19 +39,19 @@ public class BreakingChangePipeline implements DeepPipeline {
     @Override
     public Uni<DeepResult> run(Facts facts, TriageOutcome triage) {
         if (!facts.hasRuntimeChange()) {
-            return Uni.createFrom().item(DeepResult.skipped(id(), CONCERN, "no runtime change"));
+            return Uni.createFrom().item(DeepResult.skipped(CONCERN, "no runtime change"));
         }
         ObjectNode state = buildState(facts, triage);
         return support.ask(QUESTIONS, state)
-                .map(answers -> DeepResult.ok(id(), CONCERN, interpret(answers, facts), answers))
-                .onFailure().recoverWithItem(t -> DeepResult.errored(id(), CONCERN, String.valueOf(t.getMessage())));
+                .map(answers -> DeepResult.ok(CONCERN, interpret(answers, facts), answers))
+                .onFailure().recoverWithItem(t -> DeepResult.errored(CONCERN, String.valueOf(t.getMessage())));
     }
 
     ObjectNode buildState(Facts facts, TriageOutcome triage) {
         ObjectNode root = support.mapper().createObjectNode();
         root.set("runtime_files", StateNodes.files(support.mapper(), facts.runtimeFiles()));
         root.put("base_branch", facts.pr().baseBranch());
-        // Triage's break_kind/breaks_callers as a neutral prior to confirm or overturn (plan §7C STATE).
+        // Triage's break_kind/breaks_callers as a neutral prior to confirm or overturn (plan §7 breaking-change STATE).
         ObjectNode prior = root.putObject("triage_prior");
         putPrior(prior, "break_kind", triage);
         putPrior(prior, "breaks_callers", triage);
@@ -79,7 +75,7 @@ public class BreakingChangePipeline implements DeepPipeline {
         }
     }
 
-    /** §7C interpretation — fires on the diff alone; {@code is_backport} is the deterministic fact. */
+    /** §7 breaking-change interpretation — fires on the diff alone; {@code is_backport} is the deterministic fact. */
     List<Finding> interpret(Map<String, BandedAnswer> answers, Facts facts) {
         BandedAnswer breaksCallers = answers.get("diff_breaks_callers");
         BandedAnswer hasMigrationNote = answers.get("diff_has_migration_note");
@@ -108,6 +104,6 @@ public class BreakingChangePipeline implements DeepPipeline {
     private Finding finding(Severity severity, String messageKey, boolean tentative) {
         return Finding.of(severity, CONCERN, messageKey, support.summary(messageKey))
                 .tentative(tentative)
-                .withRationale("pipeline:C");
+                .withRationale("pipeline:breaking-change");
     }
 }

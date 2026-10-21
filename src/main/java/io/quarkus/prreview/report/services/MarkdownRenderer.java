@@ -81,10 +81,9 @@ public class MarkdownRenderer {
             return;
         }
         sb.append("\n## Pipelines\n\n");
-        sb.append("| id | concern | status | note |\n|---|---|---|---|\n");
+        sb.append("| concern | status | note |\n|---|---|---|\n");
         for (PipelineRun p : runs) {
-            sb.append("| ").append(p.id())
-                    .append(" | ").append(p.concern())
+            sb.append("| ").append(p.concern())
                     .append(" | ").append(p.status())
                     .append(" | ").append(nz(p.note())).append(" |\n");
         }

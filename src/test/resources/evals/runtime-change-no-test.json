@@ -1,6 +1,6 @@
 {
   "name": "runtime-change-no-test",
-  "description": "A behavioral null-guard added to a runtime class with no test anywhere in the diff, by a first-timer. The §4 committer asymmetry makes this a Blocker, and deep pipeline A reaches the same verdict deterministically (no jev call needed).",
+  "description": "A behavioral null-guard added to a runtime class with no test anywhere in the diff, by a first-timer. The §4 committer asymmetry makes this a Blocker, and the test-adequacy deep pipeline reaches the same verdict deterministically (no jev call needed).",
   "clean": false,
   "fullDepth": true,
   "pr": {

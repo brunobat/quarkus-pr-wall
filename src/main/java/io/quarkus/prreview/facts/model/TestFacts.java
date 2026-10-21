@@ -8,7 +8,7 @@ import java.util.List;
  * <p>Existence alone never clears the §4 zero-tests Blocker: {@code disabled} and {@code hasAssertion}
  * are the two load-bearing facts, and {@code body} is what lets the reasoning layer grade adequacy
  * rather than merely detect presence (plan §5.2). The fact always carries the <em>full</em> body; each
- * state builder decides how much of it to carry (compact at triage, complete at deep pipeline A).
+ * state builder decides how much of it to carry (compact at triage, complete at the test-adequacy deep pipeline).
  *
  * @param testPath       path of the test file
  * @param targetRuntime  the runtime file this test is believed to cover (or {@code null})

@@ -149,7 +149,7 @@ class RuleEngineTest {
                 emit("t-blocker", "test-adequacy", Severity.BLOCKER, List.of(
                         answer("test_situation", Band.CONFIRM, null, "no-tests"), fact("is_non_committer", "true"))),
                 raise("k-raise", 2, List.of(answer("api_exposure", Band.CONFIRM, null, null))),
-                escalate("esc-a", "A", List.of(answer("test_situation", Band.CONFIRM, null, "no-tests")))));
+                escalate("esc-test-adequacy", "test-adequacy", List.of(answer("test_situation", Band.CONFIRM, null, "no-tests")))));
 
         Decisions first = RuleEngine.evaluate(answers, facts, new Ruleset("t", rules), T, 0, MESSAGES);
         Collections.reverse(rules);
