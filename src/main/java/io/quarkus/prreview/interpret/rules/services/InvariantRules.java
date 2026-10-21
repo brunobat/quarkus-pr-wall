@@ -14,6 +14,11 @@ import java.util.Map;
  * These are <em>not</em> in the editable ruleset file; they live in the engine itself so no tunable
  * edit can disable, reorder below, or override them. Only the monotonic, safe directions are
  * expressible, which is what lets the tunable ruleset grow without eroding the anti-gaming guarantees.
+ *
+ * <p>I-7 ("a voluntary declaration is never penalized") is the one invariant with no runtime clause
+ * here, because it is a statement about what a rule may <em>read</em> rather than about what the engine
+ * computes. {@link RulesetLint} enforces it at load time by rejecting any rule that reads
+ * {@code declares_ai_assistance} at all.
  */
 public final class InvariantRules {
 

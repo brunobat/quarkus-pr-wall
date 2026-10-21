@@ -2,6 +2,7 @@ package io.quarkus.prreview.report.services;
 
 import io.quarkus.prreview.interpret.model.Finding;
 import io.quarkus.prreview.interpret.model.Severity;
+import io.quarkus.prreview.review.model.AuthorContext;
 import io.quarkus.prreview.review.model.PipelineRun;
 import io.quarkus.prreview.review.model.Provenance;
 import io.quarkus.prreview.review.model.RangeReport;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,7 +28,7 @@ class MarkdownRendererTest {
     private static ReviewResult reviewed(List<Finding> findings) {
         return new ReviewResult(42, "Fix the thing", 2, 3, findings,
                 List.of(new PipelineRun("test-adequacy", DeepStatus.OK, null)),
-                prov(), ReviewResult.Status.REVIEWED, null);
+                prov(), null, ReviewResult.Status.REVIEWED, null);
     }
 
     @Test
@@ -72,5 +74,66 @@ class MarkdownRendererTest {
         assertTrue(md.contains("#42"));
         assertTrue(md.contains("Could not be reviewed automatically"));
         assertTrue(md.contains("#99"));
+    }
+
+    // --- author context (authorship-provenance design §4.6) ----------------------------------------
+
+    private static ReviewResult withAuthor(AuthorContext a) {
+        return new ReviewResult(42, "Fix the thing", 2, 3, List.of(),
+                List.of(new PipelineRun("test-adequacy", DeepStatus.OK, null)),
+                prov(), a, ReviewResult.Status.REVIEWED, null);
+    }
+
+    @Test
+    void aDeclaredAssistanceIsStatedPlainlyAndWithoutATool() {
+        String md = renderer.renderPr(withAuthor(
+                new AuthorContext("alice", true, false, false, true)));
+
+        assertEquals("**Author:** alice (committer)  ·  AI assistance declared", authorLine(md),
+                "the line states that assistance was declared and nothing else — no tool, no judgment");
+    }
+
+    /** The one rendered author line, so an assertion about it cannot be satisfied by other sections. */
+    private static String authorLine(String md) {
+        return md.lines().filter(l -> l.startsWith("**Author:**")).findFirst().orElse("");
+    }
+
+    /**
+     * The asymmetry that matters most in the whole feature. Almost every AI-assisted PR carries no
+     * marker, so printing anything in the no-declaration case would be asserting a clean bill of
+     * health the agent cannot issue. The line simply does not appear.
+     */
+    @Test
+    void anUndeclaredPrSaysNothingAboutTooling() {
+        String md = renderer.renderPr(withAuthor(
+                new AuthorContext("alice", false, false, false, false)));
+
+        assertFalse(md.contains("**Author:**"), md);
+        assertFalse(md.toLowerCase(java.util.Locale.ROOT).contains("ai assistance"), md);
+        assertFalse(md.toLowerCase(java.util.Locale.ROOT).contains("declar"), md);
+    }
+
+    @Test
+    void anAllowlistedBotIsLabelledRoutineRatherThanJustBot() {
+        String md = renderer.renderPr(withAuthor(
+                new AuthorContext("dependabot", false, true, true, false)));
+
+        assertTrue(md.contains("**Author:** dependabot (routine automation)"), md);
+    }
+
+    @Test
+    void aNonAllowlistedBotIsLabelledAsAnAccountTypeOnly() {
+        String md = renderer.renderPr(withAuthor(
+                new AuthorContext("copilot-swe-agent", false, true, false, false)));
+
+        assertTrue(md.contains("**Author:** copilot-swe-agent (bot account)"), md);
+    }
+
+    @Test
+    void aMissingAuthorContextRendersNothingRatherThanFailing() {
+        String md = renderer.renderPr(withAuthor(null));
+
+        assertFalse(md.contains("**Author:**"));
+        assertTrue(md.contains("## Findings"));
     }
 }

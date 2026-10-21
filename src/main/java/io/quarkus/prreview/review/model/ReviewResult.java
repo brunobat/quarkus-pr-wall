@@ -20,6 +20,8 @@ import java.util.List;
  * @param findings   the final combined findings, most-severe-per-concern (never includes silenced concerns)
  * @param pipelines  per-pipeline run provenance (OK/SKIPPED/ERRORED)
  * @param provenance model + config versions for reproducibility (§11)
+ * @param authorContext what the PR attests about who opened it; null when unresolved. Reporting-only —
+ *                      nothing downstream reads it, which is how I-7 stays true by construction.
  * @param status     REVIEWED or ERRORED
  * @param note       error summary when ERRORED; null otherwise
  */
@@ -31,6 +33,7 @@ public record ReviewResult(
         List<Finding> findings,
         List<PipelineRun> pipelines,
         Provenance provenance,
+        AuthorContext authorContext,
         Status status,
         String note) {
 
@@ -57,12 +60,12 @@ public record ReviewResult(
     }
 
     public static ReviewResult errored(int prNumber, String note) {
-        return new ReviewResult(prNumber, null, 0, 0, List.of(), List.of(), null, Status.ERRORED, note);
+        return new ReviewResult(prNumber, null, 0, 0, List.of(), List.of(), null, null, Status.ERRORED, note);
     }
 
     /** Return a copy with the findings replaced (used by the Opus prose enricher, strictly downstream). */
     public ReviewResult withFindings(List<Finding> replacement) {
         return new ReviewResult(prNumber, title, priority, blastRadius, replacement, pipelines, provenance,
-                status, note);
+                authorContext, status, note);
     }
 }

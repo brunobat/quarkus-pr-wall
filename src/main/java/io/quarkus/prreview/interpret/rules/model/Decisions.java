@@ -12,7 +12,7 @@ import java.util.Set;
  *
  * @param priority    effective review-priority 0–2 (raise-only; never lowered — invariants I-1/I-2)
  * @param findings    emitted findings, most-severe-per-concern (never includes silenced concerns)
- * @param escalations deep pipelines reserved to run (keys {@code A}…{@code G})
+ * @param escalations deep pipelines reserved to run, keyed by the concern each one owns
  * @param silenced    concerns cleared to silence by a CONFIRM-clean guarded rule
  */
 public record Decisions(

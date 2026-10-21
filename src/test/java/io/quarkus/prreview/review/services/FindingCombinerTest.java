@@ -66,7 +66,7 @@ class FindingCombinerTest {
 
     private static Facts facts(ExemptClass cls) {
         ChangeClassification cc = new ChangeClassification(Map.of("src/main/java/Foo.java", cls));
-        return new Facts(null, null, cc, null, CommitterStatus.unknown(), null, false);
+        return new Facts(null, null, cc, null, CommitterStatus.unknown(), null, false, null);
     }
 
     private static Finding only(List<Finding> findings, String concern) {

@@ -2,6 +2,7 @@ package io.quarkus.prreview.facts.services;
 
 
 import io.quarkus.prreview.facts.model.AuthorHistory;
+import io.quarkus.prreview.facts.model.AuthorshipProvenance;
 import io.quarkus.prreview.facts.model.ChangeClassification;
 import io.quarkus.prreview.facts.model.ChangedFile;
 import io.quarkus.prreview.facts.model.CommitterStatus;
@@ -33,6 +34,7 @@ public class FactsService {
     @Inject MapTests mapTests;
     @Inject CommitterStatusService committerStatusService;
     @Inject AuthorHistoryService authorHistoryService;
+    @Inject AuthorshipProvenanceService authorshipProvenanceService;
 
     @ConfigProperty(name = "backport.branch-regex", defaultValue = "^(?!main$|master$|develop$|\\d+\\.x$).*(\\d+\\.\\d+.*|\\.x)$")
     String backportRegex;
@@ -49,8 +51,9 @@ public class FactsService {
         CommitterStatus committer = committerStatusService.resolve(pr.authorLogin(), pr.baseSha(), history);
 
         boolean backport = isBackport(pr.baseBranch());
+        AuthorshipProvenance provenance = authorshipProvenanceService.resolve(pr, files);
 
-        return new Facts(pr, files, changes, tests, committer, history, backport);
+        return new Facts(pr, files, changes, tests, committer, history, backport, provenance);
     }
 
     boolean isBackport(String baseBranch) {

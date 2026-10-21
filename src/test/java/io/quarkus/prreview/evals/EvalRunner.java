@@ -63,8 +63,8 @@ public class EvalRunner {
     private String gh(EvalCase c, String diff, String... args) {
         String sub = args.length > 0 ? args[0] : "";
         String verb = args.length > 1 ? args[1] : "";
-        if (sub.equals("pr") && verb.equals("view")) {
-            return prJson(c);
+        if (sub.equals("api") && verb.equals("graphql")) {
+            return graphqlPr(c);
         }
         if (sub.equals("pr") && verb.equals("diff")) {
             return diff;
@@ -81,20 +81,54 @@ public class EvalRunner {
         throw new IllegalStateException("eval fixture has no canned gh response for: gh " + String.join(" ", args));
     }
 
-    private String prJson(EvalCase c) {
+    /**
+     * The {@code gh api graphql} envelope {@code FetchPr} parses: {@code data.pr<N>.pullRequest}. A case
+     * holds one PR, so one alias is enough — the multi-alias and missing-alias shapes are covered by
+     * {@link io.quarkus.prreview.facts.services.FetchPrTest} against the parser directly.
+     */
+    private String graphqlPr(EvalCase c) {
         EvalCase.Pr pr = c.pr();
         ObjectNode n = mapper.createObjectNode();
         n.put("number", pr.number());
         n.put("title", pr.title() == null ? "" : pr.title());
         n.put("body", pr.body() == null ? "" : pr.body());
-        n.putObject("author").put("login", pr.author());
+        ObjectNode author = n.putObject("author");
+        author.put("__typename", pr.isBot() ? "Bot" : "User");
+        author.put("login", pr.author());
         n.put("baseRefName", pr.baseBranch());
+        n.put("headRefName", pr.headBranch() == null ? "" : pr.headBranch());
         n.put("baseRefOid", pr.baseSha());
         n.put("headRefOid", pr.headSha());
-        ArrayNode labels = n.putArray("labels");
+        ArrayNode labels = n.putObject("labels").putArray("nodes");
         pr.labels().forEach(l -> labels.addObject().put("name", l));
-        n.putArray("closingIssuesReferences");
-        return n.toString();
+        n.putObject("closingIssuesReferences").putArray("nodes");
+        ArrayNode commits = n.putObject("commits").putArray("nodes");
+        pr.commits().forEach(commit -> commits.addObject().set("commit", commitNode(commit)));
+
+        ObjectNode root = mapper.createObjectNode();
+        root.putObject("data").putObject("pr" + pr.number()).set("pullRequest", n);
+        return root.toString();
+    }
+
+    private ObjectNode commitNode(EvalCase.Commit commit) {
+        ObjectNode n = mapper.createObjectNode();
+        n.put("oid", text(commit.oid()));
+        n.put("messageHeadline", text(commit.messageHeadline()));
+        n.put("messageBody", text(commit.messageBody()));
+        n.put("authoredDate", text(commit.authoredDate()));
+        n.put("committedDate", text(commit.committedDate()));
+        n.putObject("parents").put("totalCount", commit.parentCount() == null ? 1 : commit.parentCount());
+        ObjectNode author = n.putObject("author");
+        author.put("name", text(commit.authorName()));
+        author.putObject("user").put("login", text(commit.authorLogin()));
+        ObjectNode committer = n.putObject("committer");
+        committer.put("name", text(commit.committerName()));
+        committer.putObject("user").put("login", text(commit.committerLogin()));
+        return n;
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : value;
     }
 
     private String mergedPrSearch(int count) {

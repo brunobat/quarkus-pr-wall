@@ -5,6 +5,10 @@ quarkus:
   banner:
     enabled: false
   log:
+    # stdout carries the markdown report and nothing else, so `review <pr> > report.md` is a clean
+    # file. Every log line, including third-party startup noise, goes to stderr.
+    console:
+      stderr: true
     category:
       "io.quarkus.prreview":
         level: INFO

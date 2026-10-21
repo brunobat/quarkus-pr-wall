@@ -12,7 +12,7 @@ indexes by it, `FindingCombiner` looks it up with it, and the report shows it. T
 
 ```
   gh (read-only)                              resources/questions/triage.json
-        │                                            14 questions
+        │                                            15 questions
         ▼                                                  │
  ┌──────────────────────┐                                  │
  │ FactsService.gather  │  diff · file/test classification │
@@ -143,6 +143,19 @@ order and rule order cannot change a safety-relevant output.
 editable file; `RulesetLint` fails the build on an unknown reference, a disallowed verb, or an unguarded
 `silence`, and the strict parse fails it on a misspelled key.
 
+**I-7 is the one invariant that is a ban on reading, not on writing.** A voluntary AI-assistance
+declaration reaches the report and no decision: no rule may read `declares_ai_assistance` at all, and
+`RulesetLint` fails the build on one that does. The ban covers `escalate` too, which is not obvious —
+escalating looks harmless because it adds a pipeline rather than a finding. But a deep pipeline is
+skipped only for a concern triage already settled, so an escalation keyed on the declaration takes
+effect precisely when the concern was silenced or already emitted, and `FindingCombiner` keeps the most
+severe finding per concern. The extra run can only add a finding or worsen one. A declaration-keyed
+escalation is therefore a pure penalty for candour, which is why the fact is barred rather than the
+verb. `DeclarationNeutralityTest` measures this across the whole eval corpus: every case is reviewed
+twice from one fixture, differing only in a `Co-Authored-By` trailer, and the two runs must agree on
+priority, blast radius, findings and pipelines — while the declared run must still have *detected* the
+trailer, so the equality cannot pass by never reading it.
+
 **Rules live with their questions** — `questions/triage.json` holds both, because a rule and the answer id
 it reads are one reviewable unit: rename an id and every rule reading it breaks in the same diff. It also
 lets lint check a rule against exactly the ids its own file declares, rather than against a hardcoded
@@ -152,3 +165,12 @@ question's wording changes; `rulesVersion` bumps when the interpretation is re-t
 **The gate is a cost control, not a safety mechanism.** An `escalate` rule can only *add* pipelines, and
 `withLowConfidenceEscalation` adds two more on uncertainty — but in full-depth mode all seven run anyway,
 so none of it applies. Pruning only happens in range/sweep mode.
+
+**PR metadata comes from one GraphQL query per sweep, not one REST call per PR.** `FetchPr.prefetch`
+aliases up to 25 PRs into a single `gh api graphql` call. Three things need that: `committer`,
+`parents.totalCount` and `author.__typename` are not in `gh pr view --json commits` at all, and the
+provenance facts need all three. The rate-limit arithmetic came out in its favour too — *measured
+2026-10-21:* a 25-PR chunk carrying the full fragment (50 commits each, labels, linked issues) costs
+**1 point of the 5000/hour GraphQL budget**, so a 100-PR sweep spends 4. Diffs still cost one REST call
+each, because GraphQL does not serve them. A failed prefetch is not fatal: it logs at debug and each
+`fetch(n)` falls back to its own single-alias query.

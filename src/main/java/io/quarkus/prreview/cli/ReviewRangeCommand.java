@@ -32,7 +32,7 @@ public class ReviewRangeCommand implements Runnable {
 
     @Override
     public void run() {
-        List<Integer> prs = PrSpec.parse(spec);
+        List<Integer> prs = PrRangeSpec.parse(spec);
         RangeReport report = rangeEngine.reviewRange(prs).await().indefinitely();
         System.out.println(renderer.renderRange(report));
     }

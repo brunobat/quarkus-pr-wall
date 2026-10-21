@@ -9,7 +9,12 @@ docs-missing-new-config.json
 security-signal-floor.json
 range-mode-escalation.json
 
+# Authorship: each is a twin of a case above, differing only in who opened it. The expectations are
+# deliberately identical to their twins' — who or what opened a PR reaches the report, never a decision.
+coding-agent-runtime-change-no-test.json
+
 # The false-positive corpus: PRs that must come back completely silent.
 clean-docs-only.json
 clean-well-tested-fix.json
 clean-dependency-version-bump.json
+clean-dependabot-version-bump.json

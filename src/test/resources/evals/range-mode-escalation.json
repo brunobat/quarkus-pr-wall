@@ -1,6 +1,6 @@
 {
   "name": "range-mode-escalation",
-  "description": "Range mode (§5.4d): the same PR as runtime-change-no-test, but with the deep set pruned to the triage escalation set. A is not escalated (triage already emitted test-adequacy) and C is not (breaking-change was silenced); E fires on the 'runtime hunks with no docs file at all' trigger, F on has_runtime_change, G on has_pr_text.",
+  "description": "Range mode (§5.4d): the same PR as runtime-change-no-test, but with the deep set pruned to the triage escalation set. test-adequacy is not escalated (triage already emitted it) and neither is breaking-change (it was silenced); docs-missing fires on the 'runtime hunks with no docs file at all' trigger, domain-routing on has_runtime_change, inconsistency on has_pr_text.",
   "clean": false,
   "fullDepth": false,
   "pr": {

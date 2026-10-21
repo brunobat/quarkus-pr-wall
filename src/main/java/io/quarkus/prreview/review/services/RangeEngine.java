@@ -1,6 +1,7 @@
 package io.quarkus.prreview.review.services;
 
 
+import io.quarkus.prreview.facts.services.FetchPr;
 import io.quarkus.prreview.review.model.RangeReport;
 import io.quarkus.prreview.review.model.ReviewResult;
 import io.smallrye.mutiny.Uni;
@@ -33,8 +34,16 @@ public class RangeEngine {
     @Inject
     ReviewEngine reviewEngine;
 
+    @Inject
+    FetchPr fetchPr;
+
     public Uni<RangeReport> reviewRange(List<Integer> prNumbers) {
-        Uni<List<ReviewResult>> chain = Uni.createFrom().item(new ArrayList<>());
+        // One GraphQL document for the whole sweep instead of one gh call per PR; best-effort, and
+        // every fetch below still works unchanged when it fails.
+        Uni<List<ReviewResult>> chain = Uni.createFrom().item(() -> {
+            fetchPr.prefetch(prNumbers);
+            return new ArrayList<>();
+        });
         for (int pr : prNumbers) {
             chain = chain.flatMap(acc -> reviewEngine.review(pr, false).map(result -> {
                 acc.add(result);

@@ -68,6 +68,23 @@ public class GhClient {
         }
     }
 
+    /**
+     * The configured {@code owner/repo}, for the call paths that cannot pass {@code -R}: {@code gh api
+     * graphql} takes the repository inside the query document, not as a flag. Validated rather than
+     * interpolated blind, since the value reaches a query string.
+     */
+    public String requireRepo() {
+        String value = repo.orElse("").strip();
+        if (value.isBlank()) {
+            throw new GhException("GH_REPO is not set (expected owner/repo) — the GraphQL PR fetch needs it, "
+                    + "because 'gh api graphql' takes no -R flag");
+        }
+        if (!value.matches("[A-Za-z0-9._-]+/[A-Za-z0-9._-]+")) {
+            throw new GhException("GH_REPO must be owner/repo, got: " + value);
+        }
+        return value;
+    }
+
     /** Append {@code -R <owner/repo>} if configured, so a range sweep targets the right repo. */
     public String[] withRepo(String... args) {
         if (repo.isEmpty() || repo.get().isBlank()) {

@@ -58,7 +58,7 @@ class DeepPipelineInterpretTest {
     }
 
     private static Facts facts(CommitterStatus.Level level, boolean backport) {
-        return new Facts(null, null, null, null, new CommitterStatus(level, "sha"), null, backport);
+        return new Facts(null, null, null, null, new CommitterStatus(level, "sha"), null, backport, null);
     }
 
     private static Facts committer() {

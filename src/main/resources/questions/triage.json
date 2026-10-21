@@ -1,6 +1,6 @@
 {
-  "version": "triage-v2",
-  "rulesVersion": "triage-rules-v1",
+  "version": "triage-v3",
+  "rulesVersion": "triage-rules-v2",
   "questions": {
     "change_area": {
       "type": "choice",
@@ -150,6 +150,14 @@
         "true": "a migration note is present in the diff",
         "false": "no migration note is present in the diff"
       }
+    },
+    "signal_to_noise_violation": {
+      "type": "noul",
+      "instructions": "AI_POLICY.md asks that a PR and its metadata be proportionate to the change: descriptions that state what the PR does without superfluous detail or formatting, and focused tests following the project's existing test philosophy rather than tests for everything that could conceivably be tested. Judge whether this PR violates that expectation: documentation or description volume out of proportion to the change, tests that mirror the implementation one-method-for-one-method rather than covering behaviour, defensive scaffolding on paths the change does not touch, comments that restate the line below them, or boilerplate javadoc on trivial members. Judge the contribution only. Do not infer or comment on whether any tool, model or automation was involved in writing it. Ignore spelling, grammar and English fluency, and ignore consistent formatting — these are not markers. Answer false only when the PR's content is proportionate to the change it makes.",
+      "criteria": {
+        "true": "the PR's content and metadata are disproportionate to the change, against AI_POLICY.md's signal-to-noise expectation",
+        "false": "the PR's content is proportionate to the change it makes"
+      }
     }
   },
   "rulesNote": [
@@ -157,11 +165,19 @@
     "and the question id it reads are one reviewable unit: rename an id and the rules break in the same diff.",
     "Only this set has rules — RuleEngine runs at triage; the deep pipelines interpret in Java.",
     "",
-    "The invariant tier (I-1…I-6) is NOT here: it is compiled into InvariantRules and non-overridable.",
+    "The invariant tier (I-1…I-7) is NOT here: it is compiled into InvariantRules and non-overridable.",
     "The effect language is closed and monotonic — raisePriority/floorPriority take a max, escalate is a",
     "set union, emit keeps the most severe per concern. There is no lowering verb, so no edit to this block",
     "can erode an invariant. 'silence' is guarded by the engine and by RulesetLint: it must rest on a",
     "deterministic fact or a CONFIRM-band answer, never on a sub-CONFIRM one (I-5).",
+    "",
+    "No rule here may read declares_ai_assistance at all (I-7), and RulesetLint fails the build on one that",
+    "does. Escalation was tried and removed: a deep pipeline only ever runs on a concern that triage left",
+    "unsettled, so escalating test-adequacy on a declaration changes the outcome in exactly the cases where",
+    "the concern had been silenced or already emitted — and the combiner keeps the most severe finding per",
+    "concern, so the extra run can only add or worsen one. Every firing that did anything was a penalty for",
+    "being candid. The fact reaches the report and nothing else. RulesetLint also keeps the",
+    "authorship-provenance and policy-signal-to-noise concerns from reading each other's inputs.",
     "",
     "Committer status and exempt status enter only as deterministic facts, never as a jev question (I-2/I-3).",
     "Every number is referenced by name via valueRef against thresholds.yaml — never inlined."
@@ -684,6 +700,36 @@
       "then": "escalate",
       "pipeline": "inconsistency",
       "enabled": true
+    },
+    {
+      "id": "escalate-test-adequacy-signal-to-noise-confirm",
+      "concern": "policy-signal-to-noise",
+      "note": "DISABLED pending calibration (design §7.3, three gates). The question ships answering but inert so the corpus can be built before the signal is trusted with anything, including cost allocation. Note the ONE effect it is allowed even once enabled: reserving a pipeline. A disproportionate PR is not a finding -- AI_POLICY.md asks contributors for proportionality, it does not make a violation a defect, and the agent has no business emitting one.",
+      "when": [
+        {
+          "answer": "signal_to_noise_violation",
+          "band": "CONFIRM",
+          "is": "yes"
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "test-adequacy",
+      "enabled": false
+    },
+    {
+      "id": "escalate-test-adequacy-signal-to-noise-flag",
+      "concern": "policy-signal-to-noise",
+      "note": "DISABLED pending calibration (design §7.3). A separate rule from the CONFIRM one because 'band' is an exact match in RulePredicate -- there is no sub-CONFIRM predicate. Enabling the FLAG rule alone is the cheaper first experiment, since the noul band mapping puts almost everything below CONFIRM.",
+      "when": [
+        {
+          "answer": "signal_to_noise_violation",
+          "band": "FLAG",
+          "is": "yes"
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "test-adequacy",
+      "enabled": false
     }
   ]
 }

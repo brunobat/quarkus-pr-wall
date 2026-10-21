@@ -1,0 +1,65 @@
+{
+  "name": "clean-dependabot-version-bump",
+  "description": "clean-dependency-version-bump, opened by dependabot instead of a committer. The point is that the outcome is identical: a bot author is recorded in the report and reaches no decision. Nothing about the review is cheaper or harsher because an allowlisted bot opened it — the diff is still classified, the pom.xml still floors priority to 2 via I-1, and the exempt classification still silences test-adequacy. If this case ever diverges from its human twin, some rule has started reading the account type.",
+  "clean": true,
+  "fullDepth": true,
+  "pr": {
+    "number": 42004,
+    "title": "Bump postgresql to 42.7.4",
+    "body": "Bumps postgresql from 42.7.3 to 42.7.4.",
+    "labels": ["area/dependencies"],
+    "author": "dependabot",
+    "authorIsBot": true,
+    "baseBranch": "main",
+    "baseSha": "base0000000000000000000000000000000000014",
+    "headSha": "head0000000000000000000000000000000000014",
+    "commits": [
+      {
+        "oid": "d00bot01",
+        "messageHeadline": "Bump postgresql from 42.7.3 to 42.7.4",
+        "messageBody": "Signed-off-by: dependabot[bot] <support@github.com>",
+        "parentCount": 1,
+        "authorName": "dependabot[bot]",
+        "authorLogin": "dependabot",
+        "committerName": "GitHub",
+        "committerLogin": "web-flow"
+      }
+    ]
+  },
+  "author": { "mergedPrs": 240, "accountAgeDays": 3100, "committer": false },
+  "diffFile": "clean-dependency-version-bump.diff",
+  "answers": {
+    "change_area": { "choice": "extension", "confidence": 0.94 },
+    "change_kind": { "choice": "dependency-upgrade", "confidence": 0.97 },
+    "change_size": { "score": 0.0, "confidence": 0.96 },
+    "blast_radius": { "score": 1.0, "confidence": 0.93 },
+    "intrinsic_risk": { "score": 0.0, "confidence": 0.95 },
+    "outside_prior_areas": { "noul": 0.02 },
+    "test_situation": { "choice": "runtime-change-exempt", "confidence": 0.96 },
+    "test_adequacy": { "score": 0.0, "confidence": 0.95 },
+    "test_drives_changed_code": { "noul": 0.02 },
+    "test_asserts_behavior": { "noul": 0.02 },
+    "api_exposure": { "score": 1.0, "confidence": 0.93 },
+    "break_kind": { "choice": "none", "confidence": 0.95 },
+    "breaks_callers": { "noul": 0.02 },
+    "has_migration_note": { "noul": 0.02 },
+    "exempt_class": { "choice": "none", "confidence": 0.96 },
+    "is_genuine_revert": { "noul": 0.02 },
+    "existing_test_covers_change": { "noul": 0.02 },
+    "diff_breaks_callers": { "noul": 0.02 },
+    "diff_has_migration_note": { "noul": 0.02 },
+    "introduces_documentable_surface": { "noul": 0.02 },
+    "has_docs": { "noul": 0.02 },
+    "touches_security": { "noul": 0.02 },
+    "touches_messaging": { "noul": 0.02 },
+    "touches_persistence": { "noul": 0.02 },
+    "touches_native_image": { "noul": 0.02 },
+    "text_matches_diff": { "noul": 0.98 },
+    "mismatch_kind": { "choice": "accurate", "confidence": 0.96 }
+  },
+  "expect": {
+    "priority": 2,
+    "findings": [],
+    "exactly": true
+  }
+}

@@ -1,0 +1,26 @@
+# Routine-automation accounts (authorship-provenance design §4.1).
+#
+# These are the bots whose PRs are mechanical and uninteresting as *authorship* — dependency bumps,
+# backport mirrors, CI housekeeping. The fact exists so a rule can avoid spending a deep pipeline on
+# them, not so they can be flagged: being a bot is an account type, not a defect. On
+# quarkusio/quarkus as of 2026-10-21, dependabot alone accounts for 4916 PRs.
+#
+# Matching is on the GraphQL login, normalised: lower-cased, a leading "app/" and a trailing "[bot]"
+# both stripped. That is because the same account arrives as "dependabot" over GraphQL,
+# "dependabot[bot]" over REST, and "app/dependabot" from `gh pr list`.
+#
+# Explicitly NOT here: coding agents that open substantive PRs (copilot-swe-agent and friends). Their
+# changes need the same review as anyone's, so they must not land in a "routine" bucket.
+#
+# One login per line; blank lines and #-comments ignored.
+dependabot
+dependabot-preview
+renovate
+renovate-bot
+github-actions
+quarkus-bot
+mergify
+pre-commit-ci
+allcontributors
+codecov
+snyk-bot

@@ -9,6 +9,9 @@ import java.util.List;
  * <p>Trust/identity facts ({@link #committerStatus}, {@link #authorHistory}) are pinned to
  * {@code base.sha} / the platform API and are <strong>never</strong> placed in a {@code jev} state —
  * they are applied as deterministic gates in the interpretation layer only (invariants I-2, I-3).
+ *
+ * <p>{@link #provenance} records what the PR declares about its own authorship. It may only route a PR
+ * to a deeper look, never penalise it (invariant I-7).
  */
 public record Facts(
         PullRequest pr,
@@ -17,11 +20,13 @@ public record Facts(
         List<TestFacts> tests,
         CommitterStatus committerStatus,
         AuthorHistory authorHistory,
-        boolean isBackport) {
+        boolean isBackport,
+        AuthorshipProvenance provenance) {
 
     public Facts {
         files = files == null ? List.of() : List.copyOf(files);
         tests = tests == null ? List.of() : List.copyOf(tests);
+        provenance = provenance == null ? AuthorshipProvenance.unknown() : provenance;
     }
 
     public boolean hasRuntimeChange() {
@@ -32,7 +37,7 @@ public record Facts(
         return files.stream().anyMatch(ChangedFile::isSecuritySensitive);
     }
 
-    /** True when the diff touches at least one docs file — the E escalation's "no docs" trigger reads this. */
+    /** True when the diff touches at least one docs file — the docs-missing escalation reads this. */
     public boolean hasDocsFile() {
         return files.stream().anyMatch(f -> f.tag() == FileTag.DOCS);
     }

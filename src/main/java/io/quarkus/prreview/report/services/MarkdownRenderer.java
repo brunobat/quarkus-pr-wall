@@ -2,6 +2,7 @@ package io.quarkus.prreview.report.services;
 
 import io.quarkus.prreview.interpret.model.Finding;
 import io.quarkus.prreview.interpret.model.Severity;
+import io.quarkus.prreview.review.model.AuthorContext;
 import io.quarkus.prreview.review.model.PipelineRun;
 import io.quarkus.prreview.review.model.Provenance;
 import io.quarkus.prreview.review.model.RangeReport;
@@ -41,6 +42,8 @@ public class MarkdownRenderer {
                 .append("  ·  **Blast radius:** ").append(label(BLAST, r.blastRadius()))
                 .append("  ·  **Blockers:** ").append(r.blockerCount()).append("\n\n");
 
+        renderAuthorContext(sb, r.authorContext());
+
         sb.append("## Findings\n\n");
         if (r.findings().isEmpty()) {
             sb.append("_No findings — nothing met the review threshold (silence by default)._\n\n");
@@ -53,6 +56,33 @@ public class MarkdownRenderer {
         renderPipelines(sb, r.pipelines());
         renderProvenance(sb, r.provenance());
         return sb.toString();
+    }
+
+    /**
+     * One optional line of attested author context (authorship-provenance design §4.6), e.g.
+     * {@code Author: alice (committer) · AI assistance declared}.
+     *
+     * <p>Three things it never does. It never says a declaration is missing — that is the normal case
+     * and carries no information. It never names the tool, because the project's interest is that
+     * assistance happened, not which vendor. And it never appears next to a severity, because a
+     * declaration is not a finding and must not be read as one (I-7).
+     */
+    private void renderAuthorContext(StringBuilder sb, AuthorContext a) {
+        if (a == null || !a.hasAnythingToSay()) {
+            return;
+        }
+        sb.append("**Author:** ").append(a.login());
+        if (a.isCommitter()) {
+            sb.append(" (committer)");
+        } else if (a.authorIsAllowlistedBot()) {
+            sb.append(" (routine automation)");
+        } else if (a.authorIsBot()) {
+            sb.append(" (bot account)");
+        }
+        if (a.declaresAiAssistance()) {
+            sb.append("  ·  AI assistance declared");
+        }
+        sb.append("\n\n");
     }
 
     private void renderFinding(StringBuilder sb, Finding f) {

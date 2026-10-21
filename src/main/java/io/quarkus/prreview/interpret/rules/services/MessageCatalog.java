@@ -4,6 +4,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 /**
@@ -21,7 +24,11 @@ public class MessageCatalog {
         try (InputStream in = Thread.currentThread().getContextClassLoader()
                 .getResourceAsStream("messages.properties")) {
             if (in != null) {
-                messages.load(in);
+                // Explicitly UTF-8: load(InputStream) decodes ISO-8859-1, which turns the em dashes in
+                // messages.properties into mojibake in the rendered report.
+                try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+                    messages.load(reader);
+                }
             }
         } catch (IOException e) {
             // Fall back to humanized keys.

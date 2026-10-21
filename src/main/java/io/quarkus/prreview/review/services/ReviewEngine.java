@@ -1,6 +1,7 @@
 package io.quarkus.prreview.review.services;
 
 
+import io.quarkus.prreview.review.model.AuthorContext;
 import io.quarkus.prreview.review.model.PipelineRun;
 import io.quarkus.prreview.review.model.Provenance;
 import io.quarkus.prreview.review.model.ReviewResult;
@@ -151,6 +152,14 @@ public class ReviewEngine {
                 triage.tuning().ruleset().version(),
                 triage.tuning().thresholds().version());
 
+        // Reporting only. Built here, read by the renderer, and by nothing in between.
+        AuthorContext authorContext = new AuthorContext(
+                facts.pr().authorLogin(),
+                facts.committerStatus().isCommitter(),
+                facts.provenance().authorIsBot(),
+                facts.provenance().authorIsAllowlistedBot(),
+                facts.provenance().declaresAiAssistance());
+
         return new ReviewResult(
                 facts.pr().number(),
                 facts.pr().title(),
@@ -159,6 +168,7 @@ public class ReviewEngine {
                 findings,
                 runs,
                 provenance,
+                authorContext,
                 ReviewResult.Status.REVIEWED,
                 null);
     }

@@ -10,9 +10,9 @@ import java.util.Set;
  * inclusive {@code a-b} ranges, e.g. {@code "100-105,110,120-122"}. Order is preserved and duplicates are
  * removed; the engine handles the per-PR ranking afterward.
  */
-final class PrSpec {
+final class PrRangeSpec {
 
-    private PrSpec() {
+    private PrRangeSpec() {
     }
 
     static List<Integer> parse(String spec) {

@@ -43,6 +43,11 @@ public record EvalCase(
         return fullDepth == null || fullDepth;
     }
 
+    /**
+     * @param authorIsBot GraphQL {@code author.__typename == "Bot"}; omit for a human author
+     * @param headBranch  the PR's own branch; omit when the case does not care
+     * @param commits     the branch's commits; omit for a case with nothing to say about provenance
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Pr(
             int number,
@@ -50,13 +55,39 @@ public record EvalCase(
             String body,
             List<String> labels,
             String author,
+            Boolean authorIsBot,
             String baseBranch,
+            String headBranch,
             String baseSha,
-            String headSha) {
+            String headSha,
+            List<Commit> commits) {
 
         public Pr {
             labels = labels == null ? List.of() : List.copyOf(labels);
+            commits = commits == null ? List.of() : List.copyOf(commits);
         }
+
+        public boolean isBot() {
+            return authorIsBot != null && authorIsBot;
+        }
+    }
+
+    /**
+     * One recorded commit. Every field is optional: a case that only cares about a trailer sets
+     * {@code messageBody} and leaves the rest null, and the stub fills blanks.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Commit(
+            String oid,
+            String messageHeadline,
+            String messageBody,
+            String authoredDate,
+            String committedDate,
+            Integer parentCount,
+            String authorName,
+            String authorLogin,
+            String committerName,
+            String committerLogin) {
     }
 
     /**

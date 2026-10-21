@@ -52,7 +52,7 @@ scope) — this is the primary prompt-injection mitigation.
 facts (deterministic, gh read-only)
   → triage (one cheap jev call: cascade gate + first-pass grader)
     → deep checks (seven independent concerns, one jev call each, fan out in parallel)
-      → interpretation (confidence gate + rule engine; anti-gaming invariants I-1…I-6 compiled in)
+      → interpretation (confidence gate + rule engine; invariants I-1…I-6 compiled in, I-7 lint-enforced)
         → report (Opus fix prose + markdown)
 ```
 
@@ -66,8 +66,16 @@ facts (deterministic, gh read-only)
   separate — `version` is wire-visible and bumps only on a prompt change; `rulesVersion` bumps on a re-tune.
   Only `triage.json` has a `rules` block: the rule engine runs at triage, and the deep pipelines interpret
   their answers in Java.
-- **Facts** (`facts/`) — diff/file/test classification, committer status, author history. Trust facts are
-  pinned to `base.sha` and **never** placed in a `jev` state (invariants I-2, I-3).
+- **Facts** (`facts/`) — diff/file/test classification, committer status, author history, authorship
+  provenance. Trust facts are pinned to `base.sha` and **never** placed in a `jev` state (invariants I-2,
+  I-3). PR metadata arrives as one aliased GraphQL query per sweep (up to 25 PRs, 1 rate-limit point),
+  because `committer`, `parents.totalCount` and `author.__typename` have no `gh pr view` equivalent.
+- **Authorship provenance** (`facts/AuthorshipProvenanceService`) — three attested things and nothing
+  inferred: GitHub's own bot classification, whether that login is in `benign-bots.txt`, and whether the
+  PR body or any commit carries an AI-assistance marker from `ai-provenance-signals.txt`. There is no
+  stylometry and no "this looks generated" judgment, because neither can be done at a false-positive rate
+  that would be fair to accuse someone at. All three reach the report's author line and **no decision**
+  (I-7, below).
 - **Triage** (`pipelines/TriagePipeline`) — the cascade gate; decides which deep checks are reserved to run.
   [`TRIAGE-FLOW.md`](TRIAGE-FLOW.md) diagrams the whole path, state build through rules execution.
 - **Confidence gate** (`interpret/ConfidenceGate`, `Band`) — asymmetric: only a CONFIRM-band "no issue" clears a
@@ -76,6 +84,15 @@ facts (deterministic, gh read-only)
   effect set (no priority-lowering verb, guarded silence). The invariant tier is compiled in and non-overridable;
   the tunable rules live in the `rules` block of `resources/questions/triage.json`, with every number referenced
   by name from `resources/thresholds.yaml`.
+- **I-7, "a voluntary declaration is never penalized"** — no rule may read `declares_ai_assistance`, and
+  `RulesetLint` fails the build on one that does. The ban covers `escalate`, which is the non-obvious part:
+  a deep pipeline is skipped only for a concern triage already settled, so a declaration-keyed escalation
+  takes effect exactly when the concern was silenced or already emitted — and since the combiner keeps the
+  most severe finding per concern, the extra run can only add a finding or worsen one. There is no version
+  of that rule that helps anyone, so the fact is barred rather than the verb. `DeclarationNeutralityTest`
+  reviews every eval case twice from one fixture, with and without a `Co-Authored-By` trailer, and requires
+  identical priority, blast radius, findings and pipelines — *and* that the declared run detected the
+  trailer, so the equality can't pass by never reading it.
 - **Deep checks** (`pipelines/`) — test adequacy · exempt class · breaking change · test weakening · docs
   missing · domain routing · inconsistency. Each is fully independent (reads no other's output); the questions
   each one asks are listed under [*What the agent checks*](#what-the-agent-checks).
@@ -87,7 +104,10 @@ facts (deterministic, gh read-only)
 - **Report** (`report/`) — `ProseEnricher` (Opus, with deterministic fallback) + `MarkdownRenderer` (pure).
   `DiffCompactor` fits an oversized diff into the `jev` state budget: non-focal files are stubbed first and
   focal hunks stay byte-for-byte, so a verdict is never decided on paraphrased code. Truncating mid-diff is
-  deliberately not an option — the tail is exactly where a breaking hunk hides.
+  deliberately not an option — the tail is exactly where a breaking hunk hides. One optional author line
+  sits above the findings (`Author: alice (committer) · AI assistance declared`) — never the tool's name,
+  never a severity, and *nothing at all* when no declaration is present, since almost every AI-assisted PR
+  carries no marker and printing "none declared" would read as a clean bill of health.
 - **Health** (`health/`) — `pr-review health` probes `gh`, `jev` and Opus with the cheapest call that proves
   each credential. `gh` and `jev` are required; Opus is optional, so its absence reports *degraded*, not *down*.
 
@@ -96,7 +116,7 @@ facts (deterministic, gh read-only)
 Every question below is a `jev` question declared in `src/main/resources/questions/<concern>.json`. Ids are
 stable semantic slugs; the instruction wording can be re-tuned without re-keying the rules that read them.
 
-### Triage — one call, 14 questions
+### Triage — one call, 15 questions
 
 Classification:
 
@@ -135,6 +155,19 @@ Author context:
 
 - **`outside_prior_areas`** — is the change thematically far outside the author's prior areas. Prior-work areas
   enter the state purely as reference data, never as instructions.
+
+Contribution proportionality:
+
+- **`signal_to_noise_violation`** — is the PR's content disproportionate to the change it makes: description
+  bloat, tests mirroring the implementation method-for-method, defensive scaffolding on untouched paths,
+  comments restating the line below. Paraphrases the *Signal-to-Noise Ratio* section of upstream
+  `AI_POLICY.md`, which `ai-policy-pin.properties` pins by blob SHA so an upstream edit fails
+  `AiPolicyDriftTest` instead of silently invalidating the question. The instruction explicitly bars the
+  model from inferring whether a tool was involved, and from treating spelling, grammar or consistent
+  formatting as evidence. **The two rules reading it ship disabled** — the question answers and is recorded,
+  but changes nothing, pending the calibration corpus. Even once enabled its only permitted effect is
+  reserving a pipeline: `AI_POLICY.md` asks contributors for proportionality, it does not make a violation
+  a defect.
 
 ### Which deep checks run
 
@@ -234,11 +267,25 @@ unguarded `silence`, so an unsafe ruleset can never ship. Rules are parsed stric
 (`sevrity`) fails the load rather than being silently dropped, and each rule carries a `note` field for the
 rationale JSON cannot put in a comment.
 
+Three small data files in `resources/` keep lists out of code, so extending one is a data edit:
+
+| File | Holds | Note |
+|---|---|---|
+| `ai-provenance-signals.txt` | AI-assistance markers matched in PR bodies and commit messages | Not a secret — anyone can delete a trailer from their own commit. It is there for maintainability, not detection. |
+| `benign-bots.txt` | bot logins whose PRs are routine automation | Coding agents are deliberately **absent**: their PRs are ordinary code changes and get the ordinary review. |
+| `ai-policy-pin.properties` | the upstream `AI_POLICY.md` revision `signal_to_noise_violation` paraphrases | Pinned by blob SHA; `AiPolicyDriftTest` fails when it moves, so an upstream edit prompts a re-read instead of silently invalidating the question. |
+
 ## Testing
 
 `./mvnw test` runs the suite. It never touches the network: `NoNetworkGhClient` is a global `@Mock` over the
 single `gh` chokepoint that throws on any unfixtured invocation, so a test that would reach GitHub fails loudly
 instead of passing slowly.
+
+One deliberate exception, tagged `network`: `AiPolicyDriftTest` shells out to `gh` directly (it is not a
+`@QuarkusTest`, so the mock does not apply) to check that the upstream policy section the triage question
+paraphrases has not been edited. It **skips** rather than fails when `gh` is missing, unauthenticated or
+offline — a drift check that red-lights on a plane is a drift check someone disables. Exclude it with
+`-Dgroups='!network'`.
 
 Four layers, cheapest first:
 
@@ -273,6 +320,17 @@ Known gaps / deliberate stubs (from plan §12 Phase 6 and §15):
   code's own model of itself, so a green run says nothing about the agent's real silence/emit rate. Fitting the
   bands needs a corpus of real `quarkusio/quarkus` PRs with human labels. **Until that exists, treat the
   severity of any individual finding as unproven.**
+- **`signal_to_noise_violation` ships answering but inert.** Both rules that read it are
+  `"enabled": false`, so the question costs input tokens on every triage and changes nothing. That is
+  deliberate: the answer has to be recorded over a real corpus before it is trusted with anything, and
+  the unproven direction is the harmful one — "this PR is padded" is a judgment about a person's work.
+  The same unlabelled-corpus problem blocking band calibration blocks this.
+- **The AI-assistance markers are a sample of candour, not of tooling.** *Measured 2026-10-21 over
+  `quarkusio/quarkus`:* `Co-Authored-By: Claude` appears on **126 commits** and
+  `Generated with Claude Code` on **17 PR bodies** — out of a PR population in the thousands. The true
+  AI-assisted rate is certainly far higher. So the declaration says something about the author's
+  disclosure habits and nearly nothing about the tooling distribution, which is the second reason (after
+  I-7) it reaches only the report.
 - **Compaction loss is not visible in the report.** When a diff exceeds the `jev` state budget, `DiffCompactor`
   labels the result lossy, names the files it summarized away, and logs a WARN — but none of that reaches the
   markdown a reviewer reads, so there is no way to tell from the output that the agent only saw part of the diff.
