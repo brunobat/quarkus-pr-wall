@@ -1,0 +1,49 @@
+# PUBLIC DEFAULT security-sensitive content-signal list (design §3.1, plan §11).
+#
+# Any added/changed diff line matching one of these (case-insensitive substring) floors the file to
+# build-ci-security REGARDLESS OF PATH, forcing "read closely" (§5 / invariant I-1).
+#
+# This file is the rules-private / engine-public split's PUBLIC half: it ships with the source, so an
+# adversary can read it and route around it. The real deployment list belongs outside the repo — set
+# SECURITY_SIGNALS_FILE (config `security.signals-file`) to a private path and it REPLACES this file
+# wholesale. `.gitignore` already excludes `security-signals.private.txt` for a local one.
+#
+# One signal per line; blank lines and #-comments ignored.
+password
+passwd
+secret
+api[_-]?key
+apikey
+token
+credential
+private[_-]?key
+-----begin
+keystore
+truststore
+javax.crypto
+java.security
+MessageDigest
+Cipher
+SecretKey
+SSLContext
+TrustManager
+X509
+setAccessible
+doPrivileged
+Runtime.getRuntime().exec
+ProcessBuilder
+ScriptEngine
+ObjectInputStream
+readObject
+deserialize
+@RolesAllowed
+@PermitAll
+@DenyAll
+SecurityIdentity
+Authentication
+Authorization
+jwt
+oauth
+saml
+csrf
+cors

@@ -1,0 +1,61 @@
+{
+  "name": "breaking-change-no-migration",
+  "description": "A public static method is renamed on a core runtime class with no migration note. Triage settles it confidently and deep pipeline C confirms the same verdict; the accompanying test keeps test-adequacy silent, so the breaking change is the only finding.",
+  "clean": false,
+  "fullDepth": true,
+  "pr": {
+    "number": 41002,
+    "title": "Rename LaunchMode.current() to currentMode()",
+    "body": "Clearer name for the accessor.",
+    "labels": ["area/core"],
+    "author": "longtimecommitter",
+    "baseBranch": "main",
+    "baseSha": "base0000000000000000000000000000000000002",
+    "headSha": "head0000000000000000000000000000000000002"
+  },
+  "author": { "mergedPrs": 240, "accountAgeDays": 3100, "committer": true },
+  "diffFile": "breaking-change-no-migration.diff",
+  "answers": {
+    "change_area": { "choice": "core-runtime", "confidence": 0.96 },
+    "change_kind": { "choice": "refactor", "confidence": 0.95 },
+    "change_size": { "score": 1.0, "confidence": 0.94 },
+    "blast_radius": { "score": 3.0, "confidence": 0.94 },
+    "intrinsic_risk": { "score": 2.0, "confidence": 0.95 },
+    "outside_prior_areas": { "noul": 0.02 },
+    "test_situation": { "choice": "tests-thorough", "confidence": 0.94 },
+    "test_adequacy": { "score": 3.0, "confidence": 0.95 },
+    "test_drives_changed_code": { "noul": 0.98 },
+    "test_asserts_behavior": { "noul": 0.98 },
+    "api_exposure": { "score": 4.0, "confidence": 0.96 },
+    "break_kind": { "choice": "source-incompatible", "confidence": 0.96 },
+    "breaks_callers": { "noul": 0.98 },
+    "has_migration_note": { "noul": 0.02 },
+    "test_exercises_changed_path": { "noul": 0.98 },
+    "accompanying_test_asserts_behavior": { "noul": 0.98 },
+    "all_tests_vacuous": { "noul": 0.02 },
+    "case_coverage": { "score": 3.0, "confidence": 0.95 },
+    "exempt_class": { "choice": "none", "confidence": 0.96 },
+    "is_genuine_revert": { "noul": 0.02 },
+    "existing_test_covers_change": { "noul": 0.02 },
+    "diff_breaks_callers": { "noul": 0.98 },
+    "diff_break_kind": { "choice": "source-incompatible-api", "confidence": 0.95 },
+    "diff_has_migration_note": { "noul": 0.02 },
+    "introduces_documentable_surface": { "noul": 0.02 },
+    "has_docs": { "noul": 0.02 },
+    "touches_security": { "noul": 0.02 },
+    "touches_messaging": { "noul": 0.02 },
+    "touches_persistence": { "noul": 0.02 },
+    "touches_native_image": { "noul": 0.02 },
+    "text_matches_diff": { "noul": 0.97 },
+    "mismatch_kind": { "choice": "accurate", "confidence": 0.95 }
+  },
+  "expect": {
+    "priority": 2,
+    "minBlastRadius": 3,
+    "findings": [
+      { "concern": "breaking-change", "severity": "BLOCKER", "messageKey": "breaking-change-no-migration", "tentative": false }
+    ],
+    "absentConcerns": ["test-adequacy", "docs-missing", "inconsistency", "test-weakening"],
+    "exactly": true
+  }
+}

@@ -1,0 +1,12 @@
+diff --git a/docs/src/main/asciidoc/getting-started.adoc b/docs/src/main/asciidoc/getting-started.adoc
+index 1212121..3434343 100644
+--- a/docs/src/main/asciidoc/getting-started.adoc
++++ b/docs/src/main/asciidoc/getting-started.adoc
+@@ -88,7 +88,7 @@ Run the application in dev mode:
+ ----
+ quarkus dev
+ ----
+-The applicaton starts on port 8080.
++The application starts on port 8080.
+
+ == Packaging

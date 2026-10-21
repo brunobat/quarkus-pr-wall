@@ -1,0 +1,52 @@
+{
+  "name": "clean-dependency-version-bump",
+  "description": "A pom.xml dependency version bump. ClassifyChanges marks it DEPENDENCY_VERSION_ONLY so the whole runtime surface is exempt and test-adequacy is silenced by fact; pom.xml is still BUILD_CI_SECURITY, so I-1 floors priority to 2. Floored but silent is the correct outcome — a floor is not a finding.",
+  "clean": true,
+  "fullDepth": true,
+  "pr": {
+    "number": 42003,
+    "title": "Bump postgresql to 42.7.4",
+    "body": "Routine driver bump.",
+    "labels": ["area/dependencies"],
+    "author": "longtimecommitter",
+    "baseBranch": "main",
+    "baseSha": "base0000000000000000000000000000000000013",
+    "headSha": "head0000000000000000000000000000000000013"
+  },
+  "author": { "mergedPrs": 240, "accountAgeDays": 3100, "committer": true },
+  "diffFile": "clean-dependency-version-bump.diff",
+  "answers": {
+    "change_area": { "choice": "extension", "confidence": 0.94 },
+    "change_kind": { "choice": "dependency-upgrade", "confidence": 0.97 },
+    "change_size": { "score": 0.0, "confidence": 0.96 },
+    "blast_radius": { "score": 1.0, "confidence": 0.93 },
+    "intrinsic_risk": { "score": 0.0, "confidence": 0.95 },
+    "outside_prior_areas": { "noul": 0.02 },
+    "test_situation": { "choice": "runtime-change-exempt", "confidence": 0.96 },
+    "test_adequacy": { "score": 0.0, "confidence": 0.95 },
+    "test_drives_changed_code": { "noul": 0.02 },
+    "test_asserts_behavior": { "noul": 0.02 },
+    "api_exposure": { "score": 1.0, "confidence": 0.93 },
+    "break_kind": { "choice": "none", "confidence": 0.95 },
+    "breaks_callers": { "noul": 0.02 },
+    "has_migration_note": { "noul": 0.02 },
+    "exempt_class": { "choice": "none", "confidence": 0.96 },
+    "is_genuine_revert": { "noul": 0.02 },
+    "existing_test_covers_change": { "noul": 0.02 },
+    "diff_breaks_callers": { "noul": 0.02 },
+    "diff_has_migration_note": { "noul": 0.02 },
+    "introduces_documentable_surface": { "noul": 0.02 },
+    "has_docs": { "noul": 0.02 },
+    "touches_security": { "noul": 0.02 },
+    "touches_messaging": { "noul": 0.02 },
+    "touches_persistence": { "noul": 0.02 },
+    "touches_native_image": { "noul": 0.02 },
+    "text_matches_diff": { "noul": 0.98 },
+    "mismatch_kind": { "choice": "accurate", "confidence": 0.96 }
+  },
+  "expect": {
+    "priority": 2,
+    "findings": [],
+    "exactly": true
+  }
+}

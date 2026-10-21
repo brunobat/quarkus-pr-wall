@@ -1,0 +1,29 @@
+{
+  "version": "test-weakening-v2",
+  "questions": {
+    "weakens_existing_coverage": {
+      "type": "noul",
+      "instructions": "The diff removes/weakens existing coverage (deletes assertions, loosens expected values, disables a test, strict->weak assertion).",
+      "criteria": {
+        "true": "existing coverage is removed or weakened",
+        "false": "existing coverage is not removed or weakened"
+      }
+    },
+    "coincides_with_runtime_change": {
+      "type": "noul",
+      "instructions": "The weakening coincides with a runtime behavior change in the same PR (not a pure test-only refactor).",
+      "criteria": {
+        "true": "weakening coincides with a runtime behavior change",
+        "false": "pure test-only refactor"
+      }
+    },
+    "guarded_security_or_regression": {
+      "type": "noul",
+      "instructions": "The weakened test guarded a security-relevant path or a prior-bug regression.",
+      "criteria": {
+        "true": "the weakened test guarded a security/regression path",
+        "false": "it did not"
+      }
+    }
+  }
+}

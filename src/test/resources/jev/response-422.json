@@ -1,0 +1,7 @@
+{
+  "type": "error",
+  "error": {
+    "type": "invalid_request_error",
+    "message": "questions.Q1.type: 'nuol' is not one of ['noul', 'choice', 'score']"
+  }
+}

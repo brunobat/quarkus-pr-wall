@@ -1,0 +1,13 @@
+diff --git a/extensions/jdbc/jdbc-postgresql/runtime/pom.xml b/extensions/jdbc/jdbc-postgresql/runtime/pom.xml
+index bcbcbcb..dedede0 100644
+--- a/extensions/jdbc/jdbc-postgresql/runtime/pom.xml
++++ b/extensions/jdbc/jdbc-postgresql/runtime/pom.xml
+@@ -30,7 +30,7 @@
+         <dependency>
+             <groupId>org.postgresql</groupId>
+             <artifactId>postgresql</artifactId>
+-            <version>42.7.3</version>
++            <version>42.7.4</version>
+         </dependency>
+     </dependencies>
+ </project>

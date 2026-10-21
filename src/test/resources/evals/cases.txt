@@ -1,0 +1,15 @@
+# Eval corpus manifest (plan §13). One case file per line, resolved against classpath evals/.
+# Explicit, like rules/rulesets.txt: a case that stops running should be a visible diff, not a silence.
+
+# Cases that must produce a finding — one per concern the agent owns.
+runtime-change-no-test.json
+breaking-change-no-migration.json
+test-weakening-with-runtime-change.json
+docs-missing-new-config.json
+security-signal-floor.json
+range-mode-escalation.json
+
+# The false-positive corpus: PRs that must come back completely silent.
+clean-docs-only.json
+clean-well-tested-fix.json
+clean-dependency-version-bump.json

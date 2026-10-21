@@ -1,0 +1,16 @@
+diff --git a/extensions/arc/runtime/src/main/java/io/quarkus/arc/runtime/ConfigRecorder.java b/extensions/arc/runtime/src/main/java/io/quarkus/arc/runtime/ConfigRecorder.java
+index 1111111..2222222 100644
+--- a/extensions/arc/runtime/src/main/java/io/quarkus/arc/runtime/ConfigRecorder.java
++++ b/extensions/arc/runtime/src/main/java/io/quarkus/arc/runtime/ConfigRecorder.java
+@@ -42,7 +42,10 @@ public class ConfigRecorder {
+
+     public void validateConfigProperties(Map<String, Set<String>> properties) {
+         Config config = ConfigProvider.getConfig();
+-        for (Map.Entry<String, Set<String>> entry : properties.entrySet()) {
++        if (properties == null) {
++            return;
++        }
++        for (Map.Entry<String, Set<String>> entry : properties.entrySet()) {
+             String propertyName = entry.getKey();
+             Set<String> propertyValues = entry.getValue();
+         }

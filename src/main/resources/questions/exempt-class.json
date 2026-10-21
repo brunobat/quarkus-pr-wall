@@ -1,0 +1,32 @@
+{
+  "version": "exempt-class-v2",
+  "questions": {
+    "exempt_class": {
+      "type": "choice",
+      "instructions": "Which exempt class does the ENTIRE runtime surface fall into, judging only from the hunks?",
+      "criteria": {
+        "revert": "the change reverses a prior change",
+        "message-string-only": "only user-facing message/log strings change, no logic",
+        "deprecation-only": "only adds @Deprecated/deprecation metadata, keeps behavior",
+        "covered-by-existing-test": "an existing in-tree test the PR does not modify covers the change",
+        "none": "none of these — a real behavioral change needing its own test"
+      }
+    },
+    "is_genuine_revert": {
+      "type": "noul",
+      "instructions": "The diff genuinely reverses a prior change (a real reversal, not lookalike code).",
+      "criteria": {
+        "true": "a genuine reversal of a prior change",
+        "false": "not a genuine reversal"
+      }
+    },
+    "existing_test_covers_change": {
+      "type": "noul",
+      "instructions": "An existing in-tree test near the change (which the PR does not modify) plausibly covers the changed behavior.",
+      "criteria": {
+        "true": "an existing untouched test plausibly covers the change",
+        "false": "no existing untouched test plausibly covers the change"
+      }
+    }
+  }
+}

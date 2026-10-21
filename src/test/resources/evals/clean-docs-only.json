@@ -1,0 +1,41 @@
+{
+  "name": "clean-docs-only",
+  "description": "A typo fix in an asciidoc page. No runtime change at all, so A/B/C/E/F never run and the test-adequacy concern is silenced by a deterministic fact. The false-positive corpus: this must be completely silent.",
+  "clean": true,
+  "fullDepth": true,
+  "pr": {
+    "number": 42001,
+    "title": "Fix a typo in the getting-started guide",
+    "body": "s/applicaton/application/",
+    "labels": ["area/documentation"],
+    "author": "longtimecommitter",
+    "baseBranch": "main",
+    "baseSha": "base0000000000000000000000000000000000011",
+    "headSha": "head0000000000000000000000000000000000011"
+  },
+  "author": { "mergedPrs": 240, "accountAgeDays": 3100, "committer": true },
+  "diffFile": "clean-docs-only.diff",
+  "answers": {
+    "change_area": { "choice": "docs", "confidence": 0.98 },
+    "change_kind": { "choice": "docs", "confidence": 0.97 },
+    "change_size": { "score": 0.0, "confidence": 0.96 },
+    "blast_radius": { "score": 0.0, "confidence": 0.95 },
+    "intrinsic_risk": { "score": 0.0, "confidence": 0.96 },
+    "outside_prior_areas": { "noul": 0.02 },
+    "test_situation": { "choice": "no-runtime-change", "confidence": 0.98 },
+    "test_adequacy": { "score": 0.0, "confidence": 0.95 },
+    "test_drives_changed_code": { "noul": 0.02 },
+    "test_asserts_behavior": { "noul": 0.02 },
+    "api_exposure": { "score": 0.0, "confidence": 0.96 },
+    "break_kind": { "choice": "none", "confidence": 0.97 },
+    "breaks_callers": { "noul": 0.02 },
+    "has_migration_note": { "noul": 0.02 },
+    "text_matches_diff": { "noul": 0.98 },
+    "mismatch_kind": { "choice": "accurate", "confidence": 0.96 }
+  },
+  "expect": {
+    "priority": 0,
+    "findings": [],
+    "exactly": true
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "name": "security-signal-floor",
+  "description": "Invariant I-1: the diff touches a security signal by CONTENT (not path), so review priority is floored to read-closely even though intrinsic_risk confidently says skim. Pipeline F independently routes it to a security reviewer.",
+  "clean": false,
+  "fullDepth": true,
+  "pr": {
+    "number": 41005,
+    "title": "Cache the resolved identity on the routing context",
+    "body": "Avoids resolving twice per request.",
+    "labels": ["area/vertx-http"],
+    "author": "longtimecommitter",
+    "baseBranch": "main",
+    "baseSha": "base0000000000000000000000000000000000005",
+    "headSha": "head0000000000000000000000000000000000005"
+  },
+  "author": { "mergedPrs": 240, "accountAgeDays": 3100, "committer": true },
+  "diffFile": "security-signal-floor.diff",
+  "answers": {
+    "change_area": { "choice": "extension", "confidence": 0.95 },
+    "change_kind": { "choice": "refactor", "confidence": 0.94 },
+    "change_size": { "score": 1.0, "confidence": 0.93 },
+    "blast_radius": { "score": 1.0, "confidence": 0.93 },
+    "intrinsic_risk": { "score": 0.0, "confidence": 0.97 },
+    "outside_prior_areas": { "noul": 0.02 },
+    "test_situation": { "choice": "tests-thorough", "confidence": 0.93 },
+    "test_adequacy": { "score": 3.0, "confidence": 0.94 },
+    "test_drives_changed_code": { "noul": 0.97 },
+    "test_asserts_behavior": { "noul": 0.97 },
+    "api_exposure": { "score": 1.0, "confidence": 0.94 },
+    "break_kind": { "choice": "none", "confidence": 0.95 },
+    "breaks_callers": { "noul": 0.02 },
+    "has_migration_note": { "noul": 0.02 },
+    "test_exercises_changed_path": { "noul": 0.97 },
+    "accompanying_test_asserts_behavior": { "noul": 0.97 },
+    "all_tests_vacuous": { "noul": 0.02 },
+    "case_coverage": { "score": 3.0, "confidence": 0.95 },
+    "exempt_class": { "choice": "none", "confidence": 0.96 },
+    "is_genuine_revert": { "noul": 0.02 },
+    "existing_test_covers_change": { "noul": 0.02 },
+    "diff_breaks_callers": { "noul": 0.02 },
+    "diff_has_migration_note": { "noul": 0.02 },
+    "introduces_documentable_surface": { "noul": 0.02 },
+    "has_docs": { "noul": 0.02 },
+    "touches_security": { "noul": 0.98 },
+    "touches_messaging": { "noul": 0.02 },
+    "touches_persistence": { "noul": 0.02 },
+    "touches_native_image": { "noul": 0.02 },
+    "text_matches_diff": { "noul": 0.97 },
+    "mismatch_kind": { "choice": "accurate", "confidence": 0.95 }
+  },
+  "expect": {
+    "priority": 2,
+    "findings": [
+      { "concern": "domain-security", "severity": "NEEDS_ATTENTION", "messageKey": "domain-expert-security", "tentative": false }
+    ],
+    "absentConcerns": ["test-adequacy", "breaking-change", "docs-missing", "inconsistency", "domain-messaging", "domain-persistence", "domain-native"],
+    "exactly": true
+  }
+}

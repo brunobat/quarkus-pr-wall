@@ -1,0 +1,37 @@
+{
+  "version": "domain-routing-v2",
+  "questions": {
+    "touches_security": {
+      "type": "noul",
+      "instructions": "The diff touches auth/authz/crypto/secrets/TLS or a build-ci-security surface a security reviewer should see.",
+      "criteria": {
+        "true": "touches a security surface",
+        "false": "does not"
+      }
+    },
+    "touches_messaging": {
+      "type": "noul",
+      "instructions": "The diff touches messaging (Kafka/AMQP/JMS/Reactive Messaging, delivery/ordering).",
+      "criteria": {
+        "true": "touches messaging",
+        "false": "does not"
+      }
+    },
+    "touches_persistence": {
+      "type": "noul",
+      "instructions": "The diff touches persistence (JDBC/Hibernate/Panache/transactions/pooling/SQL dialect).",
+      "criteria": {
+        "true": "touches persistence",
+        "false": "does not"
+      }
+    },
+    "touches_native_image": {
+      "type": "noul",
+      "instructions": "The diff affects the native-image pipeline (reflection/resource/serialization config, substitutions, build-time init).",
+      "criteria": {
+        "true": "affects the native-image pipeline",
+        "false": "does not"
+      }
+    }
+  }
+}

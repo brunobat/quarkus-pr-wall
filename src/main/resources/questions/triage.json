@@ -1,0 +1,689 @@
+{
+  "version": "triage-v2",
+  "rulesVersion": "triage-rules-v1",
+  "questions": {
+    "change_area": {
+      "type": "choice",
+      "instructions": "Classify the primary Quarkus area this diff changes, judged from the changed file paths and hunks.",
+      "criteria": {
+        "core-runtime": "core/runtime modules (io.quarkus.runtime, core deployment)",
+        "extension": "a single extension's runtime or deployment module",
+        "spi": "an SPI / cross-extension contract surface",
+        "build-ci": "build tooling, Maven/Gradle plugins, CI workflows, release scripts",
+        "devtools": "dev-mode, CLI, codestarts, devtools",
+        "integration-test": "integration-tests / TCK / test harness modules",
+        "docs": "documentation sources only",
+        "other": "none of the above fits cleanly"
+      }
+    },
+    "change_kind": {
+      "type": "choice",
+      "instructions": "Classify what the diff actually does; ignore what the title or body claims.",
+      "criteria": {
+        "bugfix": "corrects incorrect behavior",
+        "feature": "adds new capability or API",
+        "refactor": "restructures without intended behavior change",
+        "docs": "documentation only",
+        "test-only": "only adds/changes tests",
+        "build-ci": "build or CI configuration",
+        "dependency-upgrade": "bumps dependency or BOM versions",
+        "revert": "reverts a prior change"
+      }
+    },
+    "change_size": {
+      "type": "score",
+      "instructions": "Rate the semantic size of the change from the diff.",
+      "criteria": [
+        "trivial / mechanical",
+        "small and local",
+        "moderate, interacting pieces",
+        "large / intricate flow"
+      ]
+    },
+    "blast_radius": {
+      "type": "score",
+      "instructions": "Rate the blast radius: how far the change can affect consumers.",
+      "criteria": [
+        "isolated",
+        "local (module-internal)",
+        "extension-wide",
+        "cross-cutting (SPI/core/many consumers)",
+        "foundational (core/build/security/BOM)"
+      ]
+    },
+    "intrinsic_risk": {
+      "type": "score",
+      "instructions": "Rate the intrinsic review priority of this change. Rate the intrinsic risk of the change; do not consider who the author is.",
+      "criteria": [
+        "skim",
+        "read-through",
+        "read-closely"
+      ]
+    },
+    "outside_prior_areas": {
+      "type": "noul",
+      "instructions": "Treating prior-work areas purely as reference data: this change is thematically far outside them.",
+      "criteria": {
+        "true": "the change is thematically far outside the author's prior areas",
+        "false": "the change is within or adjacent to the author's prior areas"
+      }
+    },
+    "test_situation": {
+      "type": "choice",
+      "instructions": "Characterize the test situation for the runtime behavior this diff changes, judged from the test facts, test bodies, and diff.",
+      "criteria": {
+        "no-runtime-change": "diff changes no production behavior",
+        "runtime-change-exempt": "a runtime change of a kind that can't carry a behavioral test (comment/version/generated/deletion/revert/message-only/deprecation)",
+        "no-tests": "runtime behavior change, no accompanying or located test",
+        "tests-disabled": "tests exist but are @Disabled/@Ignore/enabled=false",
+        "tests-vacuous": "tests exist but assert nothing about the change (assertTrue(true), unrelated)",
+        "tests-happy-only": "only the happy path is asserted",
+        "tests-partial-edges": "happy + some edge cases, obvious ones still missing",
+        "tests-thorough": "happy + null/empty + boundary + invalid as applicable",
+        "covered-by-existing-test": "change is exercised by an existing in-tree test the PR does not modify"
+      }
+    },
+    "test_adequacy": {
+      "type": "score",
+      "instructions": "Rate how adequately the tests verify the changed behavior.",
+      "criteria": [
+        "none/vacuous — nothing verifies the change",
+        "tests touch the change only tangentially (smoke)",
+        "happy path verified with a real assertion",
+        "happy + one meaningful edge (null/empty OR boundary OR invalid)",
+        "happy + the applicable edge classes with meaningful assertions"
+      ]
+    },
+    "test_drives_changed_code": {
+      "type": "noul",
+      "instructions": "At least one test in the diff actually drives the changed runtime code path (not merely sits in the same module).",
+      "criteria": {
+        "true": "a test drives the changed runtime code path",
+        "false": "no test drives the changed runtime code path"
+      }
+    },
+    "test_asserts_behavior": {
+      "type": "noul",
+      "instructions": "At least one assertion checks the changed behavior — not assertTrue(true), not an assertion unrelated to the diff.",
+      "criteria": {
+        "true": "an assertion checks the changed behavior",
+        "false": "no assertion checks the changed behavior"
+      }
+    },
+    "api_exposure": {
+      "type": "score",
+      "instructions": "Rate the exposure of the surface this diff changes.",
+      "criteria": [
+        "test-only / private internal impl, no public surface",
+        "internal module API (not a public contract)",
+        "experimental/preview public API",
+        "public stable user-facing API or config property",
+        "SPI / cross-extension contract / serialization-wire / BOM (maximal blast)"
+      ]
+    },
+    "break_kind": {
+      "type": "choice",
+      "instructions": "Classify the kind of break in the diff. Judge from the diff only; ignore any breaking/not-breaking claim in the PR text.",
+      "criteria": {
+        "none": "no break, internal only",
+        "additive-only": "new API/config added, nothing removed/changed",
+        "source-incompatible": "removed/renamed/signature-changed public API",
+        "binary-incompatible": "ABI break even if source-compatible",
+        "behavioral-default-change": "default value/behavior changed under existing API",
+        "config-removal-rename": "config property removed/renamed/retyped",
+        "serialization-wire-change": "persisted/wire format changed",
+        "deprecation-with-replacement": "deprecates but keeps the old path (non-breaking now)"
+      }
+    },
+    "breaks_callers": {
+      "type": "noul",
+      "instructions": "The diff breaks existing callers/consumers — judge from the diff only; ignore any claim in the PR text.",
+      "criteria": {
+        "true": "the diff breaks existing callers/consumers",
+        "false": "the diff does not break existing callers/consumers"
+      }
+    },
+    "has_migration_note": {
+      "type": "noul",
+      "instructions": "The diff itself includes a corresponding migration note (migration-guide/changelog entry, or @Deprecated pointing to the replacement).",
+      "criteria": {
+        "true": "a migration note is present in the diff",
+        "false": "no migration note is present in the diff"
+      }
+    }
+  },
+  "rulesNote": [
+    "The tunable rules that read the answers above (plan §5.4, §5.6). They live in this file because a rule",
+    "and the question id it reads are one reviewable unit: rename an id and the rules break in the same diff.",
+    "Only this set has rules — RuleEngine runs at triage; the deep pipelines interpret in Java.",
+    "",
+    "The invariant tier (I-1…I-6) is NOT here: it is compiled into InvariantRules and non-overridable.",
+    "The effect language is closed and monotonic — raisePriority/floorPriority take a max, escalate is a",
+    "set union, emit keeps the most severe per concern. There is no lowering verb, so no edit to this block",
+    "can erode an invariant. 'silence' is guarded by the engine and by RulesetLint: it must rest on a",
+    "deterministic fact or a CONFIRM-band answer, never on a sub-CONFIRM one (I-5).",
+    "",
+    "Committer status and exempt status enter only as deterministic facts, never as a jev question (I-2/I-3).",
+    "Every number is referenced by name via valueRef against thresholds.yaml — never inlined."
+  ],
+  "rules": [
+    {
+      "id": "public-surface-priority-floor",
+      "concern": "review-priority",
+      "note": "§5.4a. The §5 security floor (I-1) and the raise-only anomaly bump (I-2) are compiled in, not here.",
+      "when": [
+        {
+          "answer": "api_exposure",
+          "band": "CONFIRM",
+          "scoreAtLeast": 3
+        }
+      ],
+      "then": "raisePriority",
+      "valueRef": "priorityFloor",
+      "enabled": true
+    },
+
+    {
+      "id": "test-silence-not-runtime",
+      "concern": "test-adequacy",
+      "note": "§5.4b. Confidently nothing to verify ⇒ silence. This one rests on a deterministic fact.",
+      "when": [
+        {
+          "fact": "has_runtime_change",
+          "equals": "false"
+        }
+      ],
+      "then": "silence",
+      "enabled": true
+    },
+    {
+      "id": "test-silence-all-exempt",
+      "concern": "test-adequacy",
+      "when": [
+        {
+          "fact": "all_runtime_exempt",
+          "equals": "true"
+        }
+      ],
+      "then": "silence",
+      "enabled": true
+    },
+    {
+      "id": "test-silence-no-runtime-change",
+      "concern": "test-adequacy",
+      "when": [
+        {
+          "answer": "test_situation",
+          "band": "CONFIRM",
+          "choice": "no-runtime-change"
+        }
+      ],
+      "then": "silence",
+      "enabled": true
+    },
+    {
+      "id": "test-silence-runtime-exempt",
+      "concern": "test-adequacy",
+      "when": [
+        {
+          "answer": "test_situation",
+          "band": "CONFIRM",
+          "choice": "runtime-change-exempt"
+        }
+      ],
+      "then": "silence",
+      "enabled": true
+    },
+    {
+      "id": "test-silence-adequate",
+      "concern": "test-adequacy",
+      "note": "Confidently adequate ⇒ silence. scoreAtLeast 3 is the adequateScore dial (not yet referenceable by name).",
+      "when": [
+        {
+          "answer": "test_adequacy",
+          "band": "CONFIRM",
+          "scoreAtLeast": 3
+        },
+        {
+          "answer": "test_drives_changed_code",
+          "band": "CONFIRM",
+          "is": "yes"
+        },
+        {
+          "answer": "test_asserts_behavior",
+          "band": "CONFIRM",
+          "is": "yes"
+        }
+      ],
+      "then": "silence",
+      "enabled": true
+    },
+    {
+      "id": "test-covered-by-existing",
+      "concern": "test-adequacy",
+      "note": "Covered by an existing untouched test ⇒ never silent; ask a human to confirm the coverage.",
+      "when": [
+        {
+          "answer": "test_situation",
+          "band": "CONFIRM",
+          "choice": "covered-by-existing-test"
+        }
+      ],
+      "then": "emit",
+      "severity": "needs-attention",
+      "message": "test-covered-by-existing",
+      "enabled": true
+    },
+    {
+      "id": "test-none-blocker-noncommitter",
+      "concern": "test-adequacy",
+      "note": "Confidently absent/disabled/vacuous tests ⇒ blocker for a non-committer, needs-attention for a committer.",
+      "when": [
+        {
+          "answer": "test_situation",
+          "band": "CONFIRM",
+          "choice": "no-tests"
+        },
+        {
+          "fact": "is_non_committer",
+          "equals": "true"
+        }
+      ],
+      "then": "emit",
+      "severity": "blocker",
+      "message": "test-missing",
+      "enabled": true
+    },
+    {
+      "id": "test-none-attention-committer",
+      "concern": "test-adequacy",
+      "when": [
+        {
+          "answer": "test_situation",
+          "band": "CONFIRM",
+          "choice": "no-tests"
+        },
+        {
+          "fact": "is_committer",
+          "equals": "true"
+        }
+      ],
+      "then": "emit",
+      "severity": "needs-attention",
+      "message": "test-missing",
+      "enabled": true
+    },
+    {
+      "id": "test-disabled-blocker-noncommitter",
+      "concern": "test-adequacy",
+      "when": [
+        {
+          "answer": "test_situation",
+          "band": "CONFIRM",
+          "choice": "tests-disabled"
+        },
+        {
+          "fact": "is_non_committer",
+          "equals": "true"
+        }
+      ],
+      "then": "emit",
+      "severity": "blocker",
+      "message": "test-disabled",
+      "enabled": true
+    },
+    {
+      "id": "test-disabled-attention-committer",
+      "concern": "test-adequacy",
+      "when": [
+        {
+          "answer": "test_situation",
+          "band": "CONFIRM",
+          "choice": "tests-disabled"
+        },
+        {
+          "fact": "is_committer",
+          "equals": "true"
+        }
+      ],
+      "then": "emit",
+      "severity": "needs-attention",
+      "message": "test-disabled",
+      "enabled": true
+    },
+    {
+      "id": "test-vacuous-blocker-noncommitter",
+      "concern": "test-adequacy",
+      "when": [
+        {
+          "answer": "test_situation",
+          "band": "CONFIRM",
+          "choice": "tests-vacuous"
+        },
+        {
+          "answer": "test_asserts_behavior",
+          "band": "CONFIRM",
+          "is": "no"
+        },
+        {
+          "fact": "is_non_committer",
+          "equals": "true"
+        }
+      ],
+      "then": "emit",
+      "severity": "blocker",
+      "message": "test-vacuous",
+      "enabled": true
+    },
+    {
+      "id": "test-vacuous-attention-committer",
+      "concern": "test-adequacy",
+      "when": [
+        {
+          "answer": "test_situation",
+          "band": "CONFIRM",
+          "choice": "tests-vacuous"
+        },
+        {
+          "answer": "test_asserts_behavior",
+          "band": "CONFIRM",
+          "is": "no"
+        },
+        {
+          "fact": "is_committer",
+          "equals": "true"
+        }
+      ],
+      "then": "emit",
+      "severity": "needs-attention",
+      "message": "test-vacuous",
+      "enabled": true
+    },
+    {
+      "id": "test-happy-only-fyi",
+      "concern": "test-adequacy",
+      "note": "Happy-path only, edges optional ⇒ FYI (skippable). The 2/2 window is the happyOnlyScore dial.",
+      "when": [
+        {
+          "answer": "test_adequacy",
+          "band": "CONFIRM",
+          "scoreAtLeast": 2,
+          "scoreAtMost": 2
+        }
+      ],
+      "then": "emit",
+      "severity": "fyi",
+      "message": "test-happy-path-only",
+      "enabled": true
+    },
+
+    {
+      "id": "break-silence-none",
+      "concern": "breaking-change",
+      "note": "§5.4c. Confidently non-breaking ⇒ silence, which removes a whole class from review. The break answers are judged from the diff only (the question text tells jev to ignore PR-text claims — I-4).",
+      "when": [
+        {
+          "answer": "breaks_callers",
+          "band": "CONFIRM",
+          "is": "no"
+        },
+        {
+          "answer": "break_kind",
+          "band": "CONFIRM",
+          "choice": "none"
+        }
+      ],
+      "then": "silence",
+      "enabled": true
+    },
+    {
+      "id": "break-silence-additive",
+      "concern": "breaking-change",
+      "when": [
+        {
+          "answer": "breaks_callers",
+          "band": "CONFIRM",
+          "is": "no"
+        },
+        {
+          "answer": "break_kind",
+          "band": "CONFIRM",
+          "choice": "additive-only"
+        }
+      ],
+      "then": "silence",
+      "enabled": true
+    },
+    {
+      "id": "break-silence-deprecation",
+      "concern": "breaking-change",
+      "when": [
+        {
+          "answer": "breaks_callers",
+          "band": "CONFIRM",
+          "is": "no"
+        },
+        {
+          "answer": "break_kind",
+          "band": "CONFIRM",
+          "choice": "deprecation-with-replacement"
+        }
+      ],
+      "then": "silence",
+      "enabled": true
+    },
+    {
+      "id": "break-backport-blocker",
+      "concern": "breaking-change",
+      "note": "Confidently breaking ⇒ graded verdict. is_backport is a deterministic fact (base branch is maintenance/LTS).",
+      "when": [
+        {
+          "answer": "breaks_callers",
+          "band": "CONFIRM",
+          "is": "yes"
+        },
+        {
+          "fact": "is_backport",
+          "equals": "true"
+        }
+      ],
+      "then": "emit",
+      "severity": "blocker",
+      "message": "breaking-change-backported",
+      "enabled": true
+    },
+    {
+      "id": "break-no-migration-blocker",
+      "concern": "breaking-change",
+      "when": [
+        {
+          "answer": "breaks_callers",
+          "band": "CONFIRM",
+          "is": "yes"
+        },
+        {
+          "answer": "has_migration_note",
+          "band": "CONFIRM",
+          "is": "no"
+        }
+      ],
+      "then": "emit",
+      "severity": "blocker",
+      "message": "breaking-change-no-migration",
+      "enabled": true
+    },
+    {
+      "id": "break-documented-fyi",
+      "concern": "breaking-change",
+      "when": [
+        {
+          "answer": "breaks_callers",
+          "band": "CONFIRM",
+          "is": "yes"
+        },
+        {
+          "answer": "has_migration_note",
+          "band": "CONFIRM",
+          "is": "yes"
+        },
+        {
+          "fact": "is_backport",
+          "equals": "false"
+        }
+      ],
+      "then": "emit",
+      "severity": "fyi",
+      "message": "breaking-change-documented",
+      "enabled": true
+    },
+
+    {
+      "id": "escalate-a-vacuous-flag",
+      "concern": "test-adequacy",
+      "note": "§5.4d. 'escalate' is additive-only: it reserves a deep pipeline in range/sweep mode (a single explicitly-targeted PR runs all of A-G regardless — that is orchestration, not a rule). The sub-CONFIRM 'low confidence raises, never prunes' escalation for A and C is I-5, enforced in TriagePipeline, not expressible here. Here: tests-vacuous seen only at FLAG, so confirm before raising to blocker.",
+      "when": [
+        {
+          "answer": "test_situation",
+          "band": "FLAG",
+          "choice": "tests-vacuous"
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "A",
+      "enabled": true
+    },
+    {
+      "id": "escalate-c-high-exposure",
+      "concern": "breaking-change",
+      "note": "High-stakes exposure at ANY band — always confirm the precise kind and the migration note. scoreAtLeast 3 is the highExposure dial.",
+      "when": [
+        {
+          "answer": "api_exposure",
+          "scoreAtLeast": 3
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "C",
+      "enabled": true
+    },
+    {
+      "id": "escalate-c-backport",
+      "concern": "breaking-change",
+      "note": "Base is a maintenance/LTS branch: always confirm a possible backported break.",
+      "when": [
+        {
+          "fact": "is_backport",
+          "equals": "true"
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "C",
+      "enabled": true
+    },
+    {
+      "id": "escalate-d-test-weakening",
+      "concern": "test-weakening",
+      "note": "The diff touches an existing test file alongside a runtime hunk.",
+      "when": [
+        {
+          "fact": "touches_existing_test",
+          "equals": "true"
+        },
+        {
+          "fact": "has_runtime_change",
+          "equals": "true"
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "D",
+      "enabled": true
+    },
+    {
+      "id": "escalate-e-feature",
+      "concern": "docs-missing",
+      "note": "Docs-missing has three triggers: a feature, a wide blast radius, or runtime hunks with no docs file at all.",
+      "when": [
+        {
+          "answer": "change_kind",
+          "band": "CONFIRM",
+          "choice": "feature"
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "E",
+      "enabled": true
+    },
+    {
+      "id": "escalate-e-blast-radius",
+      "concern": "docs-missing",
+      "note": "scoreAtLeast 2 is the blastRadiusFloor dial — extension-wide or broader.",
+      "when": [
+        {
+          "answer": "blast_radius",
+          "scoreAtLeast": 2
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "E",
+      "enabled": true
+    },
+    {
+      "id": "escalate-e-runtime-without-docs",
+      "concern": "docs-missing",
+      "when": [
+        {
+          "fact": "has_runtime_change",
+          "equals": "true"
+        },
+        {
+          "fact": "has_docs_file",
+          "equals": "false"
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "E",
+      "enabled": true
+    },
+    {
+      "id": "escalate-f-runtime",
+      "concern": "domain-routing",
+      "note": "Domain-expert routing: any runtime or security-sensitive file present (a cheap noul fan-out).",
+      "when": [
+        {
+          "fact": "has_runtime_change",
+          "equals": "true"
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "F",
+      "enabled": true
+    },
+    {
+      "id": "escalate-f-security",
+      "concern": "domain-routing",
+      "when": [
+        {
+          "fact": "has_security_file",
+          "equals": "true"
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "F",
+      "enabled": true
+    },
+    {
+      "id": "escalate-g-has-text",
+      "concern": "inconsistency",
+      "note": "The PR has author-written title or body to compare against the diff.",
+      "when": [
+        {
+          "fact": "has_pr_text",
+          "equals": "true"
+        }
+      ],
+      "then": "escalate",
+      "pipeline": "G",
+      "enabled": true
+    }
+  ]
+}

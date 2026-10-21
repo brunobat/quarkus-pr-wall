@@ -1,0 +1,55 @@
+{
+  "name": "runtime-change-no-test",
+  "description": "A behavioral null-guard added to a runtime class with no test anywhere in the diff, by a first-timer. The §4 committer asymmetry makes this a Blocker, and deep pipeline A reaches the same verdict deterministically (no jev call needed).",
+  "clean": false,
+  "fullDepth": true,
+  "pr": {
+    "number": 41001,
+    "title": "Guard against null properties in ConfigRecorder",
+    "body": "Avoids an NPE when the recorder is handed a null map.",
+    "labels": ["kind/bugfix", "area/arc"],
+    "author": "firsttimer",
+    "baseBranch": "main",
+    "baseSha": "base0000000000000000000000000000000000001",
+    "headSha": "head0000000000000000000000000000000000001"
+  },
+  "author": { "mergedPrs": 0, "accountAgeDays": 900, "committer": false },
+  "diffFile": "runtime-change-no-test.diff",
+  "answers": {
+    "change_area": { "choice": "extension", "confidence": 0.94 },
+    "change_kind": { "choice": "bugfix", "confidence": 0.96 },
+    "change_size": { "score": 1.0, "confidence": 0.93 },
+    "blast_radius": { "score": 1.0, "confidence": 0.94 },
+    "intrinsic_risk": { "score": 2.0, "confidence": 0.95 },
+    "outside_prior_areas": { "noul": 0.02 },
+    "test_situation": { "choice": "no-tests", "confidence": 0.97 },
+    "test_adequacy": { "score": 0.0, "confidence": 0.95 },
+    "test_drives_changed_code": { "noul": 0.01 },
+    "test_asserts_behavior": { "noul": 0.01 },
+    "api_exposure": { "score": 1.0, "confidence": 0.93 },
+    "break_kind": { "choice": "none", "confidence": 0.95 },
+    "breaks_callers": { "noul": 0.02 },
+    "has_migration_note": { "noul": 0.02 },
+    "exempt_class": { "choice": "none", "confidence": 0.96 },
+    "is_genuine_revert": { "noul": 0.02 },
+    "existing_test_covers_change": { "noul": 0.02 },
+    "diff_breaks_callers": { "noul": 0.02 },
+    "diff_has_migration_note": { "noul": 0.02 },
+    "introduces_documentable_surface": { "noul": 0.02 },
+    "has_docs": { "noul": 0.02 },
+    "touches_security": { "noul": 0.02 },
+    "touches_messaging": { "noul": 0.02 },
+    "touches_persistence": { "noul": 0.02 },
+    "touches_native_image": { "noul": 0.02 },
+    "text_matches_diff": { "noul": 0.98 },
+    "mismatch_kind": { "choice": "accurate", "confidence": 0.95 }
+  },
+  "expect": {
+    "priority": 2,
+    "findings": [
+      { "concern": "test-adequacy", "severity": "BLOCKER", "messageKey": "test-missing", "tentative": false }
+    ],
+    "absentConcerns": ["breaking-change", "docs-missing", "inconsistency", "test-weakening"],
+    "exactly": true
+  }
+}

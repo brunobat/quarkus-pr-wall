@@ -1,0 +1,46 @@
+diff --git a/extensions/smallrye-health/runtime/src/main/java/io/quarkus/smallrye/health/runtime/HealthGroupHandler.java b/extensions/smallrye-health/runtime/src/main/java/io/quarkus/smallrye/health/runtime/HealthGroupHandler.java
+index 5656565..7878787 100644
+--- a/extensions/smallrye-health/runtime/src/main/java/io/quarkus/smallrye/health/runtime/HealthGroupHandler.java
++++ b/extensions/smallrye-health/runtime/src/main/java/io/quarkus/smallrye/health/runtime/HealthGroupHandler.java
+@@ -40,7 +40,7 @@ public class HealthGroupHandler {
+
+     private String groupName(String path) {
+-        return path.substring(path.lastIndexOf('/'));
++        return path.substring(path.lastIndexOf('/') + 1);
+     }
+ }
+diff --git a/extensions/smallrye-health/deployment/src/test/java/io/quarkus/smallrye/health/test/HealthGroupNameTest.java b/extensions/smallrye-health/deployment/src/test/java/io/quarkus/smallrye/health/test/HealthGroupNameTest.java
+new file mode 100644
+index 0000000..9a9a9a9
+--- /dev/null
++++ b/extensions/smallrye-health/deployment/src/test/java/io/quarkus/smallrye/health/test/HealthGroupNameTest.java
+@@ -0,0 +1,26 @@
++package io.quarkus.smallrye.health.test;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++
++import org.junit.jupiter.api.Test;
++
++class HealthGroupNameTest {
++
++    @Test
++    void stripsTheLeadingSlash() {
++        assertEquals("ready", handler.groupName("/q/health/group/ready"));
++    }
++
++    @Test
++    void handlesAGroupAtTheRoot() {
++        assertEquals("ready", handler.groupName("/ready"));
++    }
++
++    @Test
++    void handlesAnEmptyTrailingSegment() {
++        assertEquals("", handler.groupName("/q/health/group/"));
++    }
++
++    @Test
++    void rejectsANullPath() {
++        assertThrows(NullPointerException.class, () -> handler.groupName(null));
++    }
++}
