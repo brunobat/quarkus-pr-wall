@@ -77,6 +77,30 @@ class ReviewSinglePrTest {
     }
 
     @Test
+    void reportsGoToReportsInTheCurrentFolderByDefault(QuarkusMainLauncher launcher) throws IOException {
+        Path report = Path.of("reports", "review-101.md");
+        boolean dirExisted = Files.isDirectory(report.getParent());
+        byte[] previous = Files.exists(report) ? Files.readAllBytes(report) : null;
+        try {
+            LaunchResult result = launcher.launch("review", "101");
+
+            assertEquals(0, result.exitCode(), result.getErrorOutput());
+            assertTrue(result.getOutputStream().contains("Report: " + report), result.getOutput());
+            assertTrue(Files.readString(report).startsWith("# PR #101: Fix the frobnicator"));
+        } finally {
+            // Leave the working folder as it was.
+            if (previous != null) {
+                Files.write(report, previous);
+            } else {
+                Files.deleteIfExists(report);
+                if (!dirExisted) {
+                    Files.deleteIfExists(report.getParent());
+                }
+            }
+        }
+    }
+
+    @Test
     void testsOnlyPrIsAlsoOneJevCall(QuarkusMainLauncher launcher) {
         LaunchResult result = launcher.launch("review", "102", "--output-dir", out.toString());
 
