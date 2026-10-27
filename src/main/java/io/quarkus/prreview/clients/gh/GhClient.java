@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -62,6 +63,16 @@ public class GhClient {
         return command;
     }
 
+    /** A reader task's result; a failure to read gh's output is a gh failure like any other. */
+    private static String output(CompletableFuture<String> stream) {
+        try {
+            return stream.join();
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            throw new GhException("cannot read gh output: " + cause.getMessage(), cause);
+        }
+    }
+
     private String run(List<String> args) {
         List<String> command = command(args);
         Process process;
@@ -75,14 +86,15 @@ public class GhClient {
         CompletableFuture<String> stderr = CompletableFuture.supplyAsync(() -> read(process.getErrorStream()));
         try {
             if (!process.waitFor(config.gh().timeout().toMillis(), TimeUnit.MILLISECONDS)) {
-                process.destroyForcibly();
+                // Wait for the kill so the pipes close and the reader tasks finish.
+                process.destroyForcibly().waitFor();
                 throw new GhException("gh " + String.join(" ", args) + " timed out after " + config.gh().timeout());
             }
             if (process.exitValue() != 0) {
-                String message = stderr.join().strip();
+                String message = output(stderr).strip();
                 throw new GhException(message.isEmpty() ? "gh exited with " + process.exitValue() : message);
             }
-            return stdout.join();
+            return output(stdout);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             process.destroyForcibly();

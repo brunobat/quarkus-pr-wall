@@ -55,7 +55,7 @@ class ReviewSinglePrTest {
         assertEquals(0, result.exitCode(), result.getErrorOutput());
         Path report = out.resolve("review-101.md");
         List<String> stdout = result.getOutputStream();
-        assertTrue(stdout.contains("PR #101 – test adequacy"), result.getOutput());
+        assertTrue(stdout.contains("PR #101 - test adequacy"), result.getOutput());
         assertTrue(stdout.contains("  behaviour 0.88  tests: no-test-changes 0.64"), result.getOutput());
         assertTrue(stdout.contains("Summary (fallback template): jev classification: behaviour 0.88; tests"
                 + " no-test-changes 0.64."), result.getOutput());
@@ -107,16 +107,6 @@ class ReviewSinglePrTest {
         assertEquals(0, result.exitCode(), result.getErrorOutput());
         assertEquals(1, jevPosts().size());
         assertTrue(jevPosts().getFirst().getBodyAsString().contains("test-adequacy.behaviour"));
-    }
-
-    @Test
-    void duplicatePrIsProcessedOnce(QuarkusMainLauncher launcher) {
-        LaunchResult result = launcher.launch("review", "101", "101", "--output-dir", out.toString());
-
-        assertEquals(0, result.exitCode(), result.getErrorOutput());
-        assertEquals(1, result.getOutputStream().stream().filter(line -> line.startsWith("PR #101")).count(),
-                result.getOutput());
-        assertEquals(1, jevPosts().size());
     }
 
     private static List<LoggedRequest> jevPosts() {

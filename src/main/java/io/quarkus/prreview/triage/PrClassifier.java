@@ -1,5 +1,6 @@
 package io.quarkus.prreview.triage;
 
+import java.util.Comparator;
 import java.util.List;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -30,7 +31,8 @@ public class PrClassifier {
     public PrClassifier(GhClient gh, JevClient jev, @All List<ClassificationCheck> checks) {
         this.gh = gh;
         this.jev = jev;
-        this.checks = checks;
+        // Sorted by id so contribution order (questions, output, fallback template) is stable across runs.
+        this.checks = checks.stream().sorted(Comparator.comparing(ClassificationCheck::id)).toList();
     }
 
     public Classification classify(int number) {

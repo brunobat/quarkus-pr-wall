@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -32,8 +33,15 @@ import dev.langchain4j.model.decision.request.YesNoQuestion;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import dev.langchain4j.model.decision.response.YesNoAnswer;
 import dev.langchain4j.model.typesafe.TypeSafeDecisionModel;
+import io.quarkus.prreview.classification.api.CheckQuestions;
+import io.quarkus.prreview.classification.api.ClassificationCheck;
+import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
+import io.quarkus.prreview.classification.submission.JevSubmission;
 import io.quarkus.prreview.clients.jev.model.JevDecision;
 import io.quarkus.prreview.config.ReviewConfig;
+import io.quarkus.prreview.pr.DiffFiles;
+import io.quarkus.prreview.pr.model.PrContext;
+import io.quarkus.prreview.pr.model.PullRequest;
 
 class JevClientTest {
 
@@ -83,6 +91,35 @@ class JevClientTest {
     }
 
     @Test
+    void everyChecksQuestionsCountTowardTheLimit() {
+        String diff = "diff --git a/a.java b/a.java\n--- a/a.java\n+++ b/a.java\n@@ -1 +1 @@\n-x\n+y\n";
+        PrContext pr = new PrContext(new PullRequest(1, "t", "u", "OPEN", diff), DiffFiles.parse(diff));
+        ClassificationCheck other = new ClassificationCheck() {
+            @Override
+            public String id() {
+                return "other";
+            }
+
+            @Override
+            public void ask(PrContext context, CheckQuestions questions) {
+                questions.yesNo("q", "q", YesNoQuestion.of("Another question?"));
+            }
+        };
+        DecisionRequest oneCheck = JevSubmission.of(pr, List.of(new TestAdequacyCheck())).toDecisionRequest();
+        DecisionRequest twoChecks = JevSubmission.of(pr, List.of(new TestAdequacyCheck(), other)).toDecisionRequest();
+        DecisionModel model = mock(DecisionModel.class);
+        when(model.decide(any(DecisionRequest.class)))
+                .thenReturn(DecisionResponse.builder().answer("c.q", YesNoAnswer.of(0.5)).build());
+        JevClient client = new JevClient(model, config(sizeWithModel(oneCheck, "jev-latest")), "jev-latest");
+
+        client.decide(oneCheck);
+        JevException e = assertThrows(JevException.class, () -> client.decide(twoChecks));
+
+        assertTrue(e.submissionChars() > e.limit(), e.getMessage());
+        verify(model).decide(any(DecisionRequest.class));
+    }
+
+    @Test
     void modelFailureKeepsJevsMessage() {
         DecisionModel model = mock(DecisionModel.class);
         when(model.decide(any(DecisionRequest.class)))
@@ -117,7 +154,11 @@ class JevClientTest {
     }
 
     private static int sizeWithModel(String modelName) {
-        return SubmissionSize.of(REQUEST.toBuilder()
+        return sizeWithModel(REQUEST, modelName);
+    }
+
+    private static int sizeWithModel(DecisionRequest request, String modelName) {
+        return SubmissionSize.of(request.toBuilder()
                 .parameters(DecisionRequestParameters.builder()
                         .modelName(modelName).build())
                 .build());

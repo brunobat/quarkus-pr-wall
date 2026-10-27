@@ -60,7 +60,7 @@ class RenderingTest {
                 probs("no-test-changes", 0.64, "multiple-gaps", 0.36)), CLAUDE, REPORT);
 
         assertEquals("""
-                PR #57720 – test adequacy
+                PR #57720 - test adequacy
                   behaviour 0.88  tests: no-test-changes 0.64
                 Summary (Claude): Runtime behaviour changes; no tests were changed.
                 Report: reports/review-57720.md
@@ -114,8 +114,8 @@ class RenderingTest {
     void reportSectionsAppearInOrderWithEveryOption() {
         String report = MarkdownReport.render(sample(0.88, "no-test-changes", probs("no-test-changes", 0.64)), CLAUDE);
 
-        assertTrue(report.startsWith("# PR #57720: Bump jackson-bom\n\nhttps://github.com/quarkusio/quarkus/pull/57720"
-                + " · OPEN\n"), report);
+        assertTrue(report.startsWith("# PR #57720: Bump jackson-bom\n\nLink: https://github.com/quarkusio/quarkus/pull/57720"
+                + " · State: OPEN\n"), report);
         int classification = report.indexOf("\n## Classification\n");
         int summary = report.indexOf("\n## Summary\n");
         int files = report.indexOf("\n## Changed files\n");
@@ -124,7 +124,8 @@ class RenderingTest {
         for (String option : TestAdequacyCheck.TESTS.options().keySet()) {
             assertTrue(report.contains("| `" + option + "` |"), option);
         }
-        assertTrue(report.contains("Source: Claude (claude-opus-5-5)"), report);
+        assertTrue(report.contains("**Claude (claude-opus-5-5):** Runtime behaviour changes; no tests were changed.\n"),
+                report);
         assertTrue(report.contains("- `pom.xml` (modified)"), report);
         assertTrue(report.endsWith("""
                 ## Run
@@ -146,7 +147,7 @@ class RenderingTest {
 
         assertTrue(report.startsWith("# PR #57720: Fix | pipes ## Injected | a | b |\n"), report);
         assertTrue(report.contains("- `` docs/a|b `x`.adoc `` (modified)"), report);
-        assertTrue(report.contains("Line one. # Heading | x |\n"), report);
+        assertTrue(report.contains("**Claude (model|x):** Line one. # Heading | x |\n"), report);
         assertFalse(report.lines().anyMatch(l -> l.startsWith("## Injected") || l.startsWith("# Heading")), report);
         // Only the renderer's own sections are headings.
         assertEquals(List.of("# PR #57720: Fix | pipes ## Injected | a | b |", "## Classification", "### tests",
@@ -155,6 +156,27 @@ class RenderingTest {
         // Every table row has exactly its columns: a '|' from text is escaped.
         report.lines().filter(l -> l.startsWith("| ")).forEach(
                 l -> assertEquals(4, l.replace("\\|", "").chars().filter(ch -> ch == '|').count(), l));
+    }
+
+    @Test
+    void untrustedTextNeverStartsALine() {
+        PullRequest pr = new PullRequest(1, "t", "> quote", "- list", "");
+        Classification c = new Classification(new PrContext(pr, List.of()), sample(0.5, "undetermined",
+                probs("undetermined", 0.5)).checks(), "jev", null, 1, 2);
+        for (String text : List.of("# Heading", "```", "> quote", "- item", "1. item", "| a | b |", "~~~")) {
+            String report = MarkdownReport.render(c, new Summary(text + "\n## Run\nmore", "m"));
+
+            // Every line of the report starts with the renderer's own text.
+            report.lines().filter(l -> !l.isEmpty()).forEach(l -> assertTrue(
+                    l.startsWith("#") || l.startsWith("Link: ") || l.startsWith("|") || l.startsWith("Question: ")
+                            || l.startsWith("jev's choice: ") || l.startsWith("**") || l.startsWith("- "),
+                    l));
+            assertEquals(1, report.lines().filter(l -> l.equals("## Run")).count(), report);
+            assertTrue(report.contains("\n**Claude (m):** " + text + " ## Run more\n"), report);
+        }
+        // GitHub text on the link line follows the fixed label too.
+        String report = MarkdownReport.render(c, new Summary("x", "m"));
+        assertTrue(report.contains("Link: > quote · State: - list\n"), report);
     }
 
     @Test

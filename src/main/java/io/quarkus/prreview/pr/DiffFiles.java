@@ -1,5 +1,7 @@
 package io.quarkus.prreview.pr;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -85,7 +87,10 @@ public final class DiffFiles {
         }
     }
 
-    /** Splits {@code a/<old> b/<new>}; unambiguous when both paths are equal, which covers all but renames. */
+    /**
+     * Splits {@code a/<old> b/<new>}, where git quotes each path on its own. Unambiguous when both paths are equal,
+     * which covers all but renames; a rename's {@code rename from}/{@code rename to} lines then give the real paths.
+     */
     static String[] splitHeaderPaths(String paths) {
         if (paths.startsWith("\"")) {
             int end = closingQuote(paths);
@@ -99,8 +104,17 @@ public final class DiffFiles {
                 return new String[] { same, same };
             }
         }
+        int quoted = paths.lastIndexOf(" \"b/");
+        if (quoted >= 0) {
+            return new String[] { stripPrefix(paths.substring(0, quoted), "a/"),
+                    stripPrefix(unquote(paths.substring(quoted + 1)), "b/") };
+        }
         int split = paths.lastIndexOf(" b/");
-        return new String[] { stripPrefix(paths.substring(0, split), "a/"), unquote(paths.substring(split + 3)) };
+        if (split >= 0) {
+            return new String[] { stripPrefix(paths.substring(0, split), "a/"), paths.substring(split + 3) };
+        }
+        // Not a shape git writes; keep the raw text rather than fail the PR.
+        return new String[] { paths, paths };
     }
 
     private static int closingQuote(String s) {
@@ -114,26 +128,40 @@ public final class DiffFiles {
         return s.length() - 1;
     }
 
-    /** Git quotes paths with special characters as C strings; this undoes the common escapes. */
+    /**
+     * Git quotes paths with special characters as C strings: single-character escapes, and octal {@code \NNN} for
+     * each byte of a non-ASCII character. This decodes them back to the UTF-8 path.
+     */
     static String unquote(String s) {
         if (s.length() < 2 || !s.startsWith("\"") || !s.endsWith("\"")) {
             return s;
         }
-        StringBuilder out = new StringBuilder();
-        for (int i = 1; i < s.length() - 1; i++) {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        int end = s.length() - 1;
+        for (int i = 1; i < end; i++) {
             char c = s.charAt(i);
-            if (c == '\\' && i + 1 < s.length() - 1) {
-                char next = s.charAt(++i);
-                out.append(switch (next) {
-                    case 'n' -> '\n';
-                    case 't' -> '\t';
-                    default -> next;
-                });
-            } else {
-                out.append(c);
+            if (c != '\\' || i + 1 >= end) {
+                bytes.writeBytes(String.valueOf(c).getBytes(StandardCharsets.UTF_8));
+                continue;
             }
+            char next = s.charAt(++i);
+            if (next >= '0' && next <= '7' && i + 2 < end) {
+                bytes.write(Integer.parseInt(s.substring(i, i + 3), 8));
+                i += 2;
+                continue;
+            }
+            bytes.write(switch (next) {
+                case 'n' -> '\n';
+                case 't' -> '\t';
+                case 'r' -> '\r';
+                case 'a' -> 7;
+                case 'b' -> '\b';
+                case 'f' -> '\f';
+                case 'v' -> 11;
+                default -> next;
+            });
         }
-        return out.toString();
+        return bytes.toString(StandardCharsets.UTF_8);
     }
 
     private static String stripPrefix(String path, String prefix) {

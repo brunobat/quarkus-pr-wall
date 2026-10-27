@@ -14,8 +14,9 @@ import io.quarkus.prreview.report.summary.model.Summary;
 
 /**
  * The markdown report for one classified PR: title, Classification, Summary, Changed files, Run. Probabilities are
- * written as returned. Text from GitHub, {@code jev} or Claude is kept on one line and escaped in table cells, so it
- * cannot add headings, rows or sections.
+ * written as returned. Text from GitHub, {@code jev} or Claude never starts a line: it follows a fixed label on its
+ * line, is kept on that one line, and is escaped in table cells, so it cannot add headings, quotes, lists, code
+ * blocks, rows or sections.
  */
 public final class MarkdownReport {
 
@@ -26,7 +27,7 @@ public final class MarkdownReport {
         PullRequest pr = classification.pr().pullRequest();
         StringBuilder md = new StringBuilder();
         md.append("# PR #").append(pr.number()).append(": ").append(inline(pr.title())).append("\n\n");
-        md.append(inline(pr.url())).append(" · ").append(inline(pr.state())).append("\n\n");
+        md.append("Link: ").append(inline(pr.url())).append(" · State: ").append(inline(pr.state())).append("\n\n");
 
         md.append("## Classification\n");
         for (CheckResult check : classification.checks()) {
@@ -38,8 +39,8 @@ public final class MarkdownReport {
             }
         }
 
-        md.append("\n## Summary\n\n").append(inline(summary.text())).append("\n\n")
-                .append("Source: ").append(inline(summary.source())).append("\n");
+        md.append("\n## Summary\n\n").append("**").append(inline(summary.source())).append(":** ")
+                .append(inline(summary.text())).append("\n");
 
         md.append("\n## Changed files\n\n");
         for (ChangedFile file : classification.pr().changedFiles()) {
@@ -72,7 +73,7 @@ public final class MarkdownReport {
 
     private static void appendChoice(StringBuilder md, QuestionResult question, QuestionResult.Choice choice) {
         md.append("\n### ").append(inline(question.label())).append("\n\n")
-                .append(inline(question.text())).append("\n\n")
+                .append("Question: ").append(inline(question.text())).append("\n\n")
                 .append("jev's choice: ").append(code(choice.value())).append("\n\n")
                 .append("| Option | Description | Probability |\n|---|---|---|\n");
         for (Map.Entry<String, String> option : choice.options().entrySet()) {

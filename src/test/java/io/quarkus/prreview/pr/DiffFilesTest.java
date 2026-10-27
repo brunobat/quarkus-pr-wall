@@ -116,6 +116,34 @@ class DiffFilesTest {
     }
 
     @Test
+    void renameToAQuotedPathIsSplitAndDecoded() {
+        // Git quotes each path on its own: here only the new, non-ASCII one, as octal UTF-8 bytes.
+        String diff = """
+                diff --git a/docs/plain.txt "b/docs/caf\\303\\251.txt"
+                similarity index 100%
+                rename from docs/plain.txt
+                rename to "docs/caf\\303\\251.txt"
+                """;
+
+        assertEquals(List.of(new ChangedFile("docs/café.txt", Kind.RENAMED, "docs/plain.txt", false)),
+                DiffFiles.parse(diff));
+        assertEquals(List.of("docs/plain.txt", "docs/café.txt"),
+                List.of(DiffFiles.splitHeaderPaths("a/docs/plain.txt \"b/docs/caf\\303\\251.txt\"")));
+    }
+
+    @Test
+    void unquoteDecodesOctalUtf8AndEscapes() {
+        assertEquals("caf\u00e9 \"x\"\ty\\z", DiffFiles.unquote("\"caf\\303\\251 \\\"x\\\"\\ty\\\\z\""));
+        assertEquals("plain", DiffFiles.unquote("plain"));
+    }
+
+    @Test
+    void unexpectedHeaderShapeDoesNotFail() {
+        assertEquals(List.of(new ChangedFile("weird", Kind.MODIFIED, null, false)),
+                DiffFiles.parse("diff --git weird\n"));
+    }
+
+    @Test
     void emptyDiffHasNoFiles() {
         assertEquals(List.of(), DiffFiles.parse(""));
     }

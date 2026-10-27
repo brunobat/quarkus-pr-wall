@@ -68,7 +68,7 @@ public class ReviewCommand implements Callable<Integer> {
     }
 
     /** PR numbers in first-seen order, each once; anything not a positive number is a usage error (exit 2). */
-    private SequencedSet<Integer> uniquePrs() {
+    SequencedSet<Integer> uniquePrs() {
         SequencedSet<Integer> unique = new LinkedHashSet<>();
         for (int pr : prs) {
             if (pr <= 0) {

@@ -14,7 +14,7 @@ import io.quarkus.prreview.report.summary.model.Summary;
  * The terminal block for one classified PR:
  *
  * <pre>
- * PR #57720 – test adequacy
+ * PR #57720 - test adequacy
  *   behaviour 0.88  tests: no-test-changes 0.64
  * Summary (Claude): ...
  * Report: reports/review-57720.md
@@ -37,7 +37,7 @@ public final class TerminalRenderer {
                 });
             }
         }
-        return "PR #" + classification.pr().pullRequest().number() + " – " + String.join(", ", checks) + "\n"
+        return "PR #" + classification.pr().pullRequest().number() + " - " + String.join(", ", checks) + "\n"
                 + "  " + String.join("  ", answers) + "\n"
                 + "Summary (" + summary.shortSource() + "): " + oneLine(summary.text()) + "\n"
                 + "Report: " + report + "\n";
