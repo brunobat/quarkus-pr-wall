@@ -110,6 +110,12 @@
                         <excludedEnvironmentVariable>GH_BINARY</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>GH_TIMEOUT</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
+                        <!-- SmallRye also maps these environment names onto pr-review.* -->
+                        <excludedEnvironmentVariable>PR_REVIEW_OUTPUT_DIR</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PR_REVIEW_GH_REPO</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PR_REVIEW_GH_BINARY</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PR_REVIEW_GH_TIMEOUT</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PR_REVIEW_JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
                     </excludedEnvironmentVariables>
                     <systemPropertyVariables>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>

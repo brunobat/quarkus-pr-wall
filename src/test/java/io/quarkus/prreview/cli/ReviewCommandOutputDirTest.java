@@ -11,21 +11,24 @@ import org.junit.jupiter.api.Test;
 import io.quarkus.test.junit.QuarkusTest;
 import picocli.CommandLine;
 
+/** Uses the Quarkus picocli factory, so the default comes from the real configuration through CDI. */
 @QuarkusTest
 class ReviewCommandOutputDirTest {
 
     @Inject
-    ReviewCommand command;
+    CommandLine.IFactory factory;
 
     @Test
     void defaultsToTheConfiguredDirectory() {
-        new CommandLine(command).parseArgs("5");
+        ReviewCommand command = new ReviewCommand();
+        new CommandLine(command, factory).parseArgs("5");
         assertEquals(Path.of("reports"), command.reportDir());
     }
 
     @Test
     void optionOverridesTheConfiguredDirectory() {
-        new CommandLine(command).parseArgs("5", "--output-dir", "out/r");
+        ReviewCommand command = new ReviewCommand();
+        new CommandLine(command, factory).parseArgs("5", "--output-dir", "out/r");
         assertEquals(Path.of("out/r"), command.reportDir());
     }
 }

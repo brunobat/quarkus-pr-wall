@@ -44,6 +44,19 @@ class ReviewCommandArgsTest {
     }
 
     @Test
+    @Launch(value = { "review", "1", "--output-dir", "" }, exitCode = 2)
+    void emptyOutputDirIsAUsageError(LaunchResult result) {
+        assertTrue(result.getErrorOutput().contains("--output-dir must not be empty"), result.getErrorOutput());
+    }
+
+    @Test
+    @Launch({ "review", "--help" })
+    void helpShowsTheConfiguredOutputDir(LaunchResult result) {
+        // picocli wraps long help lines, so compare with whitespace collapsed
+        assertTrue(result.getOutput().replaceAll("\\s+", " ").contains("Default: reports."), result.getOutput());
+    }
+
+    @Test
     @Launch({ "review", "-V" })
     void subcommandPrintsTheVersion(LaunchResult result) {
         assertTrue(result.getOutput().contains("pr-review 1.0.0-SNAPSHOT"), result.getOutput());
