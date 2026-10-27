@@ -94,6 +94,10 @@ public final class DiffFiles {
     static String[] splitHeaderPaths(String paths) {
         if (paths.startsWith("\"")) {
             int end = closingQuote(paths);
+            if (end < 0 || end + 2 > paths.length()) {
+                // Cut off inside or right after the quote: not a shape git writes; keep the raw text.
+                return new String[] { paths, paths };
+            }
             return new String[] { stripPrefix(unquote(paths.substring(0, end + 1)), "a/"),
                     stripPrefix(unquote(paths.substring(end + 2)), "b/") };
         }
@@ -117,6 +121,7 @@ public final class DiffFiles {
         return new String[] { paths, paths };
     }
 
+    /** The index of the quote closing the one at index 0, or -1 when there is none. */
     private static int closingQuote(String s) {
         for (int i = 1; i < s.length(); i++) {
             if (s.charAt(i) == '\\') {
@@ -125,12 +130,13 @@ public final class DiffFiles {
                 return i;
             }
         }
-        return s.length() - 1;
+        return -1;
     }
 
     /**
      * Git quotes paths with special characters as C strings: single-character escapes, and octal {@code \NNN} for
-     * each byte of a non-ASCII character. This decodes them back to the UTF-8 path.
+     * each byte of a non-ASCII character. This decodes them back to the UTF-8 path. Anything it does not recognise
+     * is kept as written, so it never fails.
      */
     static String unquote(String s) {
         if (s.length() < 2 || !s.startsWith("\"") || !s.endsWith("\"")) {
@@ -139,18 +145,20 @@ public final class DiffFiles {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         int end = s.length() - 1;
         for (int i = 1; i < end; i++) {
-            char c = s.charAt(i);
+            int c = s.codePointAt(i);
             if (c != '\\' || i + 1 >= end) {
-                bytes.writeBytes(String.valueOf(c).getBytes(StandardCharsets.UTF_8));
+                // Whole code points, so a character outside the BMP (an emoji) is not split into halves.
+                bytes.writeBytes(Character.toString(c).getBytes(StandardCharsets.UTF_8));
+                i += Character.charCount(c) - 1;
                 continue;
             }
             char next = s.charAt(++i);
-            if (next >= '0' && next <= '7' && i + 2 < end) {
+            if (isOctalByte(s, i, end)) {
                 bytes.write(Integer.parseInt(s.substring(i, i + 3), 8));
                 i += 2;
                 continue;
             }
-            bytes.write(switch (next) {
+            int decoded = switch (next) {
                 case 'n' -> '\n';
                 case 't' -> '\t';
                 case 'r' -> '\r';
@@ -158,10 +166,31 @@ public final class DiffFiles {
                 case 'b' -> '\b';
                 case 'f' -> '\f';
                 case 'v' -> 11;
-                default -> next;
-            });
+                case '"', '\\' -> next;
+                default -> -1;
+            };
+            if (decoded >= 0) {
+                bytes.write(decoded);
+            } else {
+                // Unknown escape: keep the backslash; the next character is copied on the next pass.
+                bytes.write('\\');
+                i--;
+            }
         }
         return bytes.toString(StandardCharsets.UTF_8);
+    }
+
+    /** Three octal digits from {@code i}, before {@code end}, with a value that fits in a byte. */
+    private static boolean isOctalByte(String s, int i, int end) {
+        if (i + 3 > end) {
+            return false;
+        }
+        for (int j = i; j < i + 3; j++) {
+            if (s.charAt(j) < '0' || s.charAt(j) > '7') {
+                return false;
+            }
+        }
+        return s.charAt(i) <= '3';
     }
 
     private static String stripPrefix(String path, String prefix) {

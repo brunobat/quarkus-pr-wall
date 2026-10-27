@@ -63,6 +63,29 @@ public class GhClient {
         return command;
     }
 
+    /**
+     * Kills gh and every process it started. A child still holding gh's stdout or stderr would otherwise keep the
+     * pipes open, and the readers blocked, after gh itself is gone. Children are listed first: once gh dies they are
+     * no longer its descendants.
+     */
+    private static void kill(Process process) {
+        List<ProcessHandle> children = process.descendants().toList();
+        process.destroyForcibly();
+        children.forEach(ProcessHandle::destroyForcibly);
+    }
+
+    private static CompletableFuture<String> readAsync(InputStream stream) {
+        CompletableFuture<String> result = new CompletableFuture<>();
+        Thread.ofVirtual().start(() -> {
+            try {
+                result.complete(read(stream));
+            } catch (RuntimeException e) {
+                result.completeExceptionally(e);
+            }
+        });
+        return result;
+    }
+
     /** A reader task's result; a failure to read gh's output is a gh failure like any other. */
     private static String output(CompletableFuture<String> stream) {
         try {
@@ -81,13 +104,13 @@ public class GhClient {
         } catch (IOException e) {
             throw new GhException("cannot run " + command.getFirst() + ": " + e.getMessage(), e);
         }
-        // Read both streams concurrently so a large diff can't block the process on a full pipe.
-        CompletableFuture<String> stdout = CompletableFuture.supplyAsync(() -> read(process.getInputStream()));
-        CompletableFuture<String> stderr = CompletableFuture.supplyAsync(() -> read(process.getErrorStream()));
+        // Read both streams concurrently, each on its own virtual thread, so a large diff can't block the process on
+        // a full pipe and the readers never queue behind other work on a shared pool.
+        CompletableFuture<String> stdout = readAsync(process.getInputStream());
+        CompletableFuture<String> stderr = readAsync(process.getErrorStream());
         try {
             if (!process.waitFor(config.gh().timeout().toMillis(), TimeUnit.MILLISECONDS)) {
-                // Wait for the kill so the pipes close and the reader tasks finish.
-                process.destroyForcibly().waitFor();
+                kill(process);
                 throw new GhException("gh " + String.join(" ", args) + " timed out after " + config.gh().timeout());
             }
             if (process.exitValue() != 0) {
@@ -97,7 +120,7 @@ public class GhClient {
             return output(stdout);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            process.destroyForcibly();
+            kill(process);
             throw new GhException("interrupted while running gh", e);
         }
     }

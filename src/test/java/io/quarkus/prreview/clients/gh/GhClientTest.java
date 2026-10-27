@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -17,7 +19,8 @@ import tools.jackson.databind.json.JsonMapper;
 /** Runs the real {@link GhClient} against the fake {@code gh} script in {@code src/test/resources/fake-gh}. */
 class GhClientTest {
 
-    static final String FAKE_GH = Path.of("src/test/resources/fake-gh/gh").toAbsolutePath().toString();
+    static final Path FAKE_GH_DIR = Path.of("src/test/resources/fake-gh").toAbsolutePath();
+    static final String FAKE_GH = FAKE_GH_DIR.resolve("gh").toString();
 
     private final GhClient client = new GhClient(config(FAKE_GH, Duration.ofSeconds(1)), JsonMapper.builder().build());
 
@@ -46,9 +49,26 @@ class GhClientTest {
     }
 
     @Test
-    void slowGhTimesOut() {
+    void slowGhTimesOut() throws IOException, InterruptedException {
         GhException e = assertThrows(GhException.class, () -> client.fetch(99));
         assertTrue(e.getMessage().contains("timed out after"), e.getMessage());
+
+        // gh's own children are killed too: a child holding the output pipes would otherwise outlive the timeout.
+        List<String> log = Files.readAllLines(FAKE_GH_DIR.resolve("calls.log"));
+        long sleepPid = Long.parseLong(log.reversed().stream().filter(l -> l.startsWith("sleep-pid "))
+                .findFirst().orElseThrow().substring("sleep-pid ".length()));
+        assertTrue(endsWithin(sleepPid, 2000), "gh's child process " + sleepPid + " is still running");
+    }
+
+    private static boolean endsWithin(long pid, long millis) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + millis;
+        while (ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)) {
+            if (System.currentTimeMillis() > deadline) {
+                return false;
+            }
+            Thread.sleep(50);
+        }
+        return true;
     }
 
     @Test

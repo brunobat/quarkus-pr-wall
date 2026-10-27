@@ -1,6 +1,8 @@
 package io.quarkus.prreview.report.markdown;
 
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import dev.langchain4j.model.output.TokenUsage;
 
@@ -19,6 +21,9 @@ import io.quarkus.prreview.report.summary.model.Summary;
  * blocks, rows or sections.
  */
 public final class MarkdownReport {
+
+    /** A {@code |} with the backslashes right before it. */
+    private static final Pattern PIPE = Pattern.compile("(\\\\*)\\|");
 
     private MarkdownReport() {
     }
@@ -99,9 +104,13 @@ public final class MarkdownReport {
         return text == null ? "" : text.strip().replaceAll("\\s+", " ");
     }
 
-    /** One-line text inside a table cell, with {@code |} escaped. */
+    /**
+     * One-line text inside a table cell, with {@code |} escaped. Backslashes right before a {@code |} are escaped
+     * too, so {@code a\\|b} cannot turn the pipe back into a column separator.
+     */
     static String cell(String text) {
-        return inline(text).replace("|", "\\|");
+        return PIPE.matcher(inline(text))
+                .replaceAll(m -> Matcher.quoteReplacement(m.group(1).repeat(2) + "\\|"));
     }
 
     /** Inline code, using a longer fence when the text itself contains a backtick. */

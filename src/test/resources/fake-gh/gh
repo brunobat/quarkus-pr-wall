@@ -4,7 +4,8 @@
 #   view.json   output of `gh pr view`
 #   diff.patch  output of `gh pr diff`
 #   error.txt   if present, printed to stderr and the command exits 1
-#   sleep       if present, the script sleeps that many seconds first
+#   sleep       if present, the script first waits on a child `sleep` of that many seconds, which keeps
+#               stdout/stderr open; its pid is logged as `sleep-pid <pid>` in calls.log
 # Every invocation is appended to calls.log next to this script.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -15,7 +16,11 @@ sub="${2:-}"
 pr="${3:-}"
 dir="$here/prs/$pr"
 
-[[ -f "$dir/sleep" ]] && sleep "$(cat "$dir/sleep")"
+if [[ -f "$dir/sleep" ]]; then
+  sleep "$(cat "$dir/sleep")" &
+  echo "sleep-pid $!" >> "$here/calls.log"
+  wait
+fi
 if [[ -f "$dir/error.txt" ]]; then
   cat "$dir/error.txt" >&2
   exit 1

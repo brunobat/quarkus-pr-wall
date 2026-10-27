@@ -141,6 +141,22 @@ class DiffFilesTest {
     void unexpectedHeaderShapeDoesNotFail() {
         assertEquals(List.of(new ChangedFile("weird", Kind.MODIFIED, null, false)),
                 DiffFiles.parse("diff --git weird\n"));
+        // Cut off inside or right after a quote, or with a broken octal escape: listed, never thrown.
+        for (String header : List.of("\"a/x", "\"a/x\"", "\"a/x\\1yz\" \"b/x\\1yz\"")) {
+            assertEquals(1, DiffFiles.parse("diff --git " + header + "\n").size(), header);
+        }
+    }
+
+    @Test
+    void unquoteKeepsWhatItDoesNotRecognise() {
+        assertEquals("x\\1yz", DiffFiles.unquote("\"x\\1yz\""));
+        assertEquals("x\\777", DiffFiles.unquote("\"x\\777\""));
+        assertEquals("trail\\", DiffFiles.unquote("\"trail\\\""));
+    }
+
+    @Test
+    void unquoteKeepsCharactersOutsideTheBmp() {
+        assertEquals("docs/\uD83D\uDE00 caf\u00e9.txt", DiffFiles.unquote("\"docs/\uD83D\uDE00 caf\\303\\251.txt\""));
     }
 
     @Test
