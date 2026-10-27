@@ -1,0 +1,32 @@
+# Application settings (and their environment variables) are declared in ReviewConfig.
+quarkus:
+  banner:
+    enabled: false
+  log:
+    console:
+      # stdout carries only the result; all logs go to stderr.
+      stderr: true
+  langchain4j:
+    typesafe:
+      api-key: ${TYPESAFE_API_KEY:}
+      base-url: ${JEV_URL:https://api.typesafe.ai}
+      timeout: ${JEV_TIMEOUT:60s}
+      decision-model:
+        model-name: ${JEV_MODEL:jev-latest}
+    anthropic:
+      # "dummy" is the extension's own "not configured" value; the summary then uses the fallback template.
+      api-key: ${ANTHROPIC_API_KEY:dummy}
+      timeout: ${ANTHROPIC_TIMEOUT:60s}
+      chat-model:
+        model-name: ${ANTHROPIC_MODEL:claude-opus-5-5}
+
+"%test":
+  quarkus:
+    langchain4j:
+      typesafe:
+        api-key: test-key
+      anthropic:
+        api-key: test-key
+  pr-review:
+    jev:
+      max-submission-chars: 1234
