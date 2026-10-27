@@ -48,3 +48,5 @@ security-signals.private.txt
 # TLS Certificates
 .certs/
 /qrspi/
+/reports/
+/sbxenv.yaml
