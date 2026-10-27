@@ -12,8 +12,8 @@ import java.util.concurrent.TimeUnit;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
-import io.quarkus.prreview.clients.gh.model.PullRequest;
 import io.quarkus.prreview.config.ReviewConfig;
+import io.quarkus.prreview.pr.model.PullRequest;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 

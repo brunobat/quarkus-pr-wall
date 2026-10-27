@@ -21,9 +21,9 @@ import io.quarkus.prreview.classification.api.ClassificationCheck;
 import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.QuestionResult;
-import io.quarkus.prreview.clients.gh.model.PullRequest;
 import io.quarkus.prreview.pr.DiffFiles;
 import io.quarkus.prreview.pr.model.PrContext;
+import io.quarkus.prreview.pr.model.PullRequest;
 
 class JevSubmissionTest {
 

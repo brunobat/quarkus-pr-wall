@@ -10,8 +10,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import io.quarkus.prreview.clients.gh.model.PullRequest;
 import io.quarkus.prreview.config.ReviewConfig;
+import io.quarkus.prreview.pr.model.PullRequest;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Runs the real {@link GhClient} against the fake {@code gh} script in {@code src/test/resources/fake-gh}. */
