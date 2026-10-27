@@ -47,7 +47,8 @@ public final class MarkdownReport {
         }
 
         md.append("\n## Run\n\n");
-        md.append("- jev model: ").append(inline(classification.jevModel())).append("\n");
+        md.append("- jev model: ").append(classification.jevModel() == null ? "not reported"
+                : inline(classification.jevModel())).append("\n");
         md.append("- Submission size: ").append(classification.submissionChars()).append(" characters (limit ")
                 .append(classification.limit()).append(")\n");
         md.append("- jev tokens: ").append(tokens(classification.tokenUsage())).append("\n");

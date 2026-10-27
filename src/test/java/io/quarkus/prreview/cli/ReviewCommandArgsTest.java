@@ -1,6 +1,5 @@
 package io.quarkus.prreview.cli;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -34,13 +33,6 @@ class ReviewCommandArgsTest {
     @Launch(value = { "review", "1", "--bogus" }, exitCode = 2)
     void unknownOptionIsAUsageError(LaunchResult result) {
         assertTrue(result.getErrorOutput().contains("--bogus"), result.getErrorOutput());
-    }
-
-    @Test
-    @Launch({ "review", "5", "5" })
-    void duplicatePrIsProcessedOnce(LaunchResult result) {
-        assertEquals(1, result.getOutputStream().stream().filter(line -> line.equals("PR #5")).count(),
-                result.getOutput());
     }
 
     @Test

@@ -1,5 +1,6 @@
 package io.quarkus.prreview.cli;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -7,9 +8,17 @@ import java.util.SequencedSet;
 import java.util.concurrent.Callable;
 
 import jakarta.enterprise.context.Dependent;
+import jakarta.inject.Inject;
 
 import io.quarkus.arc.Unremovable;
+import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.config.ReviewConfig;
+import io.quarkus.prreview.report.ReportWriter;
+import io.quarkus.prreview.report.markdown.MarkdownReport;
+import io.quarkus.prreview.report.summary.FallbackSummary;
+import io.quarkus.prreview.report.summary.model.Summary;
+import io.quarkus.prreview.report.terminal.TerminalRenderer;
+import io.quarkus.prreview.triage.PrClassifier;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "review", mixinStandardHelpOptions = true, versionProvider = PrReviewCommand.Version.class,
@@ -19,6 +28,9 @@ public class ReviewCommand implements Callable<Integer> {
 
     @CommandLine.Spec
     CommandLine.Model.CommandSpec spec;
+
+    @Inject
+    PrClassifier classifier;
 
     @CommandLine.Parameters(arity = "1..*", paramLabel = "<pr>", description = "PR numbers, processed in the order given.")
     List<Integer> prs;
@@ -30,12 +42,21 @@ public class ReviewCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         SequencedSet<Integer> uniquePrs = uniquePrs();
-        reportDir();
-        for (int pr : uniquePrs) {
-            spec.commandLine().getOut().println("PR #" + pr);
+        Path dir = reportDir();
+        // Phase 2: only the first PR, with the fallback summary; phase 4 processes the list and notes per-PR errors.
+        int pr = uniquePrs.getFirst();
+        try {
+            Classification classification = classifier.classify(pr);
+            Summary summary = FallbackSummary.of(classification);
+            Path report = ReportWriter.write(dir, pr, MarkdownReport.render(classification, summary));
+            spec.commandLine().getOut().print(TerminalRenderer.render(classification, summary, report));
+            spec.commandLine().getOut().flush();
+            return 0;
+        } catch (RuntimeException | IOException e) {
+            spec.commandLine().getErr().println("PR #" + pr + ": " + e.getMessage());
+            spec.commandLine().getErr().flush();
+            return 1;
         }
-        spec.commandLine().getOut().flush();
-        return 0;
     }
 
     /** The report directory: {@code --output-dir}, defaulting to {@link ReviewConfig#outputDir()}; empty is a usage error. */
