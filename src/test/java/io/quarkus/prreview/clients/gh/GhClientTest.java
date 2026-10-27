@@ -1,0 +1,104 @@
+package io.quarkus.prreview.clients.gh;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import io.quarkus.prreview.clients.gh.model.PullRequest;
+import io.quarkus.prreview.config.ReviewConfig;
+import tools.jackson.databind.json.JsonMapper;
+
+/** Runs the real {@link GhClient} against the fake {@code gh} script in {@code src/test/resources/fake-gh}. */
+class GhClientTest {
+
+    static final String FAKE_GH = Path.of("src/test/resources/fake-gh/gh").toAbsolutePath().toString();
+
+    private final GhClient client = new GhClient(config(FAKE_GH, Duration.ofSeconds(1)), JsonMapper.builder().build());
+
+    @Test
+    void fetchesMetadataAndDiff() {
+        PullRequest pr = client.fetch(101);
+
+        assertEquals(101, pr.number());
+        assertEquals("Fix the frobnicator", pr.title());
+        assertEquals("https://github.com/quarkusio/quarkus/pull/101", pr.url());
+        assertEquals("OPEN", pr.state());
+        assertTrue(pr.diff().startsWith("diff --git a/core/runtime/src/main/java/io/quarkus/Foo.java"), pr.diff());
+    }
+
+    @Test
+    void unknownPrCarriesGhMessage() {
+        GhException e = assertThrows(GhException.class, () -> client.fetch(404));
+        assertTrue(e.getMessage().contains("no pull requests found"), e.getMessage());
+    }
+
+    @Test
+    void tooLargeDiffMessageIsPropagated() {
+        GhException e = assertThrows(GhException.class, () -> client.fetch(406));
+        assertTrue(e.getMessage().contains("HTTP 406"), e.getMessage());
+        assertTrue(e.getMessage().contains("too_large"), e.getMessage());
+    }
+
+    @Test
+    void slowGhTimesOut() {
+        GhException e = assertThrows(GhException.class, () -> client.fetch(99));
+        assertTrue(e.getMessage().contains("timed out after"), e.getMessage());
+    }
+
+    @Test
+    void missingBinaryIsAGhFailure() {
+        GhClient missing = new GhClient(config("/nonexistent/gh", Duration.ofSeconds(1)), JsonMapper.builder().build());
+        GhException e = assertThrows(GhException.class, () -> missing.fetch(101));
+        assertTrue(e.getMessage().contains("cannot run /nonexistent/gh"), e.getMessage());
+    }
+
+    @Test
+    void onlyReadOnlySubcommandsAreAllowed() {
+        assertEquals(List.of(FAKE_GH, "pr", "view", "1", "-R", "quarkusio/quarkus"),
+                client.command(List.of("pr", "view", "1")));
+        assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr", "merge", "1")));
+        assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr", "comment", "1")));
+        assertThrows(IllegalArgumentException.class, () -> client.command(List.of("api", "repos/x/y/pulls/1")));
+        assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr")));
+    }
+
+    static ReviewConfig config(String binary, Duration timeout) {
+        return new ReviewConfig() {
+            @Override
+            public Gh gh() {
+                return new Gh() {
+                    @Override
+                    public String repo() {
+                        return "quarkusio/quarkus";
+                    }
+
+                    @Override
+                    public String binary() {
+                        return binary;
+                    }
+
+                    @Override
+                    public Duration timeout() {
+                        return timeout;
+                    }
+                };
+            }
+
+            @Override
+            public Jev jev() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public Path outputDir() {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+}

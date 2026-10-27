@@ -50,3 +50,6 @@ security-signals.private.txt
 /qrspi/
 /reports/
 /sbxenv.yaml
+
+# Written by the fake gh used in tests
+/src/test/resources/fake-gh/calls.log

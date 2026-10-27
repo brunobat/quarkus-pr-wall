@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Stand-in for the gh CLI in tests. Answers `gh pr view <n> ...` and `gh pr diff <n> ...` from
+# prs/<n>/ next to this script:
+#   view.json   output of `gh pr view`
+#   diff.patch  output of `gh pr diff`
+#   error.txt   if present, printed to stderr and the command exits 1
+#   sleep       if present, the script sleeps that many seconds first
+# Every invocation is appended to calls.log next to this script.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+echo "$*" >> "$here/calls.log"
+
+[[ "${1:-}" == "pr" ]] || { echo "fake gh: unsupported command: $*" >&2; exit 2; }
+sub="${2:-}"
+pr="${3:-}"
+dir="$here/prs/$pr"
+
+[[ -f "$dir/sleep" ]] && sleep "$(cat "$dir/sleep")"
+if [[ -f "$dir/error.txt" ]]; then
+  cat "$dir/error.txt" >&2
+  exit 1
+fi
+[[ -d "$dir" ]] || { echo "no pull requests found for branch \"$pr\"" >&2; exit 1; }
+
+case "$sub" in
+  view) cat "$dir/view.json" ;;
+  diff) cat "$dir/diff.patch" ;;
+  *) echo "fake gh: unsupported subcommand: $sub" >&2; exit 2 ;;
+esac
