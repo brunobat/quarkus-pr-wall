@@ -25,7 +25,8 @@ class ProseEnricherTest {
     }
 
     private static ReviewResult reviewed(List<Finding> findings) {
-        return new ReviewResult(1, "t", 1, 1, findings, List.of(), null, null, ReviewResult.Status.REVIEWED, null);
+        return new ReviewResult(1, "t", 1, 1, findings, List.of(), java.util.Map.of(), null, null,
+                ReviewResult.Status.REVIEWED, null);
     }
 
     @Test

@@ -46,6 +46,10 @@ java -jar target/quarkus-app/quarkus-run.jar health
 `gh` must be installed and authenticated with a **read-only, least-privilege** token (no write/merge/secret
 scope) — this is the primary prompt-injection mitigation.
 
+The report goes to stdout and every log line to stderr, so `review 45678 > report.md` is a clean markdown
+file. [`reports/`](reports/) holds three verbatim examples from live `quarkusio/quarkus` PRs, with notes on
+what those runs exposed.
+
 ## Architecture
 
 ```
@@ -70,12 +74,17 @@ facts (deterministic, gh read-only)
   provenance. Trust facts are pinned to `base.sha` and **never** placed in a `jev` state (invariants I-2,
   I-3). PR metadata arrives as one aliased GraphQL query per sweep (up to 25 PRs, 1 rate-limit point),
   because `committer`, `parents.totalCount` and `author.__typename` have no `gh pr view` equivalent.
-- **Authorship provenance** (`facts/AuthorshipProvenanceService`) — three attested things and nothing
-  inferred: GitHub's own bot classification, whether that login is in `benign-bots.txt`, and whether the
-  PR body or any commit carries an AI-assistance marker from `ai-provenance-signals.txt`. There is no
-  stylometry and no "this looks generated" judgment, because neither can be done at a false-positive rate
-  that would be fair to accuse someone at. All three reach the report's author line and **no decision**
-  (I-7, below).
+- **Authorship provenance** (`facts/AuthorshipProvenanceService`) — four attested things and nothing
+  inferred: GitHub's own bot classification, whether that login is in `benign-bots.txt`, whether the
+  PR body or any commit carries an AI-assistance marker from `ai-provenance-signals.txt`, and whether any
+  commit was authored by an account GitHub resolved and did not mark `[bot]`. There is no stylometry and
+  no "this looks generated" judgment, because neither can be done at a false-positive rate that would be
+  fair to accuse someone at. All four reach the report's author line and **no decision** (I-7, below).
+- **Author kind** (`review/AuthorKind`) — the four-way bucket the sweep shows in its `Author` column,
+  derived from those facts alone: `bot` (allowlisted automation), `agent` (a bot account that is not),
+  `human+ai` (declared assistance), `human`. The last is a **residual, not a finding** — it means nothing
+  was declared, which is also what every undeclared AI-assisted PR looks like, and the sweep prints that
+  caveat under the table rather than leaving the column to imply a detector exists.
 - **Triage** (`pipelines/TriagePipeline`) — the cascade gate; decides which deep checks are reserved to run.
   [`TRIAGE-FLOW.md`](TRIAGE-FLOW.md) diagrams the whole path, state build through rules execution.
 - **Confidence gate** (`interpret/ConfidenceGate`, `Band`) — asymmetric: only a CONFIRM-band "no issue" clears a
@@ -107,7 +116,9 @@ facts (deterministic, gh read-only)
   deliberately not an option — the tail is exactly where a breaking hunk hides. One optional author line
   sits above the findings (`Author: alice (committer) · AI assistance declared`) — never the tool's name,
   never a severity, and *nothing at all* when no declaration is present, since almost every AI-assisted PR
-  carries no marker and printing "none declared" would read as a clean bill of health.
+  carries no marker and printing "none declared" would read as a clean bill of health. The sweep is the one
+  place that labels every row, because a column with gaps in it cannot be scanned — hence the `Author`
+  column and the caveat printed beneath it.
 - **Health** (`health/`) — `pr-review health` probes `gh`, `jev` and Opus with the cheapest call that proves
   each credential. `gh` and `jev` are required; Opus is optional, so its absence reports *degraded*, not *down*.
 
@@ -158,16 +169,33 @@ Author context:
 
 Contribution proportionality:
 
-- **`signal_to_noise_violation`** — is the PR's content disproportionate to the change it makes: description
-  bloat, tests mirroring the implementation method-for-method, defensive scaffolding on untouched paths,
-  comments restating the line below. Paraphrases the *Signal-to-Noise Ratio* section of upstream
-  `AI_POLICY.md`, which `ai-policy-pin.properties` pins by blob SHA so an upstream edit fails
-  `AiPolicyDriftTest` instead of silently invalidating the question. The instruction explicitly bars the
-  model from inferring whether a tool was involved, and from treating spelling, grammar or consistent
-  formatting as evidence. **The two rules reading it ship disabled** — the question answers and is recorded,
-  but changes nothing, pending the calibration corpus. Even once enabled its only permitted effect is
-  reserving a pipeline: `AI_POLICY.md` asks contributors for proportionality, it does not make a violation
-  a defect.
+- **`content_disproportionate`** — **does this PR make a reviewer read more than the change warrants?**
+  It weighs bulk against substance: description volume, superfluous formatting, tests mirroring the
+  implementation method-for-method, defensive scaffolding on untouched paths, comments restating the line
+  below, boilerplate javadoc on trivial members.
+
+  **It is not a provenance signal and must not be read as one.** It cannot tell you whether AI was
+  involved, the instruction explicitly bars the model from guessing, and padding is not evidence of
+  tooling — a verbose human fails this and a terse model passes. Who opened a PR is answered by the
+  attested facts above; `RulesetLint` fails the build on any rule that lets the two corroborate each
+  other.
+
+  It paraphrases the *Signal-to-Noise Ratio* section of upstream `AI_POLICY.md`, pinned by blob SHA in
+  `ai-policy-pin.properties` so an upstream edit fails `AiPolicyDriftTest` instead of silently
+  invalidating the question. **The paraphrase is deliberately narrower than its source.** Upstream asks
+  whether the PR resembles *"what the developer would have come up with had they not been using AI
+  tools"* — a counterfactual about tooling, i.e. stylometry, which the research rules out by name. What
+  survives as answerable is the symptom the policy actually cares about: volume out of proportion to the
+  change, whatever produced it. A PR can fail upstream's test and pass this one, or the reverse.
+
+  **The two rules reading it ship disabled** — the question answers and is recorded but changes nothing,
+  pending the calibration corpus. Even once enabled its only permitted effect is reserving a pipeline:
+  `AI_POLICY.md` asks contributors for proportionality, it does not make a breach a defect.
+
+  > Named `signal_to_noise_violation` until 2026-10-21. Renamed because all three words misled: *signal*
+  > and *noise* collide with the agent's own signal-to-noise (I-6 silence-by-default, the false-positive
+  > rate), it named a ratio while returning a boolean, and *violation* contradicted the design. The full
+  > reasoning is in `questionsNote` in `questions/triage.json`.
 
 ### Which deep checks run
 
@@ -273,7 +301,7 @@ Three small data files in `resources/` keep lists out of code, so extending one 
 |---|---|---|
 | `ai-provenance-signals.txt` | AI-assistance markers matched in PR bodies and commit messages | Not a secret — anyone can delete a trailer from their own commit. It is there for maintainability, not detection. |
 | `benign-bots.txt` | bot logins whose PRs are routine automation | Coding agents are deliberately **absent**: their PRs are ordinary code changes and get the ordinary review. |
-| `ai-policy-pin.properties` | the upstream `AI_POLICY.md` revision `signal_to_noise_violation` paraphrases | Pinned by blob SHA; `AiPolicyDriftTest` fails when it moves, so an upstream edit prompts a re-read instead of silently invalidating the question. |
+| `ai-policy-pin.properties` | the upstream `AI_POLICY.md` revision `content_disproportionate` paraphrases | Pinned by blob SHA; `AiPolicyDriftTest` fails when it moves, so an upstream edit prompts a re-read instead of silently invalidating the question. |
 
 ## Testing
 
@@ -320,11 +348,14 @@ Known gaps / deliberate stubs (from plan §12 Phase 6 and §15):
   code's own model of itself, so a green run says nothing about the agent's real silence/emit rate. Fitting the
   bands needs a corpus of real `quarkusio/quarkus` PRs with human labels. **Until that exists, treat the
   severity of any individual finding as unproven.**
-- **`signal_to_noise_violation` ships answering but inert.** Both rules that read it are
+- **`content_disproportionate` ships answering but inert.** Both rules that read it are
   `"enabled": false`, so the question costs input tokens on every triage and changes nothing. That is
   deliberate: the answer has to be recorded over a real corpus before it is trusted with anything, and
   the unproven direction is the harmful one — "this PR is padded" is a judgment about a person's work.
-  The same unlabelled-corpus problem blocking band calibration blocks this.
+  The same unlabelled-corpus problem blocking band calibration blocks this. *First live evidence, from
+  the 2026-10-21 sweep: it answered `yes` at p=0.57 and p=0.52 on one-line Dependabot version bumps —
+  barely better than a coin flip on the most routine PR shape there is. Both landed in HUMAN band and
+  changed nothing, which is the design working, and is a concrete argument for leaving the rules off.*
 - **The AI-assistance markers are a sample of candour, not of tooling.** *Measured 2026-10-21 over
   `quarkusio/quarkus`:* `Co-Authored-By: Claude` appears on **126 commits** and
   `Generated with Claude Code` on **17 PR bodies** — out of a PR population in the thousands. The true

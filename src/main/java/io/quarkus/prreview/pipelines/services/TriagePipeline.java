@@ -21,6 +21,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -69,7 +70,7 @@ public class TriagePipeline {
         TuningConfig tuning = rulesets.get();
         Thresholds thresholds = tuning.thresholds();
 
-        Map<String, BandedAnswer> answers = gate.band(response, thresholds);
+        Map<String, BandedAnswer> answers = inQuestionOrder(gate.band(response, thresholds), qs);
         FactView factView = FactView.of(facts);
         int basePriority = basePriority(answers);
 
@@ -83,6 +84,28 @@ public class TriagePipeline {
                 decisions.priority(), decisions.findings(), escalations, decisions.silenced());
 
         return new TriageOutcome(answers, gated, blastRadius, qs.version(), tuning, response);
+    }
+
+    /**
+     * Re-key the answers into the order the questions are declared in, because {@code jev} does not
+     * promise to answer them in the order it was asked. Nothing decides on the order — the rule engine
+     * is order-independent by design — but the report's decision table follows it, and two reports of
+     * the same PR that differ only in row order are not diffable.
+     *
+     * <p>An answer with no matching question (a response the question set does not know about) is kept,
+     * appended after the declared ones: dropping it here would hide it from the report, and the report
+     * is the only place it can be noticed.
+     */
+    static Map<String, BandedAnswer> inQuestionOrder(Map<String, BandedAnswer> answers, QuestionSet qs) {
+        Map<String, BandedAnswer> ordered = new LinkedHashMap<>();
+        qs.questions().fieldNames().forEachRemaining(id -> {
+            BandedAnswer a = answers.get(id);
+            if (a != null) {
+                ordered.put(id, a);
+            }
+        });
+        ordered.putAll(answers);
+        return ordered;
     }
 
     /** §5.4(a): effective review-priority starts at intrinsic_risk; invariants/rules only ever raise it. */

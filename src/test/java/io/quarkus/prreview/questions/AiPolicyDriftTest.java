@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 /**
  * Fails when the upstream policy the triage question paraphrases has been edited (design §4.2).
  *
- * <p>{@code signal_to_noise_violation} restates one section of {@code quarkusio/quarkus/AI_POLICY.md} in
+ * <p>{@code content_disproportionate} restates one section of {@code quarkusio/quarkus/AI_POLICY.md} in
  * its own words. Nothing else in the build connects the two: if upstream rewrites that section, the
  * question's criteria keep reading perfectly while no longer describing the policy they cite. This test
  * is that connection, and it is the only one.
@@ -49,7 +49,7 @@ class AiPolicyDriftTest {
         assertEquals(expected, actual, () -> """
                 %s/%s has been edited since it was read on %s.
 
-                The '%s' section is paraphrased by the 'signal_to_noise_violation' question in \
+                The '%s' section is paraphrased by the 'content_disproportionate' question in \
                 questions/triage.json. Re-read that section, update the question's instructions and \
                 criteria if the policy changed, then re-pin %s:
                   ai-policy.blob-sha=%s

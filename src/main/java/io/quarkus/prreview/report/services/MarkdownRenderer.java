@@ -1,7 +1,9 @@
 package io.quarkus.prreview.report.services;
 
+import io.quarkus.prreview.interpret.model.BandedAnswer;
 import io.quarkus.prreview.interpret.model.Finding;
 import io.quarkus.prreview.interpret.model.Severity;
+import io.quarkus.prreview.jev.model.Answer;
 import io.quarkus.prreview.review.model.AuthorContext;
 import io.quarkus.prreview.review.model.PipelineRun;
 import io.quarkus.prreview.review.model.Provenance;
@@ -9,7 +11,11 @@ import io.quarkus.prreview.review.model.RangeReport;
 import io.quarkus.prreview.review.model.ReviewResult;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Deterministic markdown rendering of the structured review results (plan §9 item 3). This is pure templating
@@ -25,6 +31,25 @@ public class MarkdownRenderer {
     private static final String[] PRIORITY = {"skim", "read-through", "read-closely"};
     private static final String[] BLAST = {
             "isolated", "local", "extension-wide", "cross-cutting", "foundational"};
+
+    /**
+     * What the Author column means — and, more importantly, what it does not. The caveat is printed
+     * rather than kept in the javadoc because the column's whole risk is being read as a detector:
+     * `human` is the bucket a PR falls into when nothing was declared, which is also what every
+     * undeclared AI-assisted PR looks like.
+     */
+    private static final String AUTHOR_LEGEND =
+            "Author is derived from attested facts only — the account's GitHub type, the routine-automation "
+            + "allowlist, and an AI-assistance marker the author chose to leave. `bot` is allowlisted "
+            + "automation, `agent` is a bot account that is not, `human+ai` declared assistance, and "
+            + "**`human` means no declaration, not no AI** — nothing inspects the code. `+commits` marks a "
+            + "bot- or agent-opened PR that carries a human's commits.";
+
+    /** What the `p` column means, spelled out where the two question types disagree about it. */
+    private static final String P_LEGEND =
+            "`p` is the probability of the answer as stated. A noul question returns p(yes), so a `no` "
+            + "answer shows 1 − p(yes); a score question has no probability for its value, and the number "
+            + "shown there is the reported confidence.";
 
     // --- single PR ---------------------------------------------------------------------------------
 
@@ -54,8 +79,35 @@ public class MarkdownRenderer {
         }
 
         renderPipelines(sb, r.pipelines());
+        renderDecisions(sb, r.triageAnswers());
         renderProvenance(sb, r.provenance());
         return sb.toString();
+    }
+
+    /**
+     * Every triage decision with the probability behind it, so a surprising finding can be traced to the
+     * answer that produced it without re-running anything.
+     *
+     * <p>This is the only place the raw probabilities are visible. They are still never read as a second
+     * gate decision — policy sees the band and nothing else — but a report that shows only the band asks
+     * the reader to trust a threshold they cannot see the input to, and makes band calibration
+     * impossible to argue about from output alone.
+     */
+    private void renderDecisions(StringBuilder sb, Map<String, BandedAnswer> answers) {
+        if (answers.isEmpty()) {
+            return;
+        }
+        sb.append("\n## Triage decisions\n\n");
+        sb.append("| question | type | answer | p | band |\n|---|---|---|---|---|\n");
+        for (Map.Entry<String, BandedAnswer> e : answers.entrySet()) {
+            BandedAnswer a = e.getValue();
+            sb.append("| ").append(e.getKey())
+                    .append(" | ").append(type(a))
+                    .append(" | ").append(answerOf(a))
+                    .append(" | ").append(probabilityOf(a))
+                    .append(" | ").append(a.band()).append(" |\n");
+        }
+        sb.append('\n').append(P_LEGEND).append('\n');
     }
 
     /**
@@ -81,6 +133,10 @@ public class MarkdownRenderer {
         }
         if (a.declaresAiAssistance()) {
             sb.append("  ·  AI assistance declared");
+        }
+        if (a.hasHumanCommitAuthor() && (a.authorIsBot() || a.authorIsAllowlistedBot())) {
+            // Only worth saying on a machine-opened PR, where it contradicts the account type.
+            sb.append("  ·  carries human-authored commits");
         }
         sb.append("\n\n");
     }
@@ -143,17 +199,21 @@ public class MarkdownRenderer {
         if (report.ranked().isEmpty()) {
             sb.append("_No PRs reviewed._\n\n");
         } else {
-            sb.append("| PR | Title | Priority | Blast | Blockers | Top finding |\n");
-            sb.append("|---|---|---|---|---|---|\n");
+            sb.append("| PR | Title | Author | Priority | Blast | Blockers | Top finding |\n");
+            sb.append("|---|---|---|---|---|---|---|\n");
             for (ReviewResult r : report.ranked()) {
                 sb.append("| #").append(r.prNumber())
                         .append(" | ").append(truncate(nz(r.title()), 48))
+                        .append(" | ").append(authorCell(r.authorContext()))
                         .append(" | ").append(label(PRIORITY, r.priority()))
                         .append(" | ").append(label(BLAST, r.blastRadius()))
                         .append(" | ").append(r.blockerCount())
                         .append(" | ").append(topFinding(r)).append(" |\n");
             }
+            sb.append('\n').append(AUTHOR_LEGEND).append('\n');
         }
+
+        renderDecisionMatrix(sb, report.ranked());
 
         if (!report.errored().isEmpty()) {
             sb.append("\n## Could not be reviewed automatically\n\n");
@@ -165,6 +225,124 @@ public class MarkdownRenderer {
             }
         }
         return sb.toString();
+    }
+
+    /**
+     * One row per PR, one column per triage question — the sweep's comparative view.
+     *
+     * <p>The ranked table above says what the agent concluded; this says what it believed. Reading a
+     * column down is how you see that the same answer on near-identical PRs came back at different
+     * confidences, which no single-PR report can show.
+     *
+     * <p>Columns are the union of the questions answered, in the order the gate returned them for the
+     * first PR — a PR missing a question (an earlier question-set version, a partial response) leaves
+     * an empty cell rather than shifting its neighbours.
+     */
+    private void renderDecisionMatrix(StringBuilder sb, List<ReviewResult> ranked) {
+        List<String> questions = questionColumns(ranked);
+        if (questions.isEmpty()) {
+            return;
+        }
+        sb.append("\n## Triage decisions\n\n");
+        sb.append("| PR |");
+        questions.forEach(q -> sb.append(' ').append(q).append(" |"));
+        sb.append("\n|---|").append("---|".repeat(questions.size())).append('\n');
+
+        for (ReviewResult r : ranked) {
+            sb.append("| #").append(r.prNumber()).append(" |");
+            for (String q : questions) {
+                sb.append(' ').append(cell(r.triageAnswers().get(q))).append(" |");
+            }
+            sb.append('\n');
+        }
+        sb.append('\n').append(P_LEGEND).append('\n');
+        sb.append("Band is marked on the value: `~` FLAG, `?` HUMAN, unmarked CONFIRM.\n");
+    }
+
+    /** The union of answered question ids, first-seen order preserved. */
+    private static List<String> questionColumns(List<ReviewResult> ranked) {
+        Set<String> columns = new LinkedHashSet<>();
+        for (ReviewResult r : ranked) {
+            columns.addAll(r.triageAnswers().keySet());
+        }
+        return List.copyOf(columns);
+    }
+
+    /** {@code answer p} plus a band marker, compact enough for a fifteen-column table. */
+    private static String cell(BandedAnswer a) {
+        if (a == null) {
+            return "";
+        }
+        return answerOf(a) + " " + probabilityOf(a) + bandMark(a);
+    }
+
+    private static String bandMark(BandedAnswer a) {
+        return switch (a.band()) {
+            case CONFIRM -> "";
+            case FLAG -> "~";
+            case HUMAN -> "?";
+        };
+    }
+
+    private static String type(BandedAnswer a) {
+        if (a.raw() == null) {
+            return "";
+        }
+        return nz(a.raw().type());
+    }
+
+    private static String answerOf(BandedAnswer a) {
+        if (a.choice() != null) {
+            return a.choice();
+        }
+        if (!Double.isNaN(a.score())) {
+            return String.format(Locale.ROOT, "%.1f", a.score());
+        }
+        return a.yes() ? "yes" : "no";
+    }
+
+    /**
+     * The probability of the answer as stated, which is not always what the model returned: a noul
+     * question returns p(yes), so a {@code no} answer reports {@code 1 − p(yes)}. A score question has no
+     * probability for its value at all — the number there is the reported confidence, and {@link #P_LEGEND}
+     * says so rather than letting the column imply otherwise.
+     */
+    private static String probabilityOf(BandedAnswer a) {
+        Answer raw = a.raw();
+        if (raw == null) {
+            return "";
+        }
+        double p;
+        if (raw.isNoul()) {
+            p = a.yes() ? raw.noulValue() : 1.0 - raw.noulValue();
+        } else if (a.choice() != null && raw.probabilities() != null) {
+            p = raw.probabilities().getOrDefault(a.choice(), raw.derivedConfidence());
+        } else {
+            p = raw.derivedConfidence();
+        }
+        return String.format(Locale.ROOT, "%.2f", p);
+    }
+
+    /**
+     * {@code login (kind)} for the sweep, e.g. {@code dependabot (bot)}.
+     *
+     * <p>The kind is shown even when the login is unknown, because it is the column being scanned; an
+     * absent {@link AuthorContext} renders an em dash rather than guessing {@code human}, which is the
+     * one wrong answer here — the residual bucket is for PRs we have facts about.
+     */
+    private static String authorCell(AuthorContext a) {
+        if (a == null) {
+            return "—";
+        }
+        StringBuilder cell = new StringBuilder();
+        if (a.login() != null && !a.login().isBlank()) {
+            cell.append(a.login()).append(' ');
+        }
+        cell.append('(').append(a.kind().label());
+        if (a.hasHumanCommitAuthor() && (a.authorIsBot() || a.authorIsAllowlistedBot())) {
+            cell.append(" +commits");
+        }
+        return cell.append(')').toString();
     }
 
     private static String topFinding(ReviewResult r) {

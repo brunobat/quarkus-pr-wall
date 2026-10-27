@@ -90,15 +90,27 @@ public class AuthorshipProvenanceService {
     }
 
     /**
-     * A commit GitHub resolved to a real user account that is not routine automation. A bot-opened PR
-     * carrying such a commit is a human's work the bot merely delivered, which is why the two facts are
-     * kept apart rather than collapsed into one "is a bot PR" flag.
+     * A commit GitHub resolved to a real user account. A bot-opened PR carrying such a commit is a
+     * human's work the bot merely delivered, which is why the two facts are kept apart rather than
+     * collapsed into one "is a bot PR" flag.
+     *
+     * <p>Two exclusions, and the second is the one that is easy to get wrong. Routine automation is
+     * excluded via the allowlist, obviously. But the allowlist deliberately omits coding agents
+     * (see {@code benign-bots.txt}), so "not allowlisted" cannot stand in for "human" — on that test
+     * {@code copilot-swe-agent} authors human commits. Hence the {@code [bot]} suffix check, which is
+     * GitHub's own marking of a bot identity on a commit and is as attested as the account type.
      */
     private boolean hasHumanCommitAuthor(List<CommitMeta> commits) {
         return commits.stream().anyMatch(c -> {
             String login = normalizeLogin(c.authorLogin());
-            return !login.isEmpty() && !benignBots.contains(login);
+            return !login.isEmpty() && !benignBots.contains(login)
+                    && !isBotIdentity(c.authorLogin()) && !isBotIdentity(c.authorName());
         });
+    }
+
+    /** GitHub's {@code [bot]} suffix, in either spelling it arrives in. Not a heuristic on the name. */
+    private static boolean isBotIdentity(String s) {
+        return s != null && s.strip().toLowerCase(Locale.ROOT).endsWith("[bot]");
     }
 
     private static int addedLines(List<ChangedFile> files, FileTag tag) {

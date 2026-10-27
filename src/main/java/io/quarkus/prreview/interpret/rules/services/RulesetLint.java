@@ -25,9 +25,10 @@ import java.util.Set;
  *       unguarded-silence vector cannot ship),</li>
  *   <li>reads {@code declares_ai_assistance} at all, whatever the effect (I-7: a voluntary declaration
  *       reaches the report and nothing else),</li>
- *   <li>mixes the two authorship concerns — what a PR says about its tooling and whether its
- *       description is padded are separate questions, and a rule that reads both would let one
- *       stand in as evidence for the other.</li>
+ *   <li>mixes {@code authorship-provenance} with {@code policy-proportionality} — who opened a PR and
+ *       whether it costs more reading than it warrants are unrelated questions, and a rule that reads
+ *       both would let padding stand in as evidence of tooling. It is not: a verbose human fails the
+ *       proportionality question and a terse model passes it.</li>
  * </ul>
  * The effect verb itself is already closed by {@link RuleEffect} (parsing an unknown verb throws before
  * lint), so a lowering effect is unrepresentable in the first place.
@@ -42,8 +43,17 @@ public final class RulesetLint {
             Set.of("author_is_bot", "author_is_allowlisted_bot", DECLARES_AI_ASSISTANCE);
 
     private static final String AUTHORSHIP_CONCERN = "authorship-provenance";
-    private static final String SIGNAL_TO_NOISE_CONCERN = "policy-signal-to-noise";
-    private static final String SIGNAL_TO_NOISE_ANSWER = "signal_to_noise_violation";
+
+    /**
+     * The proportionality concern and the one answer it rests on: whether a PR costs a reviewer more
+     * reading than the change warrants. It measures bulk against substance and says nothing about who
+     * or what wrote the PR — which is exactly why it is kept apart from the authorship facts below.
+     * Named {@code signal_to_noise_violation} until 2026-10-21; see {@code questionsNote} in
+     * {@code questions/triage.json} for what it means and why it was renamed.
+     */
+    private static final String PROPORTIONALITY_CONCERN = "policy-proportionality";
+
+    private static final String DISPROPORTIONATE_ANSWER = "content_disproportionate";
 
     private RulesetLint() {
     }
@@ -115,25 +125,25 @@ public final class RulesetLint {
     private static void validateAuthorshipAsymmetry(Rule rule, List<String> errors, String where) {
         boolean readsDeclaration = false;
         boolean readsProvenance = false;
-        boolean readsSignalToNoise = false;
+        boolean readsDisproportionate = false;
         for (RulePredicate p : rule.when()) {
             if (p.isFactPredicate() && PROVENANCE_FACTS.contains(p.fact())) {
                 readsProvenance = true;
                 readsDeclaration |= DECLARES_AI_ASSISTANCE.equals(p.fact());
             }
-            readsSignalToNoise |= p.isAnswerPredicate() && SIGNAL_TO_NOISE_ANSWER.equals(p.answer());
+            readsDisproportionate |= p.isAnswerPredicate() && DISPROPORTIONATE_ANSWER.equals(p.answer());
         }
         if (readsDeclaration) {
             errors.add(where + " reads '" + DECLARES_AI_ASSISTANCE + "' — I-7 allows no rule to read it, "
                     + "not even to " + rule.then() + ": every effect a declaration can have on a PR is a "
                     + "penalty for having declared. The fact is for the report only");
         }
-        if (readsProvenance && SIGNAL_TO_NOISE_CONCERN.equals(rule.concern())) {
-            errors.add(where + " is in '" + SIGNAL_TO_NOISE_CONCERN + "' but reads an authorship fact — "
+        if (readsProvenance && PROPORTIONALITY_CONCERN.equals(rule.concern())) {
+            errors.add(where + " is in '" + PROPORTIONALITY_CONCERN + "' but reads an authorship fact — "
                     + "description quality and authorship must not corroborate each other");
         }
-        if (readsSignalToNoise && AUTHORSHIP_CONCERN.equals(rule.concern())) {
-            errors.add(where + " is in '" + AUTHORSHIP_CONCERN + "' but reads '" + SIGNAL_TO_NOISE_ANSWER
+        if (readsDisproportionate && AUTHORSHIP_CONCERN.equals(rule.concern())) {
+            errors.add(where + " is in '" + AUTHORSHIP_CONCERN + "' but reads '" + DISPROPORTIONATE_ANSWER
                     + "' — description quality and authorship must not corroborate each other");
         }
     }

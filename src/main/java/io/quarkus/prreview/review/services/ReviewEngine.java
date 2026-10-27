@@ -158,7 +158,8 @@ public class ReviewEngine {
                 facts.committerStatus().isCommitter(),
                 facts.provenance().authorIsBot(),
                 facts.provenance().authorIsAllowlistedBot(),
-                facts.provenance().declaresAiAssistance());
+                facts.provenance().declaresAiAssistance(),
+                facts.provenance().hasHumanCommitAuthor());
 
         return new ReviewResult(
                 facts.pr().number(),
@@ -167,6 +168,7 @@ public class ReviewEngine {
                 triage.effectiveBlastRadius(),
                 findings,
                 runs,
+                triage.answers(),
                 provenance,
                 authorContext,
                 ReviewResult.Status.REVIEWED,

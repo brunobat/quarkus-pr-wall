@@ -31,8 +31,12 @@ class AuthorshipProvenanceServiceTest {
     AuthorshipProvenanceService service;
 
     private static CommitMeta commit(String body, String authorLogin, String committerName) {
+        return commit(body, "Alice", authorLogin, committerName);
+    }
+
+    private static CommitMeta commit(String body, String authorName, String authorLogin, String committerName) {
         return new CommitMeta("abc1234", "Fix the thing", body, "2026-10-01T10:00:00Z",
-                "2026-10-01T10:00:00Z", 1, "Alice", authorLogin, committerName, "");
+                "2026-10-01T10:00:00Z", 1, authorName, authorLogin, committerName, "");
     }
 
     private static PullRequest pr(String body, boolean bot, String login, List<CommitMeta> commits) {
@@ -103,6 +107,30 @@ class AuthorshipProvenanceServiceTest {
 
         assertTrue(p.authorIsBot());
         assertTrue(p.hasHumanCommitAuthor());
+    }
+
+    /**
+     * The trap the allowlist sets. Coding agents are deliberately kept out of {@code benign-bots.txt},
+     * so "not routine automation" is not "human" — on that test {@code copilot-swe-agent} authors
+     * human commits, and an agent's PR would report as carrying a person's work.
+     */
+    @Test
+    void aCodingAgentsCommitIsNotAHumanCommitEvenThoughItIsNotRoutineAutomation() {
+        AuthorshipProvenance p = resolve(pr("", true, "copilot-swe-agent",
+                List.of(commit("", "copilot-swe-agent[bot]", "copilot-swe-agent", "GitHub"))));
+
+        assertTrue(p.authorIsBot());
+        assertFalse(p.authorIsAllowlistedBot(), "agents are kept off the routine-automation allowlist");
+        assertFalse(p.hasHumanCommitAuthor());
+    }
+
+    /** The same identity reaches us suffixed on the login instead of the name, depending on the API. */
+    @Test
+    void theBotSuffixIsHonouredOnTheLoginAsWellAsTheName() {
+        AuthorshipProvenance p = resolve(pr("", true, "some-agent",
+                List.of(commit("", "Some Agent", "some-agent[bot]", "GitHub"))));
+
+        assertFalse(p.hasHumanCommitAuthor());
     }
 
     @Test

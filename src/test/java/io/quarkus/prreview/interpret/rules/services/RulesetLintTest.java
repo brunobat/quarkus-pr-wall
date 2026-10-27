@@ -195,7 +195,7 @@ class RulesetLintTest {
 
     @Test
     void aSignalToNoiseRuleMayNotReadAnAuthorshipFact() {
-        Rule hostile = new Rule("padded-therefore-generated", "policy-signal-to-noise", null,
+        Rule hostile = new Rule("padded-therefore-generated", "policy-proportionality", null,
                 List.of(fact("author_is_bot", "true")),
                 RuleEffect.escalate, null, null, "inconsistency", null, null, null, null, true);
 
@@ -206,11 +206,11 @@ class RulesetLintTest {
     @Test
     void anAuthorshipRuleMayNotReadTheSignalToNoiseAnswer() {
         Rule hostile = new Rule("generated-because-padded", "authorship-provenance", null,
-                List.of(answer("signal_to_noise_violation", Band.CONFIRM, "yes", null)),
+                List.of(answer("content_disproportionate", Band.CONFIRM, "yes", null)),
                 RuleEffect.escalate, null, null, "test-adequacy", null, null, null, null, true);
 
         List<String> errors = RulesetLint.validate(new Ruleset("hostile", List.of(hostile)), T,
-                Set.of("signal_to_noise_violation"));
+                Set.of("content_disproportionate"));
 
         assertFalse(errors.isEmpty());
     }
