@@ -5,12 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.model.decision.request.DecisionRequest;
 import dev.langchain4j.model.decision.request.YesNoQuestion;
+import dev.langchain4j.model.decision.response.ChoiceAnswer;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import dev.langchain4j.model.decision.response.YesNoAnswer;
 import io.quarkus.prreview.classification.api.CheckQuestions;
@@ -83,7 +86,7 @@ class JevSubmissionTest {
     void sameTwoQuestionsWhateverTheDiffContains() {
         for (String diff : List.of(MIXED_DIFF, TESTS_ONLY_DIFF, DOCS_ONLY_DIFF)) {
             DecisionRequest request = JevSubmission.of(pr(diff), List.of(new TestAdequacyCheck())).toDecisionRequest();
-            assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.adequately-tested"),
+            assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests"),
                     List.copyOf(request.questions().keySet()));
             assertEquals(request.input(), JevSubmission.input(pr(diff)));
         }
@@ -101,12 +104,14 @@ class JevSubmissionTest {
                 List.of(new TestAdequacyCheck(), new FixedCheck("other", "behaviour")));
         DecisionRequest request = submission.toDecisionRequest();
 
-        assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.adequately-tested", "other.behaviour"),
+        assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests", "other.behaviour"),
                 List.copyOf(request.questions().keySet()));
 
         DecisionResponse response = DecisionResponse.builder()
                 .answer("test-adequacy.behaviour", YesNoAnswer.of(0.88))
-                .answer("test-adequacy.adequately-tested", YesNoAnswer.of(0.21))
+                .answer("test-adequacy.tests", ChoiceAnswer.builder().value("no-test-changes")
+                        .probabilities(Map.of("no-test-changes", 0.64, "multiple-gaps", 0.2, "undetermined", 0.16))
+                        .build())
                 .answer("other.behaviour", YesNoAnswer.of(0.5))
                 .build();
         List<CheckResult> results = submission.results(response);
@@ -114,13 +119,44 @@ class JevSubmissionTest {
         assertEquals(List.of(
                 new CheckResult("test-adequacy", List.of(
                         new QuestionResult("test-adequacy", "behaviour", "behaviour",
-                                "Does this PR change the runtime behaviour of the software?", 0.88),
-                        new QuestionResult("test-adequacy", "adequately-tested", "adequately tested",
-                                "Is the runtime behaviour changed by this PR adequately exercised by the tests that"
-                                        + " this PR adds or modifies?",
-                                0.21))),
-                new CheckResult("other", List.of(new QuestionResult("other", "behaviour", "other behaviour", "Other?", 0.5)))),
+                                "Does this PR change the runtime behaviour of the software?",
+                                new QuestionResult.YesNo(0.88)),
+                        new QuestionResult("test-adequacy", "tests", "tests", TestAdequacyCheck.TESTS.text(),
+                                new QuestionResult.Choice("no-test-changes", TestAdequacyCheck.TESTS.options(),
+                                        ordered("no-test-changes", 0.64, "multiple-gaps", 0.2, "undetermined", 0.16))))),
+                new CheckResult("other", List.of(new QuestionResult("other", "behaviour", "other behaviour", "Other?",
+                        new QuestionResult.YesNo(0.5))))),
                 results);
+    }
+
+    @Test
+    void choiceKeepsJevsValueAndDeclaredOptionOrder() {
+        JevSubmission submission = JevSubmission.of(pr(MIXED_DIFF), List.of(new TestAdequacyCheck()));
+        // jev's chosen value is kept even when another option has a higher probability: the app never picks.
+        DecisionResponse response = DecisionResponse.builder()
+                .answer("test-adequacy.behaviour", YesNoAnswer.of(0.5))
+                .answer("test-adequacy.tests", ChoiceAnswer.builder().value("undetermined")
+                        .probability("fully-exercised", 0.6).probability("undetermined", 0.3)
+                        .probability("no-runtime-change", 0.1).build())
+                .build();
+
+        QuestionResult.Choice tests = (QuestionResult.Choice) submission.results(response).get(0).questions().get(1)
+                .answer();
+
+        assertEquals("undetermined", tests.value());
+        assertEquals(List.of("no-runtime-change", "fully-exercised", "undetermined"),
+                List.copyOf(tests.probabilities().keySet()));
+        assertEquals(List.of("no-runtime-change", "no-test-changes", "tests-unrelated", "tests-without-assertions",
+                "partially-exercised", "multiple-gaps", "fully-exercised", "undetermined"),
+                List.copyOf(tests.options().keySet()));
+    }
+
+    private static Map<String, Double> ordered(Object... pairs) {
+        Map<String, Double> map = new LinkedHashMap<>();
+        for (int i = 0; i < pairs.length; i += 2) {
+            map.put((String) pairs[i], (Double) pairs[i + 1]);
+        }
+        return map;
     }
 
     private static int count(String text, String part) {

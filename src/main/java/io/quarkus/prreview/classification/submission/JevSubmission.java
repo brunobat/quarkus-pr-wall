@@ -1,12 +1,16 @@
 package io.quarkus.prreview.classification.submission;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import dev.langchain4j.model.decision.request.ChoiceQuestion;
 import dev.langchain4j.model.decision.request.DecisionRequest;
+import dev.langchain4j.model.decision.request.Question;
 import dev.langchain4j.model.decision.request.YesNoQuestion;
+import dev.langchain4j.model.decision.response.ChoiceAnswer;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import io.quarkus.prreview.classification.api.CheckQuestions;
 import io.quarkus.prreview.classification.api.CheckResult;
@@ -51,12 +55,24 @@ public final class JevSubmission {
     }
 
     private CheckQuestions questionsFor(String checkId) {
-        return (questionId, label, question) -> {
-            String id = checkId + "." + questionId;
-            if (questions.putIfAbsent(id, new Asked(checkId, questionId, label, question)) != null) {
-                throw new IllegalStateException("Duplicate jev question id: " + id);
+        return new CheckQuestions() {
+            @Override
+            public void yesNo(String questionId, String label, YesNoQuestion question) {
+                add(new Asked(checkId, questionId, label, question));
+            }
+
+            @Override
+            public void choice(String questionId, String label, ChoiceQuestion question) {
+                add(new Asked(checkId, questionId, label, question));
             }
         };
+    }
+
+    private void add(Asked asked) {
+        String id = asked.checkId() + "." + asked.questionId();
+        if (questions.putIfAbsent(id, asked) != null) {
+            throw new IllegalStateException("Duplicate jev question id: " + id);
+        }
     }
 
     public String input() {
@@ -74,10 +90,26 @@ public final class JevSubmission {
         Map<String, List<QuestionResult>> byCheck = new LinkedHashMap<>();
         questions.forEach((id, asked) -> byCheck.computeIfAbsent(asked.checkId(), k -> new ArrayList<>())
                 .add(new QuestionResult(asked.checkId(), asked.questionId(), asked.label(), asked.question().text(),
-                        response.yesNo(id).probability())));
+                        answer(response, id, asked.question()))));
         return byCheck.entrySet().stream().map(e -> new CheckResult(e.getKey(), List.copyOf(e.getValue()))).toList();
     }
 
-    private record Asked(String checkId, String questionId, String label, YesNoQuestion question) {
+    private static QuestionResult.Answer answer(DecisionResponse response, String id, Question question) {
+        if (question instanceof ChoiceQuestion choice) {
+            ChoiceAnswer answer = response.choice(id);
+            Map<String, Double> probabilities = new LinkedHashMap<>();
+            choice.options().keySet().forEach(option -> {
+                Double p = answer.probabilities().get(option);
+                if (p != null) {
+                    probabilities.put(option, p);
+                }
+            });
+            return new QuestionResult.Choice(answer.value(), choice.options(),
+                    Collections.unmodifiableMap(probabilities));
+        }
+        return new QuestionResult.YesNo(response.yesNo(id).probability());
+    }
+
+    private record Asked(String checkId, String questionId, String label, Question question) {
     }
 }
