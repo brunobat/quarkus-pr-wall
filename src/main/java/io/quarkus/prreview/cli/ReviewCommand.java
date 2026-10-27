@@ -6,9 +6,10 @@ import java.util.List;
 import java.util.SequencedSet;
 import java.util.concurrent.Callable;
 
+import io.quarkus.prreview.config.ReviewConfig;
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "review", mixinStandardHelpOptions = true,
+@CommandLine.Command(name = "review", mixinStandardHelpOptions = true, versionProvider = PrReviewCommand.Version.class,
         description = "Classify one or more PRs and write a markdown report for each.")
 public class ReviewCommand implements Callable<Integer> {
 
@@ -22,6 +23,12 @@ public class ReviewCommand implements Callable<Integer> {
             description = "Directory for the review-<pr>.md reports (default: pr-review.output-dir).")
     Path outputDir;
 
+    private final ReviewConfig config;
+
+    public ReviewCommand(ReviewConfig config) {
+        this.config = config;
+    }
+
     @Override
     public Integer call() {
         SequencedSet<Integer> uniquePrs = uniquePrs();
@@ -30,6 +37,11 @@ public class ReviewCommand implements Callable<Integer> {
         }
         spec.commandLine().getOut().flush();
         return 0;
+    }
+
+    /** The report directory: {@code --output-dir} when given, otherwise the configured default. */
+    Path reportDir() {
+        return outputDir != null ? outputDir : config.outputDir();
     }
 
     /** PR numbers in first-seen order, each once; anything not a positive number is a usage error (exit 2). */

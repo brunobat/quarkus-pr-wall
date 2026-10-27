@@ -27,6 +27,3 @@ quarkus:
         api-key: test-key
       anthropic:
         api-key: test-key
-  pr-review:
-    jev:
-      max-submission-chars: 1234

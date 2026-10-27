@@ -2,6 +2,7 @@ package io.quarkus.prreview.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.nio.file.Path;
 import java.time.Duration;
 
 import jakarta.inject.Inject;
@@ -21,11 +22,7 @@ class ReviewConfigTest {
         assertEquals("quarkusio/quarkus", config.gh().repo());
         assertEquals("gh", config.gh().binary());
         assertEquals(Duration.ofSeconds(60), config.gh().timeout());
-        assertEquals("reports", config.outputDir());
-    }
-
-    @Test
-    void testProfileOverridesTheSubmissionLimit() {
-        assertEquals(1234, config.jev().maxSubmissionChars());
+        assertEquals(60_000, config.jev().maxSubmissionChars());
+        assertEquals(Path.of("reports"), config.outputDir());
     }
 }

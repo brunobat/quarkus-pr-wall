@@ -104,6 +104,13 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
                 <configuration>
+                    <!-- Tests assert the defaults; a developer's own settings must not leak into them. -->
+                    <excludedEnvironmentVariables>
+                        <excludedEnvironmentVariable>GH_REPO</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>GH_BINARY</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>GH_TIMEOUT</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
+                    </excludedEnvironmentVariables>
                     <systemPropertyVariables>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                         <maven.home>${maven.home}</maven.home>

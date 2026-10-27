@@ -1,5 +1,6 @@
 package io.quarkus.prreview.config;
 
+import java.nio.file.Path;
 import java.time.Duration;
 
 import io.smallrye.config.ConfigMapping;
@@ -23,7 +24,7 @@ public interface ReviewConfig {
 
     /** Directory where the {@code review-<pr>.md} reports are written, relative to the working directory. */
     @WithDefault("reports")
-    String outputDir();
+    Path outputDir();
 
     interface Gh {
 

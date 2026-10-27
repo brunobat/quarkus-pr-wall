@@ -44,6 +44,12 @@ class ReviewCommandArgsTest {
     }
 
     @Test
+    @Launch({ "review", "-V" })
+    void subcommandPrintsTheVersion(LaunchResult result) {
+        assertTrue(result.getOutput().contains("pr-review 1.0.0-SNAPSHOT"), result.getOutput());
+    }
+
+    @Test
     @Launch("--help")
     void helpExitsZero(LaunchResult result) {
         assertTrue(result.getOutput().contains("review"), result.getOutput());
