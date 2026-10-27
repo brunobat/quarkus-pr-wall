@@ -7,8 +7,8 @@ import java.util.List;
 import io.quarkus.prreview.classification.api.CheckResult;
 import io.quarkus.prreview.classification.api.QuestionResult;
 import io.quarkus.prreview.report.AnswerFormat;
+import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.review.model.Classification;
-import io.quarkus.prreview.summary.model.Summary;
 
 /**
  * The terminal block for one classified PR:

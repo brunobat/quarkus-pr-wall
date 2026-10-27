@@ -21,8 +21,8 @@ import io.quarkus.prreview.pr.model.PrContext;
 import io.quarkus.prreview.report.markdown.MarkdownReport;
 import io.quarkus.prreview.report.terminal.TerminalRenderer;
 import io.quarkus.prreview.review.model.Classification;
-import io.quarkus.prreview.summary.FallbackSummary;
-import io.quarkus.prreview.summary.model.Summary;
+import io.quarkus.prreview.report.summary.FallbackSummary;
+import io.quarkus.prreview.report.summary.model.Summary;
 
 class RenderingTest {
 

@@ -1,4 +1,4 @@
-package io.quarkus.prreview.summary.model;
+package io.quarkus.prreview.report.summary.model;
 
 /**
  * The prose summary of a classification.
