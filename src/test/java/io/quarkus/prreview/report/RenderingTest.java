@@ -12,17 +12,17 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.model.output.TokenUsage;
-import io.quarkus.prreview.classification.api.CheckResult;
-import io.quarkus.prreview.classification.api.QuestionResult;
 import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
+import io.quarkus.prreview.classification.model.CheckResult;
+import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.clients.gh.model.PullRequest;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PrContext;
 import io.quarkus.prreview.report.markdown.MarkdownReport;
-import io.quarkus.prreview.report.terminal.TerminalRenderer;
-import io.quarkus.prreview.review.model.Classification;
 import io.quarkus.prreview.report.summary.FallbackSummary;
 import io.quarkus.prreview.report.summary.model.Summary;
+import io.quarkus.prreview.report.terminal.TerminalRenderer;
 
 class RenderingTest {
 

@@ -13,9 +13,9 @@ import dev.langchain4j.model.decision.request.YesNoQuestion;
 import dev.langchain4j.model.decision.response.ChoiceAnswer;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import io.quarkus.prreview.classification.api.CheckQuestions;
-import io.quarkus.prreview.classification.api.CheckResult;
 import io.quarkus.prreview.classification.api.ClassificationCheck;
-import io.quarkus.prreview.classification.api.QuestionResult;
+import io.quarkus.prreview.classification.model.CheckResult;
+import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PrContext;
 

@@ -1,9 +1,8 @@
-package io.quarkus.prreview.review.model;
+package io.quarkus.prreview.classification.model;
 
 import java.util.List;
 
 import dev.langchain4j.model.output.TokenUsage;
-import io.quarkus.prreview.classification.api.CheckResult;
 import io.quarkus.prreview.pr.model.PrContext;
 
 /**

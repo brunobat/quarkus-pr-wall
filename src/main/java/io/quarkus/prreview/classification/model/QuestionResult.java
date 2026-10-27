@@ -1,4 +1,4 @@
-package io.quarkus.prreview.classification.api;
+package io.quarkus.prreview.classification.model;
 
 import java.util.Map;
 

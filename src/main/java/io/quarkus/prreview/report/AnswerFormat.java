@@ -3,7 +3,7 @@ package io.quarkus.prreview.report;
 import java.math.BigDecimal;
 import java.util.Locale;
 
-import io.quarkus.prreview.classification.api.QuestionResult;
+import io.quarkus.prreview.classification.model.QuestionResult;
 
 /** How {@code jev}'s answers are written. Formatting only: no answer is compared with any value. */
 public final class AnswerFormat {

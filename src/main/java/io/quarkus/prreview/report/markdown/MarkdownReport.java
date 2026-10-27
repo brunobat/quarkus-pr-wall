@@ -4,13 +4,13 @@ import java.util.Map;
 
 import dev.langchain4j.model.output.TokenUsage;
 
-import io.quarkus.prreview.classification.api.CheckResult;
-import io.quarkus.prreview.classification.api.QuestionResult;
+import io.quarkus.prreview.classification.model.CheckResult;
+import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.clients.gh.model.PullRequest;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.report.AnswerFormat;
 import io.quarkus.prreview.report.summary.model.Summary;
-import io.quarkus.prreview.review.model.Classification;
 
 /**
  * The markdown report for one classified PR: title, Classification, Summary, Changed files, Run. Probabilities are
