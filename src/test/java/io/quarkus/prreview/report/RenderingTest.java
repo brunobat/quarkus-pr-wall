@@ -23,6 +23,7 @@ import io.quarkus.prreview.report.markdown.MarkdownReport;
 import io.quarkus.prreview.report.summary.FallbackSummary;
 import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.report.terminal.TerminalRenderer;
+import io.quarkus.prreview.triage.model.PrOutcome;
 
 class RenderingTest {
 
@@ -46,6 +47,17 @@ class RenderingTest {
         return classification("Bump jackson-bom", "pom.xml", behaviour, chosen, options);
     }
 
+    /** The terminal block for a classified PR whose report was written to {@link #REPORT}. */
+    static String terminal(Classification classification, Summary summary) {
+        return TerminalRenderer.render(new PrOutcome.Classified(classification, summary),
+                new ReportWriter.Written(REPORT));
+    }
+
+    static PrOutcome.NotClassified notClassified(PullRequest pr, String reason, String message) {
+        return new PrOutcome.NotClassified(57715, List.of("test-adequacy"), pr, reason, message, "jev-latest", 61234,
+                60000);
+    }
+
     static Map<String, Double> probs(Object... pairs) {
         Map<String, Double> map = new LinkedHashMap<>();
         for (int i = 0; i < pairs.length; i += 2) {
@@ -56,8 +68,8 @@ class RenderingTest {
 
     @Test
     void terminalBlockMatchesTheSpecLayout() {
-        String block = TerminalRenderer.render(sample(0.88, "no-test-changes",
-                probs("no-test-changes", 0.64, "multiple-gaps", 0.36)), CLAUDE, REPORT);
+        String block = terminal(sample(0.88, "no-test-changes",
+                probs("no-test-changes", 0.64, "multiple-gaps", 0.36)), CLAUDE);
 
         assertEquals("""
                 PR #57720 - test adequacy
@@ -72,7 +84,7 @@ class RenderingTest {
         String reference = null;
         for (double p : new double[] { 0.0, 0.4999, 0.5, 1.0, 0.88 }) {
             Classification c = sample(p, "no-test-changes", probs("no-test-changes", p));
-            String terminal = TerminalRenderer.render(c, CLAUDE, REPORT);
+            String terminal = terminal(c, CLAUDE);
             String report = MarkdownReport.render(c, CLAUDE);
 
             assertTrue(terminal.contains("behaviour " + AnswerFormat.rounded(p) + "  "), terminal);
@@ -93,7 +105,7 @@ class RenderingTest {
     void shownOptionIsJevsChoiceEvenWhenAnotherIsMoreLikely() {
         Classification c = sample(0.5, "undetermined", probs("fully-exercised", 0.6, "undetermined", 0.3));
 
-        assertTrue(TerminalRenderer.render(c, CLAUDE, REPORT).contains("tests: undetermined 0.30"));
+        assertTrue(terminal(c, CLAUDE).contains("tests: undetermined 0.30"));
         String report = MarkdownReport.render(c, CLAUDE);
         assertTrue(report.contains("jev's choice: `undetermined`"), report);
         assertTrue(report.contains("| `fully-exercised` | " + TestAdequacyCheck.TESTS.options().get("fully-exercised")
@@ -106,7 +118,7 @@ class RenderingTest {
     void choiceWithoutProbabilitiesShowsTheOptionOnly() {
         Classification c = sample(0.5, "no-test-changes", Map.of());
 
-        assertTrue(TerminalRenderer.render(c, CLAUDE, REPORT).contains("  tests: no-test-changes\n"));
+        assertTrue(terminal(c, CLAUDE).contains("  tests: no-test-changes\n"));
         assertEquals("jev classification: behaviour 0.50; tests no-test-changes.", FallbackSummary.of(c).text());
     }
 
@@ -185,7 +197,79 @@ class RenderingTest {
 
         assertEquals("jev classification: behaviour 0.88; tests no-test-changes 0.64.", fallback.text());
         assertEquals("fallback template", fallback.source());
-        assertTrue(TerminalRenderer.render(sample(0.88, "no-test-changes", probs("no-test-changes", 0.64)), fallback,
-                REPORT).contains("Summary (fallback template): jev classification: behaviour 0.88;"));
+        assertTrue(terminal(sample(0.88, "no-test-changes", probs("no-test-changes", 0.64)), fallback).contains("Summary (fallback template): jev classification: behaviour 0.88;"));
+    }
+
+    @Test
+    void notClassifiedTerminalBlockMatchesTheSpecLayout() {
+        PrOutcome.NotClassified outcome = notClassified(null, "jev: {\"error\":\n \"max_tokens_exceeded\"}", "body");
+
+        assertEquals("""
+                PR #57715 - test adequacy
+                  not classified: jev: {"error": "max_tokens_exceeded"}
+                Report: reports/review-57720.md
+                """, TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)));
+        assertEquals("""
+                PR #57715 - test adequacy
+                  not classified: jev: {"error": "max_tokens_exceeded"}
+                Report: not written: FileSystemException: /x: Not a directory
+                """, TerminalRenderer.render(outcome, new ReportWriter.Failed(REPORT,
+                "FileSystemException: /x: Not a directory")));
+    }
+
+    @Test
+    void reportNotWrittenAlsoEndsAClassifiedBlock() {
+        String block = TerminalRenderer.render(new PrOutcome.Classified(sample(0.88, "no-test-changes",
+                probs("no-test-changes", 0.64)), CLAUDE), new ReportWriter.Failed(REPORT, "AccessDeniedException: x"));
+
+        assertTrue(block.endsWith("Summary (Claude): Runtime behaviour changes; no tests were changed.\n"
+                + "Report: not written: AccessDeniedException: x\n"), block);
+    }
+
+    @Test
+    void errorReportWithATitle() {
+        PullRequest pr = new PullRequest(57715, "Big | change", "https://github.com/quarkusio/quarkus/pull/57715",
+                "OPEN", "");
+        String report = MarkdownReport.render(notClassified(pr, "submission 61234 chars exceeds limit 60000",
+                "submission is 61234 characters,\nover the limit of 60000"));
+
+        assertEquals("""
+                # PR #57715: Big | change
+
+                Link: https://github.com/quarkusio/quarkus/pull/57715 · State: OPEN
+
+                ## Not classified
+
+                Reason: submission 61234 chars exceeds limit 60000
+
+                Message: submission is 61234 characters, over the limit of 60000
+
+                ## Run
+
+                - jev model: jev-latest
+                - Submission size: 61234 characters (limit 60000)
+                """, report);
+        assertFalse(report.contains("## Classification"));
+        assertFalse(report.contains("## Summary"));
+    }
+
+    @Test
+    void errorReportWithoutATitleShowsOnlyWhatIsKnown() {
+        PrOutcome.NotClassified outcome = new PrOutcome.NotClassified(404, List.of("test-adequacy"), null,
+                "gh: no pull requests found", "no pull requests found\n## Run\n<!-- hidden", null, null, null);
+
+        assertEquals("""
+                # PR #404
+
+                ## Not classified
+
+                Reason: gh: no pull requests found
+
+                Message: no pull requests found ## Run &lt;!-- hidden
+
+                ## Run
+
+                - jev model: not reached
+                """, MarkdownReport.render(outcome));
     }
 }

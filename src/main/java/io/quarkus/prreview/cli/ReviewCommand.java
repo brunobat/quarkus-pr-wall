@@ -1,6 +1,5 @@
 package io.quarkus.prreview.cli;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -11,11 +10,9 @@ import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
 
 import io.quarkus.arc.Unremovable;
-import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.report.ReportWriter;
 import io.quarkus.prreview.report.markdown.MarkdownReport;
-import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.report.terminal.TerminalRenderer;
 import io.quarkus.prreview.triage.PrClassifier;
 import io.quarkus.prreview.triage.model.PrOutcome;
@@ -43,25 +40,13 @@ public class ReviewCommand implements Callable<Integer> {
     public Integer call() {
         SequencedSet<Integer> uniquePrs = uniquePrs();
         Path dir = reportDir();
-        // Only the first PR until the list loop (phase 4, step 3); not-classified rendering comes in step 2.
+        // Only the first PR until the list loop (phase 4, step 3).
         int pr = uniquePrs.getFirst();
-        try {
-            PrOutcome outcome = classifier.classify(pr);
-            if (!(outcome instanceof PrOutcome.Classified(Classification classification, Summary summary))) {
-                spec.commandLine().getErr().println("PR #" + pr + ": not classified: "
-                        + ((PrOutcome.NotClassified) outcome).reason());
-                spec.commandLine().getErr().flush();
-                return 1;
-            }
-            Path report = ReportWriter.write(dir, pr, MarkdownReport.render(classification, summary));
-            spec.commandLine().getOut().print(TerminalRenderer.render(classification, summary, report));
-            spec.commandLine().getOut().flush();
-            return 0;
-        } catch (RuntimeException | IOException e) {
-            spec.commandLine().getErr().println("PR #" + pr + ": " + e.getMessage());
-            spec.commandLine().getErr().flush();
-            return 1;
-        }
+        PrOutcome outcome = classifier.classify(pr);
+        ReportWriter.Result report = ReportWriter.write(dir, pr, MarkdownReport.render(outcome));
+        spec.commandLine().getOut().print(TerminalRenderer.render(outcome, report));
+        spec.commandLine().getOut().flush();
+        return outcome instanceof PrOutcome.Classified && report instanceof ReportWriter.Written ? 0 : 1;
     }
 
     /** The report directory: {@code --output-dir}, defaulting to {@link ReviewConfig#outputDir()}; empty is a usage error. */

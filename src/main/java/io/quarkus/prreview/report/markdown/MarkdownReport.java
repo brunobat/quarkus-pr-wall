@@ -13,10 +13,12 @@ import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PullRequest;
 import io.quarkus.prreview.report.AnswerFormat;
 import io.quarkus.prreview.report.summary.model.Summary;
+import io.quarkus.prreview.triage.model.PrOutcome;
 
 /**
- * The markdown report for one classified PR: title, Classification, Summary, Changed files, Run. Probabilities are
- * written as returned. Text from GitHub, {@code jev} or Claude never starts a line: it follows a fixed label on its
+ * The markdown report for one PR. Classified: title, Classification, Summary, Changed files, Run, with probabilities
+ * written as returned. Not classified: title, Not classified (reason and message), Run with the values known by
+ * then; no probabilities and no summary. Text from GitHub, {@code jev} or Claude never starts a line: it follows a fixed label on its
  * line, is kept on that one line, is escaped in table cells, and has {@code &} and {@code <} escaped outside code
  * spans (GitHub shows code spans literally), so it cannot add headings, quotes, lists, code blocks, rows, sections
  * or HTML (such as a comment that hides the rest of the report).
@@ -29,11 +31,16 @@ public final class MarkdownReport {
     private MarkdownReport() {
     }
 
+    public static String render(PrOutcome outcome) {
+        return switch (outcome) {
+            case PrOutcome.Classified classified -> render(classified.classification(), classified.summary());
+            case PrOutcome.NotClassified notClassified -> render(notClassified);
+        };
+    }
+
     public static String render(Classification classification, Summary summary) {
-        PullRequest pr = classification.pr().pullRequest();
         StringBuilder md = new StringBuilder();
-        md.append("# PR #").append(pr.number()).append(": ").append(inline(pr.title())).append("\n\n");
-        md.append("Link: ").append(inline(pr.url())).append(" · State: ").append(inline(pr.state())).append("\n\n");
+        appendTitle(md, classification.pr().pullRequest().number(), classification.pr().pullRequest());
 
         md.append("## Classification\n");
         for (CheckResult check : classification.checks()) {
@@ -61,6 +68,33 @@ public final class MarkdownReport {
         md.append("- jev tokens: ").append(tokens(classification.tokenUsage())).append("\n");
         md.append("- Summary: ").append(inline(summary.source())).append("\n");
         return md.toString();
+    }
+
+    private static String render(PrOutcome.NotClassified outcome) {
+        StringBuilder md = new StringBuilder();
+        appendTitle(md, outcome.number(), outcome.pullRequest());
+        md.append("## Not classified\n\n");
+        md.append("Reason: ").append(inline(outcome.reason())).append("\n\n");
+        md.append("Message: ").append(inline(outcome.message())).append("\n");
+
+        md.append("\n## Run\n\n");
+        md.append("- jev model: ").append(outcome.jevModel() == null ? "not reached" : inline(outcome.jevModel()))
+                .append("\n");
+        if (outcome.submissionChars() != null) {
+            md.append("- Submission size: ").append(outcome.submissionChars()).append(" characters (limit ")
+                    .append(outcome.limit()).append(")\n");
+        }
+        return md.toString();
+    }
+
+    /** {@code # PR #<n>: <title>} and the link line, or just {@code # PR #<n>} when the PR was not fetched. */
+    private static void appendTitle(StringBuilder md, int number, PullRequest pr) {
+        if (pr == null) {
+            md.append("# PR #").append(number).append("\n\n");
+            return;
+        }
+        md.append("# PR #").append(number).append(": ").append(inline(pr.title())).append("\n\n");
+        md.append("Link: ").append(inline(pr.url())).append(" · State: ").append(inline(pr.state())).append("\n\n");
     }
 
     private static void appendYesNo(StringBuilder md, CheckResult check) {

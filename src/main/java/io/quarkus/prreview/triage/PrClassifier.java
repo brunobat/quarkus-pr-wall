@@ -53,13 +53,13 @@ public class PrClassifier {
             pr = gh.fetch(number);
         } catch (GhException e) {
             LOG.warnf(e, "PR #%d: gh failed", number);
-            return new PrOutcome.NotClassified(number, null, "gh: " + oneLine(e.getMessage()), e.getMessage(), null,
-                    null, null);
+            return new PrOutcome.NotClassified(number, checkIds(), null, "gh: " + oneLine(e.getMessage()),
+                    e.getMessage(), null, null, null);
         }
         if (pr.diff().isBlank()) {
             LOG.warnf("PR #%d: gh returned an empty diff", number);
-            return new PrOutcome.NotClassified(number, pr, "empty diff", "gh pr diff returned no changes", null, null,
-                    null);
+            return new PrOutcome.NotClassified(number, checkIds(), pr, "empty diff", "gh pr diff returned no changes",
+                    null, null, null);
         }
 
         PrContext context = new PrContext(pr, DiffFiles.parse(pr.diff()));
@@ -69,7 +69,7 @@ public class PrClassifier {
             decision = jev.decide(submission.toDecisionRequest());
         } catch (SubmissionTooLargeException e) {
             LOG.warnf("PR #%d: %s", number, e.getMessage());
-            return new PrOutcome.NotClassified(number, pr,
+            return new PrOutcome.NotClassified(number, checkIds(), pr,
                     "submission %d chars exceeds limit %d".formatted(e.submissionChars(), e.limit()), e.getMessage(),
                     jev.modelName(), e.submissionChars(), e.limit());
         } catch (JevException e) {
@@ -92,10 +92,14 @@ public class PrClassifier {
         return new PrOutcome.Classified(classification, summaries.summarize(classification));
     }
 
-    private static PrOutcome.NotClassified jevFailure(int number, PullRequest pr, String message, String model,
+    private List<String> checkIds() {
+        return checks.stream().map(ClassificationCheck::id).toList();
+    }
+
+    private PrOutcome.NotClassified jevFailure(int number, PullRequest pr, String message, String model,
             int submissionChars, int limit) {
-        return new PrOutcome.NotClassified(number, pr, "jev: " + oneLine(message), message, model, submissionChars,
-                limit);
+        return new PrOutcome.NotClassified(number, checkIds(), pr, "jev: " + oneLine(message), message, model,
+                submissionChars, limit);
     }
 
     private static String oneLine(String text) {
