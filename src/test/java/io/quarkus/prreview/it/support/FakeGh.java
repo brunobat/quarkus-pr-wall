@@ -9,6 +9,8 @@ import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 public class FakeGh implements QuarkusTestResourceLifecycleManager {
 
     public static final Path BINARY = Path.of("src/test/resources/fake-gh/gh").toAbsolutePath();
+    /** Every invocation of the fake {@code gh}, one per line, appended across the build. */
+    public static final Path CALLS_LOG = Path.of("target/fake-gh-calls.log").toAbsolutePath();
 
     @Override
     public Map<String, String> start() {

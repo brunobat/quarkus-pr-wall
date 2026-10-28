@@ -14,6 +14,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.quarkus.prreview.config.ReviewConfig;
+import io.quarkus.prreview.it.support.FakeGh;
 import io.quarkus.prreview.pr.model.PullRequest;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -59,7 +60,7 @@ class GhClientTest {
         assertTrue(e.getMessage().contains("timed out after"), e.getMessage());
 
         // gh's own children are killed too: a child holding the output pipes would otherwise outlive the timeout.
-        List<String> log = Files.readAllLines(FAKE_GH_DIR.resolve("calls.log"));
+        List<String> log = Files.readAllLines(FakeGh.CALLS_LOG);
         long sleepPid = Long.parseLong(log.reversed().stream().filter(l -> l.startsWith("sleep-pid "))
                 .findFirst().orElseThrow().substring("sleep-pid ".length()));
         assertTrue(endsWithin(sleepPid, 2000), "gh's child process " + sleepPid + " is still running");

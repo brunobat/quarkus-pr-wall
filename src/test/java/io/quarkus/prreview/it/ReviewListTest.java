@@ -28,7 +28,7 @@ import io.quarkus.test.junit.main.QuarkusMainTest;
 @WithTestResource(FakeGh.class)
 class ReviewListTest {
 
-    static final Path CALLS_LOG = FakeGh.BINARY.resolveSibling("calls.log");
+    static final Path CALLS_LOG = FakeGh.CALLS_LOG;
 
     static JevWireMock jev;
     static ClaudeWireMock claude;

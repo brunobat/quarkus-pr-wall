@@ -1,6 +1,7 @@
 package io.quarkus.prreview.report.summary;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -14,6 +15,7 @@ import jakarta.inject.Inject;
 
 import org.junit.jupiter.api.Test;
 
+import dev.langchain4j.service.Result;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.test.InjectMock;
@@ -45,7 +47,7 @@ class SummaryServiceTimeoutTest {
         when(summarizer.summarize(anyString())).thenAnswer(invocation -> {
             try {
                 Thread.sleep(30_000);
-                return "too late";
+                return Result.<String>builder().content("too late").build();
             } catch (InterruptedException e) {
                 interrupted.countDown();
                 throw e;
@@ -58,6 +60,10 @@ class SummaryServiceTimeoutTest {
         Duration took = Duration.ofNanos(System.nanoTime() - start);
 
         assertEquals(FallbackSummary.of(classification).text(), summary.text());
+        // The request was sent, so its size is kept; Claude reported no tokens.
+        assertEquals(ClassificationSummarizer.SYSTEM.length() + SummaryService.userMessage(classification).length(),
+                summary.claudeChars());
+        assertNull(summary.claudeTokens());
         // One timeout, with room for a slow machine, but well short of two (4 s).
         assertTrue(took.compareTo(Duration.ofMillis(3500)) < 0, "took " + took);
         // The call's thread is interrupted. That the real client then ends the call, with no retry, is checked in

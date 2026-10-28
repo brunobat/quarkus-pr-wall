@@ -6,11 +6,14 @@
 #   error.txt   if present, printed to stderr and the command exits 1
 #   diff-error.txt  like error.txt, for `gh pr diff` only (`gh pr view` still answers)
 #   sleep       if present, the script first waits on a child `sleep` of that many seconds, which keeps
-#               stdout/stderr open; its pid is logged as `sleep-pid <pid>` in calls.log
-# Every invocation is appended to calls.log next to this script.
+#               stdout/stderr open; its pid is logged as `sleep-pid <pid>` in the call log
+# Every invocation is appended to the call log, target/fake-gh-calls.log in the project, so the build output
+# holds it and `mvn clean` clears it.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-echo "$*" >> "$here/calls.log"
+log="$here/../../../../target/fake-gh-calls.log"
+mkdir -p "$(dirname "$log")"
+echo "$*" >> "$log"
 
 [[ "${1:-}" == "pr" ]] || { echo "fake gh: unsupported command: $*" >&2; exit 2; }
 sub="${2:-}"
@@ -19,7 +22,7 @@ dir="$here/prs/$pr"
 
 if [[ -f "$dir/sleep" ]]; then
   sleep "$(cat "$dir/sleep")" &
-  echo "sleep-pid $!" >> "$here/calls.log"
+  echo "sleep-pid $!" >> "$log"
   wait
 fi
 if [[ -f "$dir/error.txt" ]]; then
