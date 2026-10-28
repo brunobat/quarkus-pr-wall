@@ -74,7 +74,8 @@ class JevSubmissionTest {
 
     @Test
     void inputHasEveryFileOnceInTheListAndTheFullDiffButNoTitle() {
-        String input = JevSubmission.of(pr(MIXED_DIFF), CONTEXT, List.of(new TestAdequacyCheck())).input();
+        String input = JevSubmission.of(pr(MIXED_DIFF), CONTEXT, List.of(new TestAdequacyCheck())).toDecisionRequest()
+                .input().toString();
 
         assertTrue(input.startsWith("Project context: a test repository.\n\nChanged files:\n"), input);
         assertTrue(input.contains("- core/runtime/src/main/java/io/quarkus/Foo.java (modified)\n"), input);
@@ -125,18 +126,18 @@ class JevSubmissionTest {
 
         assertEquals(List.of(
                 new CheckResult("test-adequacy", List.of(
-                        new QuestionResult("test-adequacy", "behaviour", "behaviour",
+                        new QuestionResult("behaviour",
                                 "Does this PR change the runtime behaviour of the software?",
                                 new QuestionResult.YesNo(0.88)),
-                        new QuestionResult("test-adequacy", "tests-changed", "tests-changed",
+                        new QuestionResult("tests-changed",
                                 TestAdequacyCheck.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.08)),
-                        new QuestionResult("test-adequacy", "reach", "reach", TestAdequacyCheck.REACH.text(),
+                        new QuestionResult("reach", TestAdequacyCheck.REACH.text(),
                                 new QuestionResult.Choice("no-test-changes", TestAdequacyCheck.REACH.options(),
                                         ordered("some", 0.1, "no-test-changes", 0.83, "undetermined", 0.07))),
-                        new QuestionResult("test-adequacy", "assert", "assert", TestAdequacyCheck.ASSERTS.text(),
+                        new QuestionResult("assert", TestAdequacyCheck.ASSERTS.text(),
                                 new QuestionResult.Choice("no-test-changes", TestAdequacyCheck.ASSERTS.options(),
                                         ordered("none", 0.12, "no-test-changes", 0.88))))),
-                new CheckResult("other", List.of(new QuestionResult("other", "behaviour", "other behaviour", "Other?",
+                new CheckResult("other", List.of(new QuestionResult("other behaviour", "Other?",
                         new QuestionResult.YesNo(0.5))))),
                 results);
     }

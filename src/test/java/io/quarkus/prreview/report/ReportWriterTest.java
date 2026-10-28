@@ -51,7 +51,6 @@ class ReportWriterTest {
         ReportWriter.Result result = ReportWriter.write(file.resolve("reports"), 7, "x");
 
         ReportWriter.Failed failed = assertInstanceOf(ReportWriter.Failed.class, result);
-        assertEquals(file.resolve("reports/review-7.md"), failed.target());
         assertTrue(failed.error().startsWith("FileSystemException: "), failed.error());
         try (var files = Files.list(dir)) {
             assertEquals(List.of(file), files.toList());

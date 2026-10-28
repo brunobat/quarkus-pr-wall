@@ -2,8 +2,12 @@ package io.quarkus.prreview.classification.model;
 
 import java.util.Map;
 
-/** One question and {@code jev}'s answer to it, unchanged. */
-public record QuestionResult(String checkId, String questionId, String label, String text, Answer answer) {
+/** One question and {@code jev}'s answer to it, unchanged. Its check is the enclosing {@link CheckResult}. */
+/**
+ * @param label the short name shown in the output, e.g. {@code behaviour}
+ * @param text the question as asked
+ */
+public record QuestionResult(String label, String text, Answer answer) {
 
     /** {@code jev}'s answer, by question kind. */
     public sealed interface Answer permits YesNo, Choice {

@@ -39,10 +39,6 @@ nb-configuration.xml
 # Local environment
 .env
 
-# Private I-1 security-signal list (plan §11) — never commit the real detection list.
-security-signals.private.txt
-*.signals.private.txt
-
 # Plugin directory
 /.quarkus/cli/plugins/
 # TLS Certificates

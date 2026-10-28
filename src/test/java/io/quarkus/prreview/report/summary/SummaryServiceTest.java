@@ -52,13 +52,13 @@ class SummaryServiceTest {
         probabilities.put("some", 0.6123456789);
         probabilities.put("all", 0.3876543211);
         CheckResult check = new CheckResult("test-adequacy", List.of(
-                new QuestionResult("test-adequacy", "behaviour", "behaviour", TestAdequacyCheck.BEHAVIOUR.text(),
+                new QuestionResult("behaviour", TestAdequacyCheck.BEHAVIOUR.text(),
                         new QuestionResult.YesNo(0.876543219)),
-                new QuestionResult("test-adequacy", "tests-changed", "tests-changed",
+                new QuestionResult("tests-changed",
                         TestAdequacyCheck.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.97)),
-                new QuestionResult("test-adequacy", "reach", "reach", TestAdequacyCheck.REACH.text(),
+                new QuestionResult("reach", TestAdequacyCheck.REACH.text(),
                         new QuestionResult.Choice("some", TestAdequacyCheck.REACH.options(), probabilities)),
-                new QuestionResult("test-adequacy", "assert", "assert", TestAdequacyCheck.ASSERTS.text(),
+                new QuestionResult("assert", TestAdequacyCheck.ASSERTS.text(),
                         new QuestionResult.Choice("all", TestAdequacyCheck.ASSERTS.options(),
                                 Map.of("all", 0.66)))));
         return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,

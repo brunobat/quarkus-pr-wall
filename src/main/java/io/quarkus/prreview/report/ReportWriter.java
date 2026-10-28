@@ -21,7 +21,7 @@ public final class ReportWriter {
     }
 
     /** @param error the write error, e.g. {@code FileSystemException: /x/review-1.md: Not a directory} */
-    public record Failed(Path target, String error) implements Result {
+    public record Failed(String error) implements Result {
     }
 
     private ReportWriter() {
@@ -43,7 +43,7 @@ public final class ReportWriter {
             } catch (IOException ignored) {
                 // The write error is the one worth reporting.
             }
-            return new Failed(target, e.getMessage() == null ? e.getClass().getName()
+            return new Failed(e.getMessage() == null ? e.getClass().getName()
                     : e.getClass().getSimpleName() + ": " + e.getMessage());
         }
     }

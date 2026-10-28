@@ -94,8 +94,8 @@ public class SummaryService {
             LOG.warnf("PR #%d: interrupted while waiting for the Claude summary, using the fallback summary", pr);
             return fallback(classification, chars);
         }
-        String text = result == null ? null : result.content();
-        TokenUsage tokens = result == null ? null : result.tokenUsage();
+        String text = result.content();
+        TokenUsage tokens = result.tokenUsage();
         if (text == null || text.isBlank()) {
             LOG.warnf("PR #%d: Claude returned a blank summary, using the fallback summary", pr);
             return new Summary(FallbackSummary.of(classification).text(), null, chars, tokens);

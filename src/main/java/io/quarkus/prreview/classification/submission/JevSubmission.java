@@ -76,10 +76,6 @@ public final class JevSubmission {
         }
     }
 
-    public String input() {
-        return input;
-    }
-
     public DecisionRequest toDecisionRequest() {
         DecisionRequest.Builder request = DecisionRequest.builder().input(input);
         questions.forEach((id, asked) -> request.question(id, asked.question()));
@@ -90,8 +86,7 @@ public final class JevSubmission {
     public List<CheckResult> results(DecisionResponse response) {
         Map<String, List<QuestionResult>> byCheck = new LinkedHashMap<>();
         questions.forEach((id, asked) -> byCheck.computeIfAbsent(asked.checkId(), k -> new ArrayList<>())
-                .add(new QuestionResult(asked.checkId(), asked.questionId(), asked.label(), asked.question().text(),
-                        answer(response, id, asked.question()))));
+                .add(new QuestionResult(asked.label(), asked.question().text(), answer(response, id, asked.question()))));
         return byCheck.entrySet().stream().map(e -> new CheckResult(e.getKey(), List.copyOf(e.getValue()))).toList();
     }
 

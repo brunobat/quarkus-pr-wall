@@ -42,13 +42,13 @@ class RenderingTest {
         PullRequest pr = new PullRequest(57720, title, "https://github.com/quarkusio/quarkus/pull/57720", "OPEN", "");
         List<ChangedFile> files = List.of(new ChangedFile(path, ChangedFile.Kind.MODIFIED, null, false));
         CheckResult check = new CheckResult("test-adequacy", List.of(
-                new QuestionResult("test-adequacy", "behaviour", "behaviour", TestAdequacyCheck.BEHAVIOUR.text(),
+                new QuestionResult("behaviour", TestAdequacyCheck.BEHAVIOUR.text(),
                         new QuestionResult.YesNo(behaviour)),
-                new QuestionResult("test-adequacy", "tests-changed", "tests-changed",
+                new QuestionResult("tests-changed",
                         TestAdequacyCheck.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.12)),
-                new QuestionResult("test-adequacy", "reach", "reach", TestAdequacyCheck.REACH.text(),
+                new QuestionResult("reach", TestAdequacyCheck.REACH.text(),
                         new QuestionResult.Choice(chosen, TestAdequacyCheck.REACH.options(), options)),
-                new QuestionResult("test-adequacy", "assert", "assert", TestAdequacyCheck.ASSERTS.text(),
+                new QuestionResult("assert", TestAdequacyCheck.ASSERTS.text(),
                         new QuestionResult.Choice("no-test-changes", TestAdequacyCheck.ASSERTS.options(),
                                 probs("no-test-changes", 0.77, "none", 0.23)))));
         return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,
@@ -246,14 +246,14 @@ class RenderingTest {
                 PR #57715 - test adequacy
                   not classified: jev: {"error": "max_tokens_exceeded"}
                 Report: not written: FileSystemException: /x: Not a directory
-                """, TerminalRenderer.render(outcome, new ReportWriter.Failed(REPORT,
+                """, TerminalRenderer.render(outcome, new ReportWriter.Failed(
                 "FileSystemException: /x: Not a directory")));
     }
 
     @Test
     void reportNotWrittenAlsoEndsAClassifiedBlock() {
         String block = TerminalRenderer.render(new PrOutcome.Classified(sample(0.88, "no-test-changes",
-                probs("no-test-changes", 0.83)), CLAUDE), new ReportWriter.Failed(REPORT, "AccessDeniedException: x"));
+                probs("no-test-changes", 0.83)), CLAUDE), new ReportWriter.Failed("AccessDeniedException: x"));
 
         assertTrue(block.endsWith("Summary (Claude): Runtime behaviour changes; no tests were changed.\n"
                 + "Report: not written: AccessDeniedException: x\n"), block);

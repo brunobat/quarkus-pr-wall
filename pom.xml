@@ -17,7 +17,8 @@
         <quarkus-langchain4j.version>2.0.0.Beta1</quarkus-langchain4j.version>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
         <wiremock.version>3.13.2</wiremock.version>
-        <!-- Tests tagged "live" call real services (GitHub, jev, Claude); they run only with -Plive. -->
+        <!-- Tests tagged "live" call real services (GitHub, jev, Claude); they run only with -Plive. There is none
+             yet: the live run is manual (README). The profile is kept so a future live test is excluded by default. -->
         <live.groups></live.groups>
         <live.excludedGroups>live</live.excludedGroups>
     </properties>

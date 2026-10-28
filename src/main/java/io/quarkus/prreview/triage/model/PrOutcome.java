@@ -9,14 +9,7 @@ import io.quarkus.prreview.report.summary.model.Summary;
 /** How one PR ended: classified by {@code jev}, or not classified because of a noted error. */
 public sealed interface PrOutcome permits PrOutcome.Classified, PrOutcome.NotClassified {
 
-    int number();
-
     record Classified(Classification classification, Summary summary) implements PrOutcome {
-
-        @Override
-        public int number() {
-            return classification.pr().pullRequest().number();
-        }
     }
 
     /**

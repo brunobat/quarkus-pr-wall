@@ -17,8 +17,8 @@ public interface CheckQuestions {
     /**
      * Adds a choice question; {@code jev} picks one of its options and gives a probability for each.
      *
-     * @param questionId unique within the check, e.g. {@code tests}
-     * @param label short name shown in the output, e.g. {@code tests}
+     * @param questionId unique within the check, e.g. {@code reach}
+     * @param label short name shown in the output, e.g. {@code reach}
      */
     void choice(String questionId, String label, ChoiceQuestion question);
 }

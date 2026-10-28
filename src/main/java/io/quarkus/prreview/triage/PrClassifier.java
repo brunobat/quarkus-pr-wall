@@ -108,6 +108,6 @@ public class PrClassifier {
     }
 
     private static String oneLine(String text) {
-        return text == null ? "" : text.strip().replaceAll("\\s+", " ");
+        return text.strip().replaceAll("\\s+", " ");
     }
 }
