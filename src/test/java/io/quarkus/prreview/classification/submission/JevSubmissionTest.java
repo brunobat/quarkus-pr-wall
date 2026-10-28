@@ -83,11 +83,11 @@ class JevSubmissionTest {
     }
 
     @Test
-    void sameTwoQuestionsWhateverTheDiffContains() {
+    void sameFourQuestionsWhateverTheDiffContains() {
         for (String diff : List.of(MIXED_DIFF, TESTS_ONLY_DIFF, DOCS_ONLY_DIFF)) {
             DecisionRequest request = JevSubmission.of(pr(diff), List.of(new TestAdequacyCheck())).toDecisionRequest();
-            assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests"),
-                    List.copyOf(request.questions().keySet()));
+            assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests-changed", "test-adequacy.reach",
+                    "test-adequacy.assert"), List.copyOf(request.questions().keySet()));
             assertEquals(request.input(), JevSubmission.input(pr(diff)));
         }
     }
@@ -104,14 +104,17 @@ class JevSubmissionTest {
                 List.of(new TestAdequacyCheck(), new FixedCheck("other", "behaviour")));
         DecisionRequest request = submission.toDecisionRequest();
 
-        assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests", "other.behaviour"),
-                List.copyOf(request.questions().keySet()));
+        assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests-changed", "test-adequacy.reach",
+                "test-adequacy.assert", "other.behaviour"), List.copyOf(request.questions().keySet()));
 
         DecisionResponse response = DecisionResponse.builder()
                 .answer("test-adequacy.behaviour", YesNoAnswer.of(0.88))
-                .answer("test-adequacy.tests", ChoiceAnswer.builder().value("no-test-changes")
-                        .probabilities(Map.of("no-test-changes", 0.64, "multiple-gaps", 0.2, "undetermined", 0.16))
+                .answer("test-adequacy.tests-changed", YesNoAnswer.of(0.08))
+                .answer("test-adequacy.reach", ChoiceAnswer.builder().value("not-applicable")
+                        .probabilities(Map.of("not-applicable", 0.83, "some", 0.1, "undetermined", 0.07))
                         .build())
+                .answer("test-adequacy.assert", ChoiceAnswer.builder().value("not-applicable")
+                        .probabilities(Map.of("not-applicable", 0.88, "none", 0.12)).build())
                 .answer("other.behaviour", YesNoAnswer.of(0.5))
                 .build();
         List<CheckResult> results = submission.results(response);
@@ -121,9 +124,14 @@ class JevSubmissionTest {
                         new QuestionResult("test-adequacy", "behaviour", "behaviour",
                                 "Does this PR change the runtime behaviour of the software?",
                                 new QuestionResult.YesNo(0.88)),
-                        new QuestionResult("test-adequacy", "tests", "tests", TestAdequacyCheck.TESTS.text(),
-                                new QuestionResult.Choice("no-test-changes", TestAdequacyCheck.TESTS.options(),
-                                        ordered("no-test-changes", 0.64, "multiple-gaps", 0.2, "undetermined", 0.16))))),
+                        new QuestionResult("test-adequacy", "tests-changed", "tests-changed",
+                                TestAdequacyCheck.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.08)),
+                        new QuestionResult("test-adequacy", "reach", "reach", TestAdequacyCheck.REACH.text(),
+                                new QuestionResult.Choice("not-applicable", TestAdequacyCheck.REACH.options(),
+                                        ordered("some", 0.1, "not-applicable", 0.83, "undetermined", 0.07))),
+                        new QuestionResult("test-adequacy", "assert", "assert", TestAdequacyCheck.ASSERTS.text(),
+                                new QuestionResult.Choice("not-applicable", TestAdequacyCheck.ASSERTS.options(),
+                                        ordered("none", 0.12, "not-applicable", 0.88))))),
                 new CheckResult("other", List.of(new QuestionResult("other", "behaviour", "other behaviour", "Other?",
                         new QuestionResult.YesNo(0.5))))),
                 results);
@@ -135,20 +143,24 @@ class JevSubmissionTest {
         // jev's chosen value is kept even when another option has a higher probability: the app never picks.
         DecisionResponse response = DecisionResponse.builder()
                 .answer("test-adequacy.behaviour", YesNoAnswer.of(0.5))
-                .answer("test-adequacy.tests", ChoiceAnswer.builder().value("undetermined")
-                        .probability("fully-exercised", 0.6).probability("undetermined", 0.3)
-                        .probability("no-runtime-change", 0.1).build())
+                .answer("test-adequacy.tests-changed", YesNoAnswer.of(0.9))
+                .answer("test-adequacy.reach", ChoiceAnswer.builder().value("undetermined")
+                        .probability("undetermined", 0.3).probability("all", 0.6)
+                        .probability("not-applicable", 0.1).build())
+                .answer("test-adequacy.assert", ChoiceAnswer.builder().value("some")
+                        .probability("some", 0.5).probability("all", 0.5).build())
                 .build();
 
-        QuestionResult.Choice tests = (QuestionResult.Choice) submission.results(response).get(0).questions().get(1)
-                .answer();
+        List<QuestionResult> questions = submission.results(response).get(0).questions();
+        QuestionResult.Choice reach = (QuestionResult.Choice) questions.get(2).answer();
+        QuestionResult.Choice asserts = (QuestionResult.Choice) questions.get(3).answer();
 
-        assertEquals("undetermined", tests.value());
-        assertEquals(List.of("no-runtime-change", "fully-exercised", "undetermined"),
-                List.copyOf(tests.probabilities().keySet()));
-        assertEquals(List.of("no-runtime-change", "no-test-changes", "tests-unrelated", "tests-without-assertions",
-                "partially-exercised", "multiple-gaps", "fully-exercised", "undetermined"),
-                List.copyOf(tests.options().keySet()));
+        assertEquals("undetermined", reach.value());
+        assertEquals(List.of("all", "not-applicable", "undetermined"), List.copyOf(reach.probabilities().keySet()));
+        List<String> declared = List.of("all", "some", "none", "not-applicable", "undetermined");
+        assertEquals(declared, List.copyOf(reach.options().keySet()));
+        assertEquals("some", asserts.value());
+        assertEquals(declared, List.copyOf(asserts.options().keySet()));
     }
 
     private static Map<String, Double> ordered(Object... pairs) {

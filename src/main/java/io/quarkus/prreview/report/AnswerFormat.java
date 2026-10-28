@@ -24,7 +24,7 @@ public final class AnswerFormat {
 
     /**
      * An answer in short form: {@code 0.88} for yes/no; {@code jev}'s chosen option and its probability, e.g.
-     * {@code no-test-changes 0.64}, for a choice (the option alone when {@code jev} reported no probability for it).
+     * {@code not-applicable 0.83}, for a choice (the option alone when {@code jev} reported no probability for it).
      */
     public static String shortAnswer(QuestionResult.Answer answer) {
         return switch (answer) {

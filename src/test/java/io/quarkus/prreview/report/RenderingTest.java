@@ -31,6 +31,10 @@ class RenderingTest {
             1234, new TokenUsage(300, 25));
     static final Path REPORT = Path.of("reports/review-57720.md");
 
+    /**
+     * The four test-adequacy answers: {@code behaviour} and {@code reach} vary; {@code tests-changed} (0.12) and
+     * {@code assert} (not-applicable 0.77) are fixed at values no varied number contains.
+     */
     static Classification classification(String title, String path, double behaviour, String chosen,
             Map<String, Double> options) {
         PullRequest pr = new PullRequest(57720, title, "https://github.com/quarkusio/quarkus/pull/57720", "OPEN", "");
@@ -38,8 +42,13 @@ class RenderingTest {
         CheckResult check = new CheckResult("test-adequacy", List.of(
                 new QuestionResult("test-adequacy", "behaviour", "behaviour", TestAdequacyCheck.BEHAVIOUR.text(),
                         new QuestionResult.YesNo(behaviour)),
-                new QuestionResult("test-adequacy", "tests", "tests", TestAdequacyCheck.TESTS.text(),
-                        new QuestionResult.Choice(chosen, TestAdequacyCheck.TESTS.options(), options))));
+                new QuestionResult("test-adequacy", "tests-changed", "tests-changed",
+                        TestAdequacyCheck.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.12)),
+                new QuestionResult("test-adequacy", "reach", "reach", TestAdequacyCheck.REACH.text(),
+                        new QuestionResult.Choice(chosen, TestAdequacyCheck.REACH.options(), options)),
+                new QuestionResult("test-adequacy", "assert", "assert", TestAdequacyCheck.ASSERTS.text(),
+                        new QuestionResult.Choice("not-applicable", TestAdequacyCheck.ASSERTS.options(),
+                                probs("not-applicable", 0.77, "none", 0.23)))));
         return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,
                 60000);
     }
@@ -69,12 +78,12 @@ class RenderingTest {
 
     @Test
     void terminalBlockMatchesTheSpecLayout() {
-        String block = terminal(sample(0.88, "no-test-changes",
-                probs("no-test-changes", 0.64, "multiple-gaps", 0.36)), CLAUDE);
+        String block = terminal(sample(0.88, "not-applicable",
+                probs("not-applicable", 0.83, "some", 0.17)), CLAUDE);
 
         assertEquals("""
                 PR #57720 - test adequacy
-                  behaviour 0.88  tests: no-test-changes 0.64
+                  behaviour 0.88  tests-changed 0.12  reach: not-applicable 0.83  assert: not-applicable 0.77
                 Summary (Claude): Runtime behaviour changes; no tests were changed.
                 Report: reports/review-57720.md
                 """, block);
@@ -84,7 +93,7 @@ class RenderingTest {
     void probabilitiesAreOnlyShownNeverInterpreted() {
         String reference = null;
         for (double p : new double[] { 0.0, 0.4999, 0.5, 1.0, 0.88 }) {
-            Classification c = sample(p, "no-test-changes", probs("no-test-changes", p));
+            Classification c = sample(p, "not-applicable", probs("not-applicable", p));
             String terminal = terminal(c, CLAUDE);
             String report = MarkdownReport.render(c, CLAUDE);
 
@@ -104,28 +113,28 @@ class RenderingTest {
 
     @Test
     void shownOptionIsJevsChoiceEvenWhenAnotherIsMoreLikely() {
-        Classification c = sample(0.5, "undetermined", probs("fully-exercised", 0.6, "undetermined", 0.3));
+        Classification c = sample(0.5, "undetermined", probs("all", 0.6, "undetermined", 0.3));
 
-        assertTrue(terminal(c, CLAUDE).contains("tests: undetermined 0.30"));
+        assertTrue(terminal(c, CLAUDE).contains("reach: undetermined 0.30"));
         String report = MarkdownReport.render(c, CLAUDE);
         assertTrue(report.contains("jev's choice: `undetermined`"), report);
-        assertTrue(report.contains("| `fully-exercised` | " + TestAdequacyCheck.TESTS.options().get("fully-exercised")
-                + " | 0.6 |"), report);
-        assertTrue(report.contains("| `no-test-changes` | " + TestAdequacyCheck.TESTS.options().get("no-test-changes")
+        assertTrue(report.contains("| `all` | " + TestAdequacyCheck.REACH.options().get("all") + " | 0.6 |"), report);
+        assertTrue(report.contains("| `none` | " + TestAdequacyCheck.REACH.options().get("none")
                 + " | not reported |"), report);
     }
 
     @Test
     void choiceWithoutProbabilitiesShowsTheOptionOnly() {
-        Classification c = sample(0.5, "no-test-changes", Map.of());
+        Classification c = sample(0.5, "some", Map.of());
 
-        assertTrue(terminal(c, CLAUDE).contains("  tests: no-test-changes\n"));
-        assertEquals("jev classification: behaviour 0.50; tests no-test-changes.", FallbackSummary.of(c).text());
+        assertTrue(terminal(c, CLAUDE).contains("  reach: some  assert:"));
+        assertEquals("jev classification: behaviour 0.50; tests-changed 0.12; reach some; assert not-applicable 0.77.",
+                FallbackSummary.of(c).text());
     }
 
     @Test
     void reportSectionsAppearInOrderWithEveryOption() {
-        String report = MarkdownReport.render(sample(0.88, "no-test-changes", probs("no-test-changes", 0.64)), CLAUDE);
+        String report = MarkdownReport.render(sample(0.88, "not-applicable", probs("not-applicable", 0.83)), CLAUDE);
 
         assertTrue(report.startsWith("# PR #57720: Bump jackson-bom\n\nLink: https://github.com/quarkusio/quarkus/pull/57720"
                 + " · State: OPEN\n"), report);
@@ -134,8 +143,12 @@ class RenderingTest {
         int files = report.indexOf("\n## Changed files\n");
         int run = report.indexOf("\n## Run\n");
         assertTrue(0 < classification && classification < summary && summary < files && files < run, report);
-        for (String option : TestAdequacyCheck.TESTS.options().keySet()) {
-            assertTrue(report.contains("| `" + option + "` |"), option);
+        // Each choice question has its own table listing every option.
+        for (String question : List.of("reach", "assert")) {
+            String table = report.substring(report.indexOf("\n### " + question + "\n"));
+            for (String option : TestAdequacyCheck.REACH.options().keySet()) {
+                assertTrue(table.contains("| `" + option + "` |"), question + " " + option);
+            }
         }
         assertTrue(report.contains("**Claude (claude-opus-5-5):** Runtime behaviour changes; no tests were changed.\n"),
                 report);
@@ -154,7 +167,7 @@ class RenderingTest {
 
     @Test
     void reportFooterSaysWhenClaudeWasNotCalledOrReportedNoTokens() {
-        Classification c = sample(0.88, "no-test-changes", probs("no-test-changes", 0.64));
+        Classification c = sample(0.88, "not-applicable", probs("not-applicable", 0.83));
         String notSent = MarkdownReport.render(c, FallbackSummary.of(c));
         assertTrue(notSent.endsWith("- Summary: fallback template\n- Claude submission: not sent\n"
                 + "- Claude tokens: not reported\n"), notSent);
@@ -168,7 +181,7 @@ class RenderingTest {
     @Test
     void untrustedTextCannotChangeTheStructure() {
         Classification c = classification("Fix | pipes\n## Injected\n| a | b |", "docs/a|b `x`.adoc", 0.5,
-                "no-test-changes", probs("no-test-changes", 0.5));
+                "not-applicable", probs("not-applicable", 0.5));
         Summary summary = new Summary("Line one.\n# Heading\n| x |", "model|x");
 
         String report = MarkdownReport.render(c, summary);
@@ -178,7 +191,7 @@ class RenderingTest {
         assertTrue(report.contains("**Claude (model|x):** Line one. # Heading | x |\n"), report);
         assertFalse(report.lines().anyMatch(l -> l.startsWith("## Injected") || l.startsWith("# Heading")), report);
         // Only the renderer's own sections are headings.
-        assertEquals(List.of("# PR #57720: Fix | pipes ## Injected | a | b |", "## Classification", "### tests",
+        assertEquals(List.of("# PR #57720: Fix | pipes ## Injected | a | b |", "## Classification", "### reach", "### assert",
                 "## Summary", "## Changed files", "## Run"),
                 report.lines().filter(l -> l.startsWith("#")).toList());
         // Every table row has exactly its columns: a '|' from text is escaped.
@@ -209,11 +222,12 @@ class RenderingTest {
 
     @Test
     void fallbackTemplateListsEveryAnswerInOrder() {
-        Summary fallback = FallbackSummary.of(sample(0.88, "no-test-changes", probs("no-test-changes", 0.64)));
+        Summary fallback = FallbackSummary.of(sample(0.88, "not-applicable", probs("not-applicable", 0.83)));
 
-        assertEquals("jev classification: behaviour 0.88; tests no-test-changes 0.64.", fallback.text());
+        assertEquals("jev classification: behaviour 0.88; tests-changed 0.12; reach not-applicable 0.83;"
+                + " assert not-applicable 0.77.", fallback.text());
         assertEquals("fallback template", fallback.source());
-        assertTrue(terminal(sample(0.88, "no-test-changes", probs("no-test-changes", 0.64)), fallback).contains("Summary (fallback template): jev classification: behaviour 0.88;"));
+        assertTrue(terminal(sample(0.88, "not-applicable", probs("not-applicable", 0.83)), fallback).contains("Summary (fallback template): jev classification: behaviour 0.88;"));
     }
 
     @Test
@@ -235,8 +249,8 @@ class RenderingTest {
 
     @Test
     void reportNotWrittenAlsoEndsAClassifiedBlock() {
-        String block = TerminalRenderer.render(new PrOutcome.Classified(sample(0.88, "no-test-changes",
-                probs("no-test-changes", 0.64)), CLAUDE), new ReportWriter.Failed(REPORT, "AccessDeniedException: x"));
+        String block = TerminalRenderer.render(new PrOutcome.Classified(sample(0.88, "not-applicable",
+                probs("not-applicable", 0.83)), CLAUDE), new ReportWriter.Failed(REPORT, "AccessDeniedException: x"));
 
         assertTrue(block.endsWith("Summary (Claude): Runtime behaviour changes; no tests were changed.\n"
                 + "Report: not written: AccessDeniedException: x\n"), block);

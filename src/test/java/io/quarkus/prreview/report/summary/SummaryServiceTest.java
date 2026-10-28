@@ -48,14 +48,18 @@ class SummaryServiceTest {
                 new ChangedFile("core/src/main/java/Foo.java", ChangedFile.Kind.MODIFIED, null, false),
                 new ChangedFile("core/src/test/java/FooTest.java", ChangedFile.Kind.ADDED, null, false));
         Map<String, Double> probabilities = new LinkedHashMap<>();
-        probabilities.put("partially-exercised", 0.6123456789);
-        probabilities.put("fully-exercised", 0.3876543211);
+        probabilities.put("some", 0.6123456789);
+        probabilities.put("all", 0.3876543211);
         CheckResult check = new CheckResult("test-adequacy", List.of(
                 new QuestionResult("test-adequacy", "behaviour", "behaviour", TestAdequacyCheck.BEHAVIOUR.text(),
                         new QuestionResult.YesNo(0.876543219)),
-                new QuestionResult("test-adequacy", "tests", "tests", TestAdequacyCheck.TESTS.text(),
-                        new QuestionResult.Choice("partially-exercised", TestAdequacyCheck.TESTS.options(),
-                                probabilities))));
+                new QuestionResult("test-adequacy", "tests-changed", "tests-changed",
+                        TestAdequacyCheck.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.97)),
+                new QuestionResult("test-adequacy", "reach", "reach", TestAdequacyCheck.REACH.text(),
+                        new QuestionResult.Choice("some", TestAdequacyCheck.REACH.options(), probabilities)),
+                new QuestionResult("test-adequacy", "assert", "assert", TestAdequacyCheck.ASSERTS.text(),
+                        new QuestionResult.Choice("all", TestAdequacyCheck.ASSERTS.options(),
+                                Map.of("all", 0.66)))));
         return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,
                 60000);
     }
@@ -79,8 +83,10 @@ class SummaryServiceTest {
         assertTrue(sent.startsWith("jev's answers:\n"), sent);
         assertTrue(sent.contains("behaviour (" + TestAdequacyCheck.BEHAVIOUR.text() + ")"), sent);
         assertTrue(sent.contains("0.876543219"), sent);
-        assertTrue(sent.contains("chosen option partially-exercised"), sent);
-        assertTrue(sent.contains("partially-exercised 0.6123456789, fully-exercised 0.3876543211"), sent);
+        assertTrue(sent.contains("tests-changed (" + TestAdequacyCheck.TESTS_CHANGED.text() + ")"), sent);
+        assertTrue(sent.contains("chosen option some"), sent);
+        assertTrue(sent.contains("some 0.6123456789, all 0.3876543211"), sent);
+        assertTrue(sent.contains("chosen option all"), sent);
         assertTrue(sent.endsWith("Changed files:\n- core/src/main/java/Foo.java (modified)\n"
                 + "- core/src/test/java/FooTest.java (added)\n"), sent);
         assertFalse(sent.contains("Fix the thing"), sent);
@@ -98,7 +104,8 @@ class SummaryServiceTest {
         Summary summary = service.summarize(classification());
 
         assertEquals(FallbackSummary.of(classification()).text(), summary.text());
-        assertEquals("jev classification: behaviour 0.88; tests partially-exercised 0.61.", summary.text());
+        assertEquals("jev classification: behaviour 0.88; tests-changed 0.97; reach some 0.61; assert all 0.66.",
+                summary.text());
         assertEquals("fallback template", summary.source());
         assertEquals(ClassificationSummarizer.SYSTEM.length()
                 + SummaryService.userMessage(classification()).length(), summary.claudeChars());

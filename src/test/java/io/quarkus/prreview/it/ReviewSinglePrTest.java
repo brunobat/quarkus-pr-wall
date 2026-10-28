@@ -30,7 +30,8 @@ import io.quarkus.test.junit.main.QuarkusMainTest;
 @WithTestResource(FakeGh.class)
 class ReviewSinglePrTest {
 
-    static final String TEMPLATE = "jev classification: behaviour 0.88; tests no-test-changes 0.64.";
+    static final String TEMPLATE = "jev classification: behaviour 0.88; tests-changed 0.08; reach not-applicable 0.83;"
+            + " assert not-applicable 0.88.";
     static final String TIMEOUT_PROPERTY = "quarkus.langchain4j.anthropic.timeout";
     /** Profile-qualified, so it outranks the test profile's key in {@code application.yml}. */
     static final String API_KEY_PROPERTY = "%test.quarkus.langchain4j.anthropic.api-key";
@@ -67,7 +68,8 @@ class ReviewSinglePrTest {
         Path report = out.resolve("review-101.md");
         List<String> stdout = result.getOutputStream();
         assertTrue(stdout.contains("PR #101 - test adequacy"), result.getOutput());
-        assertTrue(stdout.contains("  behaviour 0.88  tests: no-test-changes 0.64"), result.getOutput());
+        assertTrue(stdout.contains("  behaviour 0.88  tests-changed 0.08  reach: not-applicable 0.83  assert: not-applicable 0.88"),
+                result.getOutput());
         assertTrue(stdout.contains("Summary (Claude): " + ClaudeWireMock.SUMMARY), result.getOutput());
         assertTrue(stdout.contains("Report: " + report), result.getOutput());
 

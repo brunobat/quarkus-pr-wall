@@ -9,8 +9,9 @@ import io.quarkus.prreview.classification.api.ClassificationCheck;
 import io.quarkus.prreview.pr.model.PrContext;
 
 /**
- * Triage-stage test adequacy: does the PR change runtime behaviour, and how do the tests it adds or modifies relate
- * to that change? Both questions are asked for every PR, whatever the diff contains.
+ * Triage-stage test adequacy, as four independent questions: does the PR change runtime behaviour, does it add or
+ * modify tests, how much of the changed code do those tests execute, and do they assert its outcome? All four are
+ * asked for every PR, whatever the diff contains, and their answers are never combined.
  */
 @ApplicationScoped
 public class TestAdequacyCheck implements ClassificationCheck {
@@ -22,24 +23,31 @@ public class TestAdequacyCheck implements ClassificationCheck {
                     + " affect the shipped artifact")
             .build();
 
-    public static final ChoiceQuestion TESTS = ChoiceQuestion.builder()
-            .text("How do the tests that this PR adds or modifies relate to the runtime behaviour it changes?")
-            .option("no-runtime-change",
-                    "The PR changes no runtime behaviour, so there is nothing for tests to exercise.")
-            .option("no-test-changes", "The PR changes runtime behaviour but adds or modifies no tests.")
-            .option("tests-unrelated", "Tests were added or modified, but none reach the changed code.")
-            .option("tests-without-assertions",
-                    "Changed tests reach the changed code but only compile, instantiate or smoke-run it without"
-                            + " asserting its outcome.")
-            .option("partially-exercised",
-                    "Changed tests exercise and assert some of the changed behaviour; the rest has no test at all.")
-            .option("multiple-gaps",
-                    "Different parts of the change have different gaps, e.g. one changed path has no test, another"
-                            + " is reached only by an unrelated test, a third is only called without assertions.")
-            .option("fully-exercised", "Changed tests drive all the changed code paths and assert their outcomes.")
+    public static final YesNoQuestion TESTS_CHANGED = YesNoQuestion.builder()
+            .text("Does this PR add or modify tests?")
+            .yesWhen("it adds or modifies test sources or test resources")
+            .noWhen("it touches no test files")
+            .build();
+
+    public static final ChoiceQuestion REACH = ChoiceQuestion.builder()
+            .text("How much of the changed runtime code do the tests this PR adds or modifies execute?")
+            .option("all", "Every changed runtime code path is executed by a changed test.")
+            .option("some", "Some changed runtime code paths are executed by a changed test; others are not.")
+            .option("none", "Changed tests exist but execute none of the changed runtime code.")
+            .option("not-applicable", "The PR changes no runtime behaviour, or adds or modifies no tests.")
             .option("undetermined",
                     "The diff does not give enough to tell, e.g. binary or generated changes, behaviour too indirect"
                             + " to trace, or tests that depend on code outside the diff.")
+            .build();
+
+    /** The {@code assert} question; {@code assert} is a Java keyword. */
+    public static final ChoiceQuestion ASSERTS = ChoiceQuestion.builder()
+            .text("Do the tests this PR adds or modifies assert the outcome of the changed code they execute?")
+            .option("all", "Every changed path the changed tests execute has its outcome asserted.")
+            .option("some", "Some executed changed paths are asserted; others are only called, built or smoke-run.")
+            .option("none", "The changed tests execute changed code but assert none of its outcomes.")
+            .option("not-applicable", "The changed tests execute no changed runtime code, or there are none.")
+            .option("undetermined", "The diff does not give enough to tell.")
             .build();
 
     @Override
@@ -50,6 +58,8 @@ public class TestAdequacyCheck implements ClassificationCheck {
     @Override
     public void ask(PrContext pr, CheckQuestions questions) {
         questions.yesNo("behaviour", "behaviour", BEHAVIOUR);
-        questions.choice("tests", "tests", TESTS);
+        questions.yesNo("tests-changed", "tests-changed", TESTS_CHANGED);
+        questions.choice("reach", "reach", REACH);
+        questions.choice("assert", "assert", ASSERTS);
     }
 }

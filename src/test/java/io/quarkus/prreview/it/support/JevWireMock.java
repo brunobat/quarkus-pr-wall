@@ -28,8 +28,11 @@ public final class JevWireMock implements AutoCloseable {
             {"model": "jev-test",
              "answers": {
                "test-adequacy.behaviour": {"type": "noul", "noul": 0.88},
-               "test-adequacy.tests": {"type": "choice", "choice": "no-test-changes",
-                 "probabilities": {"no-test-changes": 0.64, "multiple-gaps": 0.2, "undetermined": 0.16}}},
+               "test-adequacy.tests-changed": {"type": "noul", "noul": 0.08},
+               "test-adequacy.reach": {"type": "choice", "choice": "not-applicable",
+                 "probabilities": {"not-applicable": 0.83, "some": 0.1, "undetermined": 0.07}},
+               "test-adequacy.assert": {"type": "choice", "choice": "not-applicable",
+                 "probabilities": {"not-applicable": 0.88, "none": 0.12}}},
              "usage": {"input_tokens": 1234, "output_tokens": 56}}
             """;
 

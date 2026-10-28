@@ -48,8 +48,11 @@ class PrClassifierTest {
                 .modelName("jev-test")
                 .tokenUsage(new TokenUsage(10, 2))
                 .answer("test-adequacy.behaviour", YesNoAnswer.of(0.4999))
-                .answer("test-adequacy.tests", ChoiceAnswer.builder().value("undetermined")
-                        .probability("fully-exercised", 0.7).probability("undetermined", 0.3).build())
+                .answer("test-adequacy.tests-changed", YesNoAnswer.of(0.9))
+                .answer("test-adequacy.reach", ChoiceAnswer.builder().value("undetermined")
+                        .probability("all", 0.7).probability("undetermined", 0.3).build())
+                .answer("test-adequacy.assert", ChoiceAnswer.builder().value("all")
+                        .probability("all", 1.0).build())
                 .build());
 
         when(summarizer.summarize(any())).thenReturn(Result.<String>builder().content("A summary.").build());
@@ -60,15 +63,17 @@ class PrClassifierTest {
 
         ArgumentCaptor<DecisionRequest> sent = ArgumentCaptor.forClass(DecisionRequest.class);
         verify(model, times(1)).decide(sent.capture());
-        assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests"),
-                List.copyOf(sent.getValue().questions().keySet()));
+        assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests-changed", "test-adequacy.reach",
+                "test-adequacy.assert"), List.copyOf(sent.getValue().questions().keySet()));
         assertEquals("jev-latest", sent.getValue().modelName());
 
         List<QuestionResult> answers = classification.checks().getFirst().questions();
         assertEquals(new QuestionResult.YesNo(0.4999), answers.get(0).answer());
-        QuestionResult.Choice tests = (QuestionResult.Choice) answers.get(1).answer();
-        assertEquals("undetermined", tests.value());
-        assertEquals(0.7, tests.probabilities().get("fully-exercised"));
+        assertEquals(new QuestionResult.YesNo(0.9), answers.get(1).answer());
+        QuestionResult.Choice reach = (QuestionResult.Choice) answers.get(2).answer();
+        assertEquals("undetermined", reach.value());
+        assertEquals(0.7, reach.probabilities().get("all"));
+        assertEquals("all", ((QuestionResult.Choice) answers.get(3).answer()).value());
         assertEquals("jev-test", classification.jevModel());
         assertEquals(10, classification.tokenUsage().inputTokenCount());
         assertEquals(101, classification.pr().pullRequest().number());
