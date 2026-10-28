@@ -41,7 +41,7 @@ class SummaryServiceTimeoutTest {
     @Test
     void theTimeoutBoundsTheWholeCallAndStopsIt() throws InterruptedException {
         CountDownLatch interrupted = new CountDownLatch(1);
-        // Stands in for an attempt and its retry that together outlast the timeout.
+        // Stands in for a Claude call that outlasts the timeout.
         when(summarizer.summarize(anyString(), anyString())).thenAnswer(invocation -> {
             try {
                 Thread.sleep(30_000);
@@ -60,7 +60,8 @@ class SummaryServiceTimeoutTest {
         assertEquals(FallbackSummary.of(classification), summary);
         // One timeout, with room for a slow machine, but well short of two (4 s).
         assertTrue(took.compareTo(Duration.ofMillis(3500)) < 0, "took " + took);
-        // The call is stopped, not left to run (and retry) in the background.
+        // The call's thread is interrupted. That the real client then ends the call, with no retry, is checked in
+        // SummaryServiceClaudeTest.
         assertTrue(interrupted.await(5, TimeUnit.SECONDS), "the Claude call was not interrupted");
     }
 }
