@@ -27,7 +27,8 @@ import io.quarkus.prreview.triage.model.PrOutcome;
 
 class RenderingTest {
 
-    static final Summary CLAUDE = new Summary("Runtime behaviour changes; no tests were changed.", "claude-opus-5-5");
+    static final Summary CLAUDE = new Summary("Runtime behaviour changes; no tests were changed.", "claude-opus-5-5",
+            1234, new TokenUsage(300, 25));
     static final Path REPORT = Path.of("reports/review-57720.md");
 
     static Classification classification(String title, String path, double behaviour, String chosen,
@@ -146,7 +147,22 @@ class RenderingTest {
                 - Submission size: 5000 characters (limit 60000)
                 - jev tokens: 1200 input, 40 output
                 - Summary: Claude (claude-opus-5-5)
+                - Claude submission: 1234 characters (system and user messages)
+                - Claude tokens: 300 input, 25 output
                 """), report);
+    }
+
+    @Test
+    void reportFooterSaysWhenClaudeWasNotCalledOrReportedNoTokens() {
+        Classification c = sample(0.88, "no-test-changes", probs("no-test-changes", 0.64));
+        String notSent = MarkdownReport.render(c, FallbackSummary.of(c));
+        assertTrue(notSent.endsWith("- Summary: fallback template\n- Claude submission: not sent\n"
+                + "- Claude tokens: not reported\n"), notSent);
+
+        String failed = MarkdownReport.render(c, new Summary(FallbackSummary.of(c).text(), null, 987, null));
+        assertTrue(failed.endsWith("- Summary: fallback template\n"
+                + "- Claude submission: 987 characters (system and user messages)\n"
+                + "- Claude tokens: not reported\n"), failed);
     }
 
     @Test

@@ -19,6 +19,7 @@ import dev.langchain4j.model.decision.response.ChoiceAnswer;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import dev.langchain4j.model.decision.response.YesNoAnswer;
 import dev.langchain4j.model.output.TokenUsage;
+import dev.langchain4j.service.Result;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
@@ -51,7 +52,7 @@ class PrClassifierTest {
                         .probability("fully-exercised", 0.7).probability("undetermined", 0.3).build())
                 .build());
 
-        when(summarizer.summarize(any(), any())).thenReturn("A summary.");
+        when(summarizer.summarize(any())).thenReturn(Result.<String>builder().content("A summary.").build());
 
         PrOutcome.Classified outcome = (PrOutcome.Classified) classifier.classify(101);
         Classification classification = outcome.classification();

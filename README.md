@@ -75,7 +75,9 @@ Report: reports/review-57715.md
    `jev`'s chosen option and every option's description and probability, all **unrounded**;
 3. **Summary**: the prose and where it came from, `Claude (<model>)` or `fallback template`;
 4. **Changed files**: each path and its change kind (context only);
-5. **Run**: the `jev` model, the submission size and its limit, `jev`'s token usage and the summary source.
+5. **Run**: the `jev` model, the submission size and its limit, `jev`'s token usage, the summary source, and the
+   Claude submission: the characters of the system and user messages sent (or "not sent") and Claude's reported
+   token usage.
 
 Text from GitHub, `jev` or Claude cannot change the report's structure: it never starts a line, stays on one
 line, is escaped in tables, and cannot open HTML.

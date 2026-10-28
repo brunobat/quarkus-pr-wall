@@ -77,6 +77,9 @@ class ReviewSinglePrTest {
         String markdown = Files.readString(report);
         assertTrue(markdown.contains("## Classification\n"), markdown);
         assertTrue(markdown.contains("## Summary\n\n**Claude (claude-opus-5-5):** " + ClaudeWireMock.SUMMARY), markdown);
+        assertTrue(markdown.matches("(?s).*\n- Claude submission: \\d+ characters \\(system and user messages\\)\n.*"),
+                markdown);
+        assertTrue(markdown.contains("\n- Claude tokens: 100 input, 20 output\n"), markdown);
         assertTrue(markdown.contains("## Changed files\n"), markdown);
         assertTrue(markdown.contains("docs/src/main/asciidoc/foo.adoc"), markdown);
         assertTrue(markdown.contains("## Run\n"), markdown);
@@ -202,7 +205,9 @@ class ReviewSinglePrTest {
 
             assertEquals(0, result.exitCode(), result.getErrorOutput());
             assertTrue(result.getOutputStream().contains("Summary (fallback template): " + TEMPLATE), result.getOutput());
-            assertTrue(Files.readString(out.resolve("review-101.md")).contains("- Summary: fallback template"));
+            String markdown = Files.readString(out.resolve("review-101.md"));
+            assertTrue(markdown.contains("- Summary: fallback template"), markdown);
+            assertTrue(markdown.contains("- Claude submission: not sent\n"), markdown);
             assertEquals(1, jevPosts().size());
             assertEquals(0, claude.posts().size());
         } finally {

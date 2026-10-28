@@ -2,6 +2,7 @@ package io.quarkus.prreview.clients.claude;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
+import dev.langchain4j.service.Result;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import io.quarkiverse.langchain4j.RegisterAiService;
@@ -16,18 +17,19 @@ import io.quarkiverse.langchain4j.RegisterAiService;
 @RegisterAiService(tools = {}, chatMemoryProviderSupplier = RegisterAiService.NoChatMemoryProviderSupplier.class)
 public interface ClassificationSummarizer {
 
-    @SystemMessage("""
+    /** The system message, sent as is; part of the reported Claude submission size. */
+    String SYSTEM = """
             You restate a classification of a GitHub pull request made by another model, jev.
             Write at most 3 sentences of plain prose.
             Only describe what jev's answers say. Give no verdict, recommendation or severity.
             Never contradict, change, round differently or reinterpret the given probabilities.
-            """)
-    @UserMessage("""
-            jev's answers:
-            {answers}
+            """;
 
-            Changed files:
-            {changedFiles}
-            """)
-    String summarize(String answers, String changedFiles);
+    /**
+     * @param message the whole user message, built by the caller so that its size is known
+     * @return the summary, with Claude's reported token usage
+     */
+    @SystemMessage(SYSTEM)
+    @UserMessage("{message}")
+    Result<String> summarize(String message);
 }

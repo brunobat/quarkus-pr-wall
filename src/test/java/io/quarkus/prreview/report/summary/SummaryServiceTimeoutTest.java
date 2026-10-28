@@ -42,7 +42,7 @@ class SummaryServiceTimeoutTest {
     void theTimeoutBoundsTheWholeCallAndStopsIt() throws InterruptedException {
         CountDownLatch interrupted = new CountDownLatch(1);
         // Stands in for a Claude call that outlasts the timeout.
-        when(summarizer.summarize(anyString(), anyString())).thenAnswer(invocation -> {
+        when(summarizer.summarize(anyString())).thenAnswer(invocation -> {
             try {
                 Thread.sleep(30_000);
                 return "too late";
@@ -57,7 +57,7 @@ class SummaryServiceTimeoutTest {
         var summary = service.summarize(classification);
         Duration took = Duration.ofNanos(System.nanoTime() - start);
 
-        assertEquals(FallbackSummary.of(classification), summary);
+        assertEquals(FallbackSummary.of(classification).text(), summary.text());
         // One timeout, with room for a slow machine, but well short of two (4 s).
         assertTrue(took.compareTo(Duration.ofMillis(3500)) < 0, "took " + took);
         // The call's thread is interrupted. That the real client then ends the call, with no retry, is checked in

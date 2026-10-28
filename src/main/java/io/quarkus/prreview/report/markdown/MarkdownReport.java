@@ -67,6 +67,9 @@ public final class MarkdownReport {
                 .append(classification.limit()).append(")\n");
         md.append("- jev tokens: ").append(tokens(classification.tokenUsage())).append("\n");
         md.append("- Summary: ").append(inline(summary.source())).append("\n");
+        md.append("- Claude submission: ").append(summary.claudeChars() == null ? "not sent"
+                : summary.claudeChars() + " characters (system and user messages)").append("\n");
+        md.append("- Claude tokens: ").append(tokens(summary.claudeTokens())).append("\n");
         return md.toString();
     }
 

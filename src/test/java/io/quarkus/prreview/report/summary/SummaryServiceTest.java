@@ -2,6 +2,7 @@ package io.quarkus.prreview.report.summary;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
@@ -15,6 +16,8 @@ import jakarta.inject.Inject;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+
+import dev.langchain4j.service.Result;
 
 import dev.langchain4j.model.output.TokenUsage;
 import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
@@ -57,47 +60,60 @@ class SummaryServiceTest {
                 60000);
     }
 
-    @Test
-    void claudeAnswerCarriesTheClaudeSourceAndSeesOnlyAnswersAndFiles() {
-        when(summarizer.summarize(anyString(), anyString())).thenReturn("  jev sees a behaviour change.  ");
-
-        Summary summary = service.summarize(classification());
-
-        assertEquals(new Summary("jev sees a behaviour change.", "claude-opus-5-5"), summary);
-        assertEquals("Claude (claude-opus-5-5)", summary.source());
-
-        ArgumentCaptor<String> answers = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> files = ArgumentCaptor.forClass(String.class);
-        verify(summarizer).summarize(answers.capture(), files.capture());
-        assertTrue(answers.getValue().contains("behaviour (" + TestAdequacyCheck.BEHAVIOUR.text() + ")"),
-                answers.getValue());
-        assertTrue(answers.getValue().contains("0.876543219"), answers.getValue());
-        assertTrue(answers.getValue().contains("chosen option partially-exercised"), answers.getValue());
-        assertTrue(answers.getValue().contains("partially-exercised 0.6123456789, fully-exercised 0.3876543211"),
-                answers.getValue());
-        assertEquals("- core/src/main/java/Foo.java (modified)\n- core/src/test/java/FooTest.java (added)",
-                files.getValue());
-        String sent = answers.getValue() + files.getValue();
-        assertFalse(sent.contains("Fix the thing"), sent);
-        assertFalse(sent.contains("SECRET-DIFF"), sent);
+    static Result<String> result(String text) {
+        return Result.<String>builder().content(text).tokenUsage(new TokenUsage(321, 45)).build();
     }
 
     @Test
-    void aFailedCallGivesTheExactTemplate() {
-        when(summarizer.summarize(anyString(), anyString())).thenThrow(new RuntimeException("HTTP 500"));
+    void claudeAnswerCarriesTheClaudeSourceAndSeesOnlyAnswersAndFiles() {
+        when(summarizer.summarize(anyString())).thenReturn(result("  jev sees a behaviour change.  "));
 
         Summary summary = service.summarize(classification());
 
-        assertEquals(FallbackSummary.of(classification()), summary);
+        assertEquals("jev sees a behaviour change.", summary.text());
+        assertEquals("Claude (claude-opus-5-5)", summary.source());
+
+        ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
+        verify(summarizer).summarize(message.capture());
+        String sent = message.getValue();
+        assertTrue(sent.startsWith("jev's answers:\n"), sent);
+        assertTrue(sent.contains("behaviour (" + TestAdequacyCheck.BEHAVIOUR.text() + ")"), sent);
+        assertTrue(sent.contains("0.876543219"), sent);
+        assertTrue(sent.contains("chosen option partially-exercised"), sent);
+        assertTrue(sent.contains("partially-exercised 0.6123456789, fully-exercised 0.3876543211"), sent);
+        assertTrue(sent.endsWith("Changed files:\n- core/src/main/java/Foo.java (modified)\n"
+                + "- core/src/test/java/FooTest.java (added)\n"), sent);
+        assertFalse(sent.contains("Fix the thing"), sent);
+        assertFalse(sent.contains("SECRET-DIFF"), sent);
+
+        // The reported size is exactly what was sent; the tokens are Claude's.
+        assertEquals(ClassificationSummarizer.SYSTEM.length() + sent.length(), summary.claudeChars());
+        assertEquals(new TokenUsage(321, 45), summary.claudeTokens());
+    }
+
+    @Test
+    void aFailedCallGivesTheExactTemplateAndKeepsTheSizeSent() {
+        when(summarizer.summarize(anyString())).thenThrow(new RuntimeException("HTTP 500"));
+
+        Summary summary = service.summarize(classification());
+
+        assertEquals(FallbackSummary.of(classification()).text(), summary.text());
         assertEquals("jev classification: behaviour 0.88; tests partially-exercised 0.61.", summary.text());
         assertEquals("fallback template", summary.source());
+        assertEquals(ClassificationSummarizer.SYSTEM.length()
+                + SummaryService.userMessage(classification()).length(), summary.claudeChars());
+        assertNull(summary.claudeTokens());
     }
 
     @Test
     void blankTextGivesTheExactTemplate() {
-        when(summarizer.summarize(anyString(), anyString())).thenReturn(" \n ");
+        when(summarizer.summarize(anyString())).thenReturn(result(" \n "));
 
-        assertEquals(FallbackSummary.of(classification()), service.summarize(classification()));
+        Summary summary = service.summarize(classification());
+
+        assertEquals(FallbackSummary.of(classification()).text(), summary.text());
+        assertEquals("fallback template", summary.source());
+        assertEquals(new TokenUsage(321, 45), summary.claudeTokens());
     }
 
     @Test
@@ -105,11 +121,11 @@ class SummaryServiceTest {
         Classification classification = classification();
         Classification before = classification();
 
-        when(summarizer.summarize(anyString(), anyString())).thenReturn("A summary.");
+        when(summarizer.summarize(anyString())).thenReturn(result("A summary."));
         service.summarize(classification);
         assertEquals(before, classification);
 
-        when(summarizer.summarize(anyString(), anyString())).thenThrow(new RuntimeException("down"));
+        when(summarizer.summarize(anyString())).thenThrow(new RuntimeException("down"));
         service.summarize(classification);
         assertEquals(before, classification);
     }

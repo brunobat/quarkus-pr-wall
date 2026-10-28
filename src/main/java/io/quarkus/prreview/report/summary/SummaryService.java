@@ -15,6 +15,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
 
+import dev.langchain4j.model.output.TokenUsage;
+import dev.langchain4j.service.Result;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.QuestionResult;
@@ -68,35 +70,48 @@ public class SummaryService {
             LOG.warnf("PR #%d: no ANTHROPIC_API_KEY set, using the fallback summary", pr);
             return FallbackSummary.of(classification);
         }
-        String answers = answers(classification);
-        String changedFiles = changedFiles(classification);
+        String message = userMessage(classification);
+        int chars = ClassificationSummarizer.SYSTEM.length() + message.length();
         // The Claude timeout is the longest the summary can delay a PR. The call makes one attempt (see NoRetries).
         // A Future from submit(), not a CompletableFuture, because only its cancel(true) interrupts the call at the
         // timeout; with no retry, that ends it.
-        Future<String> call = executor.submit(() -> summarizer.summarize(answers, changedFiles));
-        String text;
+        Future<Result<String>> call = executor.submit(() -> summarizer.summarize(message));
+        Result<String> result;
         try {
-            text = call.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            result = call.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             call.cancel(true);
             LOG.warnf("PR #%d: no Claude summary within %s, using the fallback summary", pr, timeout);
-            return FallbackSummary.of(classification);
+            return fallback(classification, chars);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             LOG.warnf("PR #%d: Claude summary failed (%s), using the fallback summary", pr,
                     cause.getMessage() == null ? cause.getClass().getName() : cause.getMessage());
-            return FallbackSummary.of(classification);
+            return fallback(classification, chars);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             call.cancel(true);
             LOG.warnf("PR #%d: interrupted while waiting for the Claude summary, using the fallback summary", pr);
-            return FallbackSummary.of(classification);
+            return fallback(classification, chars);
         }
+        String text = result == null ? null : result.content();
+        TokenUsage tokens = result == null ? null : result.tokenUsage();
         if (text == null || text.isBlank()) {
             LOG.warnf("PR #%d: Claude returned a blank summary, using the fallback summary", pr);
-            return FallbackSummary.of(classification);
+            return new Summary(FallbackSummary.of(classification).text(), null, chars, tokens);
         }
-        return new Summary(text.strip(), model);
+        return new Summary(text.strip(), model, chars, tokens);
+    }
+
+    /** The template, recording that {@code chars} characters were sent to Claude without an answer. */
+    private static Summary fallback(Classification classification, int chars) {
+        return new Summary(FallbackSummary.of(classification).text(), null, chars, null);
+    }
+
+    /** What Claude is sent besides the system message: the answers and the changed files, nothing else. */
+    static String userMessage(Classification classification) {
+        return "jev's answers:\n" + answers(classification) + "\n\nChanged files:\n" + changedFiles(classification)
+                + "\n";
     }
 
     /** Every question with its text and {@code jev}'s answer, probabilities unrounded. */

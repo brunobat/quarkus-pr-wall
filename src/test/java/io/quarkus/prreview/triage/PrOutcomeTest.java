@@ -120,6 +120,6 @@ class PrOutcomeTest {
 
         assertTrue(outcome.reason().startsWith("jev: "), outcome.reason());
         assertEquals("jev-test", outcome.jevModel());
-        verify(summarizer, never()).summarize(any(), any());
+        verify(summarizer, never()).summarize(any());
     }
 }
