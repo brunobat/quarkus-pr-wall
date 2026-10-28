@@ -8,7 +8,9 @@ quarkus:
       stderr: true
   langchain4j:
     typesafe:
-      api-key: ${TYPESAFE_API_KEY:}
+      # "not-set" means no key: the run stops before any PR with an error naming TYPESAFE_API_KEY. Left empty, the
+      # extension would fail at startup with a message that names only its own property, even for --help.
+      api-key: ${TYPESAFE_API_KEY:not-set}
       base-url: ${JEV_URL:https://api.typesafe.ai}
       timeout: ${JEV_TIMEOUT:60s}
       decision-model:

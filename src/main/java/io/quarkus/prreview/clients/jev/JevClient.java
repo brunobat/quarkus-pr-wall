@@ -18,15 +18,26 @@ import io.quarkus.prreview.config.ReviewConfig;
 @ApplicationScoped
 public class JevClient {
 
+    /** The key's value when {@code TYPESAFE_API_KEY} is not set, see {@code application.yml}. */
+    private static final String NO_KEY = "not-set";
+
     private final DecisionModel model;
     private final ReviewConfig config;
     private final String modelName;
+    private final String apiKey;
 
     public JevClient(DecisionModel model, ReviewConfig config,
-            @ConfigProperty(name = "quarkus.langchain4j.typesafe.decision-model.model-name") String modelName) {
+            @ConfigProperty(name = "quarkus.langchain4j.typesafe.decision-model.model-name") String modelName,
+            @ConfigProperty(name = "quarkus.langchain4j.typesafe.api-key") String apiKey) {
         this.model = model;
         this.config = config;
         this.modelName = modelName;
+        this.apiKey = apiKey;
+    }
+
+    /** Whether a {@code jev} API key is set; without one every submission would fail the same way. */
+    public boolean keyConfigured() {
+        return !NO_KEY.equals(apiKey);
     }
 
     /** The configured {@code jev} model name, sent with every submission. */

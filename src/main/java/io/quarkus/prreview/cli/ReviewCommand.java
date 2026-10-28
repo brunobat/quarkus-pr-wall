@@ -1,5 +1,6 @@
 package io.quarkus.prreview.cli;
 
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -10,6 +11,7 @@ import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
 
 import io.quarkus.arc.Unremovable;
+import io.quarkus.prreview.clients.jev.JevClient;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.report.ReportWriter;
 import io.quarkus.prreview.report.markdown.MarkdownReport;
@@ -29,6 +31,9 @@ public class ReviewCommand implements Callable<Integer> {
     @Inject
     PrClassifier classifier;
 
+    @Inject
+    JevClient jev;
+
     @CommandLine.Parameters(arity = "1..*", paramLabel = "<pr>", description = "PR numbers, processed in the order given.")
     List<Integer> prs;
 
@@ -40,13 +45,36 @@ public class ReviewCommand implements Callable<Integer> {
     public Integer call() {
         SequencedSet<Integer> uniquePrs = uniquePrs();
         Path dir = reportDir();
-        // Only the first PR until the list loop (phase 4, step 3).
-        int pr = uniquePrs.getFirst();
-        PrOutcome outcome = classifier.classify(pr);
-        ReportWriter.Result report = ReportWriter.write(dir, pr, MarkdownReport.render(outcome));
-        spec.commandLine().getOut().print(TerminalRenderer.render(outcome, report));
-        spec.commandLine().getOut().flush();
-        return outcome instanceof PrOutcome.Classified && report instanceof ReportWriter.Written ? 0 : 1;
+        if (!jev.keyConfigured()) {
+            // A setup error: every PR would fail the same way, so none is processed.
+            spec.commandLine().getErr().println("error: no jev API key; set TYPESAFE_API_KEY");
+            spec.commandLine().getErr().flush();
+            return 1;
+        }
+        PrintWriter out = spec.commandLine().getOut();
+        int errors = 0;
+        for (int pr : uniquePrs) {
+            if (pr != uniquePrs.getFirst()) {
+                out.println();
+            }
+            PrOutcome outcome = classifier.classify(pr);
+            ReportWriter.Result report = ReportWriter.write(dir, pr, MarkdownReport.render(outcome));
+            // Each block is printed as soon as its PR is done.
+            out.print(TerminalRenderer.render(outcome, report));
+            out.flush();
+            if (!(outcome instanceof PrOutcome.Classified) || !(report instanceof ReportWriter.Written)) {
+                errors++;
+            }
+        }
+        return exitCode(uniquePrs.size(), errors);
+    }
+
+    /**
+     * Clarification #33: no classification affects the exit code ("Let's not fail for now. We are just classifying
+     * the PR."). It is 1 only when every PR had an error (not classified, or report not written), otherwise 0.
+     */
+    static int exitCode(int prs, int errors) {
+        return errors == prs ? 1 : 0;
     }
 
     /** The report directory: {@code --output-dir}, defaulting to {@link ReviewConfig#outputDir()}; empty is a usage error. */

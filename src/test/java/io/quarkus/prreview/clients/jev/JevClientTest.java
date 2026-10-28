@@ -5,6 +5,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -66,7 +67,7 @@ class JevClientTest {
         when(model.decide(any(DecisionRequest.class))).thenReturn(response);
         int size = sizeWithModel("jev-latest");
 
-        JevDecision decision = new JevClient(model, config(size), "jev-latest").decide(REQUEST);
+        JevDecision decision = new JevClient(model, config(size), "jev-latest", "test-key").decide(REQUEST);
 
         assertSame(response, decision.response());
         assertEquals(size, decision.submissionChars());
@@ -81,8 +82,8 @@ class JevClientTest {
         DecisionModel model = mock(DecisionModel.class);
         int size = sizeWithModel("jev-latest");
 
-        JevException e = assertThrows(JevException.class,
-                () -> new JevClient(model, config(size - 1), "jev-latest").decide(REQUEST));
+        JevException e = assertThrows(SubmissionTooLargeException.class,
+                () -> new JevClient(model, config(size - 1), "jev-latest", "test-key").decide(REQUEST));
 
         assertEquals("submission is %d characters, over the limit of %d".formatted(size, size - 1), e.getMessage());
         assertEquals(size, e.submissionChars());
@@ -110,7 +111,8 @@ class JevClientTest {
         DecisionModel model = mock(DecisionModel.class);
         when(model.decide(any(DecisionRequest.class)))
                 .thenReturn(DecisionResponse.builder().answer("c.q", YesNoAnswer.of(0.5)).build());
-        JevClient client = new JevClient(model, config(sizeWithModel(oneCheck, "jev-latest")), "jev-latest");
+        JevClient client = new JevClient(model, config(sizeWithModel(oneCheck, "jev-latest")), "jev-latest",
+                "test-key");
 
         client.decide(oneCheck);
         JevException e = assertThrows(JevException.class, () -> client.decide(twoChecks));
@@ -126,7 +128,7 @@ class JevClientTest {
                 .thenThrow(new InvalidRequestException("{\"error\":\"max_tokens_exceeded\"}"));
 
         JevException e = assertThrows(JevException.class,
-                () -> new JevClient(model, config(Integer.MAX_VALUE), "jev-latest").decide(REQUEST));
+                () -> new JevClient(model, config(Integer.MAX_VALUE), "jev-latest", "test-key").decide(REQUEST));
 
         assertTrue(e.getMessage().contains("max_tokens_exceeded"), e.getMessage());
         assertEquals(sizeWithModel("jev-latest"), e.submissionChars());
@@ -146,7 +148,7 @@ class JevClientTest {
                 .httpClientBuilder(new JdkHttpClientBuilder()).baseUrl(server.baseUrl()).apiKey("k").modelName("unused")
                 .build();
 
-        JevDecision decision = new JevClient(model, config(Integer.MAX_VALUE), "jev-x").decide(REQUEST);
+        JevDecision decision = new JevClient(model, config(Integer.MAX_VALUE), "jev-x", "test-key").decide(REQUEST);
 
         String body = server.findAll(postRequestedFor(urlEqualTo("/v1/systemone"))).get(0).getBodyAsString();
         assertTrue(body.contains("\"model\":\"jev-x\""), body);
@@ -181,5 +183,13 @@ class JevClientTest {
                 throw new UnsupportedOperationException();
             }
         };
+    }
+
+    @Test
+    void theNotSetPlaceholderMeansNoKey() {
+        DecisionModel model = mock(DecisionModel.class);
+
+        assertTrue(new JevClient(model, config(1), "jev-latest", "a-key").keyConfigured());
+        assertFalse(new JevClient(model, config(1), "jev-latest", "not-set").keyConfigured());
     }
 }

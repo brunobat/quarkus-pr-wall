@@ -1,6 +1,7 @@
 package io.quarkus.prreview.it.support;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -38,10 +39,21 @@ public final class JevWireMock implements AutoCloseable {
     public static JevWireMock start() {
         JevWireMock jev = new JevWireMock();
         jev.server.start();
-        jev.server.stubFor(post(urlEqualTo(PATH))
-                .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(ANSWERS)));
+        jev.answer();
         System.setProperty(BASE_URL_PROPERTY, jev.server.baseUrl());
         return jev;
+    }
+
+    /** Until {@link #reset()}, a submission whose body contains {@code text} gets this error instead of answers. */
+    public void failWhenBodyContains(String text, int status, String body) {
+        server.stubFor(post(urlEqualTo(PATH)).atPriority(1).withRequestBody(containing(text))
+                .willReturn(aResponse().withStatus(status).withHeader("Content-Type", "application/json")
+                        .withBody(body)));
+    }
+
+    private void answer() {
+        server.stubFor(post(urlEqualTo(PATH)).atPriority(5)
+                .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(ANSWERS)));
     }
 
     /** The submissions received since the last {@link #reset()}. */
@@ -49,8 +61,10 @@ public final class JevWireMock implements AutoCloseable {
         return server.findAll(postRequestedFor(urlEqualTo(PATH)));
     }
 
+    /** Forgets the received submissions and answers every submission again. */
     public void reset() {
-        server.resetRequests();
+        server.resetAll();
+        answer();
     }
 
     @Override
