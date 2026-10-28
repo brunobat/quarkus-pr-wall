@@ -16,6 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 
+import io.quarkus.prreview.it.support.ClaudeWireMock;
 import io.quarkus.prreview.it.support.FakeGh;
 import io.quarkus.prreview.it.support.JevWireMock;
 import io.quarkus.test.common.WithTestResource;
@@ -23,12 +24,13 @@ import io.quarkus.test.junit.main.LaunchResult;
 import io.quarkus.test.junit.main.QuarkusMainLauncher;
 import io.quarkus.test.junit.main.QuarkusMainTest;
 
-/** {@code review <pr>} end to end: the fake {@code gh}, {@code jev} in WireMock, the fallback summary. */
+/** {@code review <pr>} end to end: the fake {@code gh}, {@code jev} and Claude in WireMock. */
 @QuarkusMainTest
 @WithTestResource(FakeGh.class)
 class ReviewSinglePrTest {
 
     static JevWireMock jev;
+    static ClaudeWireMock claude;
 
     @TempDir
     Path out;
@@ -36,20 +38,23 @@ class ReviewSinglePrTest {
     @BeforeAll
     static void startJev() {
         jev = JevWireMock.start();
+        claude = ClaudeWireMock.start();
     }
 
     @AfterAll
     static void stopJev() {
         jev.close();
+        claude.close();
     }
 
     @BeforeEach
     void resetJev() {
         jev.reset();
+        claude.reset();
     }
 
     @Test
-    void classifiesOnePrWithOneJevCall(QuarkusMainLauncher launcher) throws IOException {
+    void classifiesOnePrWithOneJevCallAndOneClaudeCall(QuarkusMainLauncher launcher) throws IOException {
         LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
 
         assertEquals(0, result.exitCode(), result.getErrorOutput());
@@ -57,13 +62,18 @@ class ReviewSinglePrTest {
         List<String> stdout = result.getOutputStream();
         assertTrue(stdout.contains("PR #101 - test adequacy"), result.getOutput());
         assertTrue(stdout.contains("  behaviour 0.88  tests: no-test-changes 0.64"), result.getOutput());
-        assertTrue(stdout.contains("Summary (fallback template): jev classification: behaviour 0.88; tests"
-                + " no-test-changes 0.64."), result.getOutput());
+        assertTrue(stdout.contains("Summary (Claude): " + ClaudeWireMock.SUMMARY), result.getOutput());
         assertTrue(stdout.contains("Report: " + report), result.getOutput());
 
         List<LoggedRequest> posts = jevPosts();
         assertEquals(1, posts.size());
+        assertEquals(1, claude.posts().size());
         String markdown = Files.readString(report);
+        assertTrue(markdown.contains("## Classification\n"), markdown);
+        assertTrue(markdown.contains("## Summary\n\n**Claude (claude-opus-5-5):** " + ClaudeWireMock.SUMMARY), markdown);
+        assertTrue(markdown.contains("## Changed files\n"), markdown);
+        assertTrue(markdown.contains("docs/src/main/asciidoc/foo.adoc"), markdown);
+        assertTrue(markdown.contains("## Run\n"), markdown);
         // The size the app measured before sending is the length of the body jev received.
         assertTrue(markdown.contains("- Submission size: " + posts.getFirst().getBodyAsString().length()
                 + " characters (limit 60000)"), markdown);
@@ -107,6 +117,23 @@ class ReviewSinglePrTest {
         assertEquals(0, result.exitCode(), result.getErrorOutput());
         assertEquals(1, jevPosts().size());
         assertTrue(jevPosts().getFirst().getBodyAsString().contains("test-adequacy.behaviour"));
+        assertEquals(1, claude.posts().size());
+    }
+
+    @Test
+    void aFailingClaudeGivesTheFallbackTemplate(QuarkusMainLauncher launcher) throws IOException {
+        claude.failWith500();
+
+        LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+
+        assertEquals(0, result.exitCode(), result.getErrorOutput());
+        String template = "jev classification: behaviour 0.88; tests no-test-changes 0.64.";
+        assertTrue(result.getOutputStream().contains("Summary (fallback template): " + template), result.getOutput());
+        String markdown = Files.readString(out.resolve("review-101.md"));
+        assertTrue(markdown.contains("## Summary\n\n**fallback template:** " + template + "\n"), markdown);
+        assertTrue(markdown.contains("- Summary: fallback template"), markdown);
+        assertEquals(1, jevPosts().size());
+        assertTrue(claude.posts().size() >= 1);
     }
 
     private static List<LoggedRequest> jevPosts() {

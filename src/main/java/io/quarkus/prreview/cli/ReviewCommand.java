@@ -15,7 +15,7 @@ import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.report.ReportWriter;
 import io.quarkus.prreview.report.markdown.MarkdownReport;
-import io.quarkus.prreview.report.summary.FallbackSummary;
+import io.quarkus.prreview.report.summary.SummaryService;
 import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.report.terminal.TerminalRenderer;
 import io.quarkus.prreview.triage.PrClassifier;
@@ -32,6 +32,9 @@ public class ReviewCommand implements Callable<Integer> {
     @Inject
     PrClassifier classifier;
 
+    @Inject
+    SummaryService summaries;
+
     @CommandLine.Parameters(arity = "1..*", paramLabel = "<pr>", description = "PR numbers, processed in the order given.")
     List<Integer> prs;
 
@@ -43,11 +46,11 @@ public class ReviewCommand implements Callable<Integer> {
     public Integer call() {
         SequencedSet<Integer> uniquePrs = uniquePrs();
         Path dir = reportDir();
-        // Phase 2: only the first PR, with the fallback summary; phase 4 processes the list and notes per-PR errors.
+        // Phase 2: only the first PR; phase 4 processes the list and notes per-PR errors.
         int pr = uniquePrs.getFirst();
         try {
             Classification classification = classifier.classify(pr);
-            Summary summary = FallbackSummary.of(classification);
+            Summary summary = summaries.summarize(classification);
             Path report = ReportWriter.write(dir, pr, MarkdownReport.render(classification, summary));
             spec.commandLine().getOut().print(TerminalRenderer.render(classification, summary, report));
             spec.commandLine().getOut().flush();

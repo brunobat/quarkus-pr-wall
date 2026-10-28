@@ -1,5 +1,7 @@
 package io.quarkus.prreview.clients.claude;
 
+import jakarta.enterprise.context.ApplicationScoped;
+
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import io.quarkiverse.langchain4j.RegisterAiService;
@@ -7,7 +9,10 @@ import io.quarkiverse.langchain4j.RegisterAiService;
 /**
  * The only access to Claude: a short prose restatement of {@code jev}'s classification. It has no tools and no
  * memory, and it sees only the answers and the changed-file list, never the diff, title or body.
+ * <p>
+ * Application scoped because the command runs without a request context, which the default request scope needs.
  */
+@ApplicationScoped
 @RegisterAiService(tools = {}, chatMemoryProviderSupplier = RegisterAiService.NoChatMemoryProviderSupplier.class)
 public interface ClassificationSummarizer {
 
