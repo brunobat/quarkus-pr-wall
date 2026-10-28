@@ -27,15 +27,17 @@ import io.quarkus.prreview.pr.model.PrContext;
 public final class JevSubmission {
 
     private final String input;
+    private final ProjectContext projectContext;
     private final Map<String, Asked> questions = new LinkedHashMap<>();
 
-    private JevSubmission(String input) {
+    private JevSubmission(String input, ProjectContext projectContext) {
         this.input = input;
+        this.projectContext = projectContext;
     }
 
     /** Builds the submission: the shared input from the PR, then each check's questions in the order given. */
     public static JevSubmission of(PrContext pr, ProjectContext context, List<? extends ClassificationCheck> checks) {
-        JevSubmission submission = new JevSubmission(input(pr, context));
+        JevSubmission submission = new JevSubmission(input(pr, context), context);
         for (ClassificationCheck check : checks) {
             check.ask(pr, submission.questionsFor(check.id()));
         }
@@ -74,6 +76,11 @@ public final class JevSubmission {
         if (questions.putIfAbsent(id, asked) != null) {
             throw new IllegalStateException("Duplicate jev question id: " + id);
         }
+    }
+
+    /** The project context the input starts with. */
+    public ProjectContext projectContext() {
+        return projectContext;
     }
 
     public DecisionRequest toDecisionRequest() {

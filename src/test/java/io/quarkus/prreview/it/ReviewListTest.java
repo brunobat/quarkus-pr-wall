@@ -160,6 +160,25 @@ class ReviewListTest {
     }
 
     @Test
+    void anEmptyJevKeyIsAMissingKey(QuarkusMainLauncher launcher) throws IOException {
+        // An exported but empty TYPESAFE_API_KEY, read through application.yml's expression; the system property
+        // stands in for the environment variable, and the profile-qualified one outranks the test profile's key.
+        System.setProperty("%test.quarkus.langchain4j.typesafe.api-key", "${TYPESAFE_API_KEY:not-set}");
+        System.setProperty("TYPESAFE_API_KEY", "");
+        try {
+            LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+
+            assertEquals(1, result.exitCode(), result.getOutput());
+            assertEquals(List.of("error: no jev API key; set TYPESAFE_API_KEY"), result.getErrorStream(),
+                    result.getErrorOutput());
+            assertEquals(0, jev.posts().size());
+        } finally {
+            System.clearProperty("%test.quarkus.langchain4j.typesafe.api-key");
+            System.clearProperty("TYPESAFE_API_KEY");
+        }
+    }
+
+    @Test
     void helpWorksWithoutAJevKey(QuarkusMainLauncher launcher) {
         System.setProperty("%test.quarkus.langchain4j.typesafe.api-key", "not-set");
         try {

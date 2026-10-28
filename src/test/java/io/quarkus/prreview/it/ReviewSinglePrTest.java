@@ -251,15 +251,45 @@ class ReviewSinglePrTest {
             LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
 
             assertEquals(1, result.exitCode(), result.getOutput());
-            // Under @QuarkusMainTest the startup failure's log lines are captured with stdout.
-            String output = result.getOutput() + result.getErrorOutput();
-            assertTrue(output.contains("JEV_PROJECT_CONTEXT: cannot read"), output);
+            // One line, no stack trace.
+            List<String> errors = result.getErrorStream();
+            assertEquals(1, errors.size(), result.getErrorOutput());
+            assertTrue(errors.getFirst().startsWith("error: JEV_PROJECT_CONTEXT: cannot read " + out.resolve("missing.txt")),
+                    result.getErrorOutput());
             assertEquals(0, jevPosts().size());
             try (var files = Files.list(out)) {
                 assertEquals(List.of(), files.toList(), "nothing written");
             }
         } finally {
             System.clearProperty(CONTEXT_PROPERTY);
+        }
+    }
+
+    @Test
+    void helpWorksWithAnUnreadableProjectContext(QuarkusMainLauncher launcher) {
+        System.setProperty(CONTEXT_PROPERTY, out.resolve("missing.txt").toString());
+        try {
+            LaunchResult result = launcher.launch("review", "--help");
+
+            assertEquals(0, result.exitCode(), result.getOutput());
+            assertTrue(result.getOutput().contains("--output-dir"), result.getOutput());
+        } finally {
+            System.clearProperty(CONTEXT_PROPERTY);
+        }
+    }
+
+    @Test
+    void anEmptyProjectContextVariableMeansTheBundledOne(QuarkusMainLauncher launcher) throws IOException {
+        // An exported but empty JEV_PROJECT_CONTEXT; the system property stands in for the environment variable.
+        System.setProperty("JEV_PROJECT_CONTEXT", "");
+        try {
+            LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+
+            assertEquals(0, result.exitCode(), result.getOutput());
+            assertTrue(Files.readString(out.resolve("review-101.md")).contains(
+                    "- Project context: classpath:project-context/quarkusio-quarkus.txt ("));
+        } finally {
+            System.clearProperty("JEV_PROJECT_CONTEXT");
         }
     }
 

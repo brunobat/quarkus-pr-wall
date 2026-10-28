@@ -74,9 +74,6 @@ calibrated on collected data rather than guessed.
 - **Accuracy:** no accuracy has been measured. Answers have been checked by hand on a handful of live PRs
   only, and there is no evaluation set yet.
 - **Other repositories:** the project context describes `quarkusio/quarkus` only.
-- **Error handling:** some lower-severity code-review findings are known and not yet fixed. For example, an
-  empty `TYPESAFE_API_KEY` or a bad `JEV_PROJECT_CONTEXT` gives a long startup error instead of a one-line
-  message.
 
 ## What it does today
 
@@ -202,8 +199,8 @@ Each of these counts as an error for that PR, and its full detail is logged to s
 |---|---|
 | At least one PR without an error | 0, whatever `jev`'s answers are |
 | Every PR had an error | 1 |
-| `TYPESAFE_API_KEY` not set: stops before any PR, `error: … TYPESAFE_API_KEY` on stderr | 1 |
-| `JEV_PROJECT_CONTEXT` unreadable or blank: stops at startup, before any PR, naming `JEV_PROJECT_CONTEXT` | 1 |
+| `TYPESAFE_API_KEY` not set or empty: stops before any PR, `error: … TYPESAFE_API_KEY` on stderr | 1 |
+| `JEV_PROJECT_CONTEXT` unreadable or blank: stops before any PR, `error: JEV_PROJECT_CONTEXT: …` on stderr (`--help` still works) | 1 |
 | Bad arguments (no PR, non-numeric PR, unknown option) | 2 |
 
 ## Configuration
@@ -270,4 +267,4 @@ are the gaps we hit and how the code works around each one. Each is worth revisi
 | A plain `String` return type gives no token usage. | The AI service returns `Result<String>`, which carries Claude's token usage for the report. |
 | The Anthropic extension accepts only `max-retries` of 1 or more. LangChain4j also retries an attempt that was interrupted by our timeout, so the call carries on in the background. | `NoRetries`, a `ModelBuilderCustomizer`, sets `maxRetries(0)` after the configuration is applied. A test proves exactly one request is made on a timeout or an HTTP 500. |
 | There is no single cap on how long a Claude call may delay a PR. | `SummaryService` runs the call on a `ManagedExecutor` and waits at most `ANTHROPIC_TIMEOUT`, then cancels it. It uses `submit()`'s `Future`, because `CompletableFuture.cancel` does not interrupt the thread. |
-| An empty API key, or the extension's own `dummy` placeholder, makes startup fail once an AI service exists, even for `--help`. | `application.yml` defaults both keys to `not-set`. The app treats that as "no key": the run stops with a one-line error for `jev`, and the summary falls back to the template for Claude. An exported but **empty** `TYPESAFE_API_KEY` still fails at startup with the extension's message (open). |
+| An empty API key, or the extension's own `dummy` placeholder, makes startup fail once an AI service exists, even for `--help`. | `application.yml` defaults both keys to `not-set`. The app treats that as "no key": the run stops with a one-line error for `jev`, and the summary falls back to the template for Claude. An exported but empty variable still reached the extension as an empty value, so `BlankEnvironmentIsUnset`, a SmallRye `ConfigSourceInterceptor`, makes a blank environment variable count as unset and `${VAR:default}` falls back to its default. It must sit below SmallRye's expression interceptor to see those lookups. |
