@@ -51,6 +51,11 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-config-yaml</artifactId>
         </dependency>
+        <!-- JsonMapper, used directly by GhClient to read gh pr view output. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jackson</artifactId>
+        </dependency>
         <!-- jev, through the LangChain4j Decision Models API. -->
         <dependency>
             <groupId>io.quarkiverse.langchain4j</groupId>

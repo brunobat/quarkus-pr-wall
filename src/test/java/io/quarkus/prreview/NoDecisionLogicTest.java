@@ -16,10 +16,12 @@ import org.junit.jupiter.api.Test;
  * Classify, don't decide (Clarifications #26, #32): no code compares a {@code jev} probability with a number, and
  * no code is about thresholds, cut-offs or verdicts.
  * <p>
- * A heuristic guard, not a proof. It scans {@code src/main/java} with comments and string literals removed (so
- * documentation and prompts may say that there are no verdicts) for a comparison operator next to a
- * {@code probability()} or {@code probabilities().get(...)} call, a {@code compare}/{@code compareTo} on one, and
- * the words themselves. A probability first stored in a variable and compared later is not caught. Formatting, such
+ * A heuristic guard, not a proof. It scans {@code src/main/java} with comments and literals removed (so
+ * documentation and prompts may say that there are no verdicts) for a comparison operator or arithmetic next to a
+ * {@code probability()} or {@code probabilities().get(...)} call, a {@code compare}/{@code compareTo} on one, a
+ * {@code ::probability} method reference (as passed to a comparator), and the words themselves. Not caught: a
+ * probability first stored in a variable and compared later, a comparison split across lines, and {@code +}, which
+ * can't be told apart from string concatenation. Formatting, such
  * as {@code %.2f}, is allowed.
  */
 class NoDecisionLogicTest {
@@ -30,10 +32,18 @@ class NoDecisionLogicTest {
     private static final String PROBABILITY = "(?:probability\\(\\)|probabilities\\(\\)\\.get\\([^)]*\\))";
     /** {@code <}, {@code >}, {@code <=}, {@code >=}, but not the {@code >} of a lambda arrow. */
     private static final String COMPARISON = "(?<!-)[<>]=?";
+    /**
+     * {@code -}, {@code *}, {@code /}, but not the {@code -} of a lambda arrow. {@code +} is left out: next to a
+     * probability it is string concatenation for display.
+     */
+    private static final String ARITHMETIC = "[-*/](?!>)";
 
     private static final List<Pattern> RULES = List.of(
             Pattern.compile(PROBABILITY + "\\s*" + COMPARISON),
             Pattern.compile(COMPARISON + "\\s*[\\w.()]*" + PROBABILITY),
+            Pattern.compile(PROBABILITY + "\\s*" + ARITHMETIC),
+            Pattern.compile(ARITHMETIC + "\\s*[\\w.()]*" + PROBABILITY),
+            Pattern.compile("::probabilit"),
             Pattern.compile("compare(?:To)?\\([^;]*probabilit"),
             Pattern.compile("(?i)threshold|cut-?off|verdict"));
 
@@ -57,6 +67,14 @@ class NoDecisionLogicTest {
         assertEquals(1, violations("double threshold = 0.5;").size());
         assertEquals(1, violations("enum Verdict { NEEDS_TESTS }").size());
         assertEquals(1, violations("int cutOff;").size());
+        // A literal inside the call does not hide it.
+        assertEquals(1, violations("if (0.5 < answers.get(\"x\").probability()) {").size());
+        assertEquals(1, violations("double margin = p.probability() - 0.5;").size());
+        assertEquals(1, violations("double rest = 1 - p.probability();").size());
+        assertEquals(1, violations("list.sort(Comparator.comparingDouble(YesNo::probability));").size());
+        // An escaped quote run does not end a text block early.
+        assertEquals(1, violations("String s = \"\"\"\n  a \\\"\"\" b\n  \"\"\";\nif (p.probability() > 0.5) {")
+                .size());
     }
 
     @Test
@@ -99,9 +117,10 @@ class NoDecisionLogicTest {
             } else if (source.startsWith("/*", i)) {
                 i = blank(source, i, end(source, "*/", i + 2), out);
             } else if (source.startsWith("\"\"\"", i)) {
-                i = blank(source, i, end(source, "\"\"\"", i + 3), out);
+                i = blank(source, i, textBlockEnd(source, i + 3), out);
             } else if (source.charAt(i) == '"' || source.charAt(i) == '\'') {
-                i = blank(source, i, literalEnd(source, i), out);
+                // Filled with a word character, so a literal argument does not break a call apart.
+                i = fill(source, i, literalEnd(source, i), 'x', out);
             } else {
                 out.append(source.charAt(i++));
             }
@@ -113,6 +132,21 @@ class NoDecisionLogicTest {
     private static int end(String source, String close, int from) {
         int at = source.indexOf(close, from);
         return at < 0 ? source.length() : at + close.length();
+    }
+
+    /** Where a text block opened before {@code from} ends, skipping an escaped {@code \"""}. */
+    private static int textBlockEnd(String source, int from) {
+        int i = from;
+        while (i < source.length()) {
+            if (source.charAt(i) == '\\') {
+                i += 2;
+            } else if (source.startsWith("\"\"\"", i)) {
+                return i + 3;
+            } else {
+                i++;
+            }
+        }
+        return source.length();
     }
 
     /** The end of a {@code "..."} or {@code '...'} literal starting at {@code start}, honouring escapes. */
@@ -127,9 +161,14 @@ class NoDecisionLogicTest {
 
     /** Appends spaces for {@code [from, to)}, keeping line breaks, and returns {@code to}. */
     private static int blank(String source, int from, int to, StringBuilder out) {
+        return fill(source, from, to, ' ', out);
+    }
+
+    /** Appends {@code with} for {@code [from, to)}, keeping line breaks, and returns {@code to}. */
+    private static int fill(String source, int from, int to, char with, StringBuilder out) {
         int end = to < 0 ? source.length() : to;
         for (int i = from; i < end; i++) {
-            out.append(source.charAt(i) == '\n' ? '\n' : ' ');
+            out.append(source.charAt(i) == '\n' ? '\n' : with);
         }
         return end;
     }
