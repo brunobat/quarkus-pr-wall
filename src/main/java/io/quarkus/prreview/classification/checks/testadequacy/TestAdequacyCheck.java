@@ -11,7 +11,8 @@ import io.quarkus.prreview.pr.model.PrContext;
 /**
  * Triage-stage test adequacy, as four independent questions: does the PR change runtime behaviour, does it add or
  * modify tests, how much of the changed code do those tests execute, and do they assert its outcome? All four are
- * asked for every PR, whatever the diff contains, and their answers are never combined.
+ * asked for every PR, whatever the diff contains, and their answers are never combined. Each option is one
+ * situation: a question that does not apply says why, through its own option.
  */
 @ApplicationScoped
 public class TestAdequacyCheck implements ClassificationCheck {
@@ -33,8 +34,10 @@ public class TestAdequacyCheck implements ClassificationCheck {
             .text("How much of the changed runtime code do the tests this PR adds or modifies execute?")
             .option("all", "Every changed runtime code path is executed by a changed test.")
             .option("some", "Some changed runtime code paths are executed by a changed test; others are not.")
-            .option("none", "Changed tests exist but execute none of the changed runtime code.")
-            .option("not-applicable", "The PR changes no runtime behaviour, or adds or modifies no tests.")
+            .option("none", "The PR changes runtime behaviour and adds or modifies tests, but they execute none of the"
+                    + " changed runtime code.")
+            .option("no-runtime-change", "The PR changes no runtime behaviour, whether or not it changes tests.")
+            .option("no-test-changes", "The PR changes runtime behaviour but adds or modifies no tests.")
             .option("undetermined",
                     "The diff does not give enough to tell, e.g. binary or generated changes, behaviour too indirect"
                             + " to trace, or tests that depend on code outside the diff.")
@@ -46,7 +49,10 @@ public class TestAdequacyCheck implements ClassificationCheck {
             .option("all", "Every changed path the changed tests execute has its outcome asserted.")
             .option("some", "Some executed changed paths are asserted; others are only called, built or smoke-run.")
             .option("none", "The changed tests execute changed code but assert none of its outcomes.")
-            .option("not-applicable", "The changed tests execute no changed runtime code, or there are none.")
+            .option("no-runtime-change", "The PR changes no runtime behaviour, whether or not it changes tests.")
+            .option("no-test-changes", "The PR changes runtime behaviour but adds or modifies no tests.")
+            .option("no-changed-code-reached", "The PR changes runtime behaviour and tests, but the changed tests"
+                    + " execute none of the changed runtime code.")
             .option("undetermined", "The diff does not give enough to tell.")
             .build();
 
