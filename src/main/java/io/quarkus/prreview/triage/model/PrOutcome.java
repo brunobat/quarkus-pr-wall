@@ -23,7 +23,8 @@ public sealed interface PrOutcome permits PrOutcome.Classified, PrOutcome.NotCla
      * A PR that could not be classified, with the run details known when it failed.
      *
      * @param checks the ids of the checks that would have classified it, for the header
-     * @param pullRequest the PR as fetched, or {@code null} when {@code gh} failed
+     * @param pullRequest the PR as fetched (with an empty diff when only {@code gh pr diff} failed), or {@code null}
+     *        when nothing was fetched
      * @param reason the one-line reason shown after {@code not classified:}, e.g. {@code gh: <message>}
      * @param message the full error message, e.g. {@code jev}'s response body
      * @param jevModel the {@code jev} model, or {@code null} when {@code jev} was not reached
