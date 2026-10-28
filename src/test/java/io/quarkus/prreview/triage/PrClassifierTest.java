@@ -21,7 +21,9 @@ import dev.langchain4j.model.decision.response.YesNoAnswer;
 import dev.langchain4j.model.output.TokenUsage;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.it.support.FakeGh;
+import io.quarkus.prreview.triage.model.PrOutcome;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -32,6 +34,9 @@ class PrClassifierTest {
 
     @InjectMock
     DecisionModel model;
+
+    @InjectMock
+    ClassificationSummarizer summarizer;
 
     @Inject
     PrClassifier classifier;
@@ -46,7 +51,11 @@ class PrClassifierTest {
                         .probability("fully-exercised", 0.7).probability("undetermined", 0.3).build())
                 .build());
 
-        Classification classification = classifier.classify(101);
+        when(summarizer.summarize(any(), any())).thenReturn("A summary.");
+
+        PrOutcome.Classified outcome = (PrOutcome.Classified) classifier.classify(101);
+        Classification classification = outcome.classification();
+        assertEquals("A summary.", outcome.summary().text());
 
         ArgumentCaptor<DecisionRequest> sent = ArgumentCaptor.forClass(DecisionRequest.class);
         verify(model, times(1)).decide(sent.capture());

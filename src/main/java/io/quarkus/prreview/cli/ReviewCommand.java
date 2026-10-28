@@ -15,10 +15,10 @@ import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.report.ReportWriter;
 import io.quarkus.prreview.report.markdown.MarkdownReport;
-import io.quarkus.prreview.report.summary.SummaryService;
 import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.report.terminal.TerminalRenderer;
 import io.quarkus.prreview.triage.PrClassifier;
+import io.quarkus.prreview.triage.model.PrOutcome;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "review", mixinStandardHelpOptions = true, versionProvider = PrReviewCommand.Version.class,
@@ -32,9 +32,6 @@ public class ReviewCommand implements Callable<Integer> {
     @Inject
     PrClassifier classifier;
 
-    @Inject
-    SummaryService summaries;
-
     @CommandLine.Parameters(arity = "1..*", paramLabel = "<pr>", description = "PR numbers, processed in the order given.")
     List<Integer> prs;
 
@@ -46,11 +43,16 @@ public class ReviewCommand implements Callable<Integer> {
     public Integer call() {
         SequencedSet<Integer> uniquePrs = uniquePrs();
         Path dir = reportDir();
-        // Phase 2: only the first PR; phase 4 processes the list and notes per-PR errors.
+        // Only the first PR until the list loop (phase 4, step 3); not-classified rendering comes in step 2.
         int pr = uniquePrs.getFirst();
         try {
-            Classification classification = classifier.classify(pr);
-            Summary summary = summaries.summarize(classification);
+            PrOutcome outcome = classifier.classify(pr);
+            if (!(outcome instanceof PrOutcome.Classified(Classification classification, Summary summary))) {
+                spec.commandLine().getErr().println("PR #" + pr + ": not classified: "
+                        + ((PrOutcome.NotClassified) outcome).reason());
+                spec.commandLine().getErr().flush();
+                return 1;
+            }
             Path report = ReportWriter.write(dir, pr, MarkdownReport.render(classification, summary));
             spec.commandLine().getOut().print(TerminalRenderer.render(classification, summary, report));
             spec.commandLine().getOut().flush();

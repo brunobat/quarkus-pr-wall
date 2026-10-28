@@ -12,7 +12,7 @@ import io.quarkus.prreview.config.ReviewConfig;
 
 /**
  * The only access to {@code jev}. Each submission is measured before sending; one over the configured limit is
- * refused without an HTTP call. Otherwise it is sent once, with no retry, and any failure becomes a
+ * refused with a {@link SubmissionTooLargeException}, without an HTTP call. Otherwise it is sent once, with no retry, and any failure becomes a
  * {@link JevException}.
  */
 @ApplicationScoped
@@ -29,6 +29,11 @@ public class JevClient {
         this.modelName = modelName;
     }
 
+    /** The configured {@code jev} model name, sent with every submission. */
+    public String modelName() {
+        return modelName;
+    }
+
     public JevDecision decide(DecisionRequest request) {
         // The model name is set here, not added later by the model, so the measured body is the one sent.
         DecisionRequest sent = request.toBuilder()
@@ -38,8 +43,7 @@ public class JevClient {
         int size = SubmissionSize.of(sent);
         int limit = config.jev().maxSubmissionChars();
         if (size > limit) {
-            throw new JevException("submission is %d characters, over the limit of %d".formatted(size, limit),
-                    size, limit, null);
+            throw new SubmissionTooLargeException(size, limit);
         }
         try {
             return new JevDecision(model.decide(sent), size, limit);
