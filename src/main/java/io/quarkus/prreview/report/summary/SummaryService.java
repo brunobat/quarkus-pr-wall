@@ -29,7 +29,8 @@ import io.quarkus.runtime.Startup;
  * no Claude key is set, the call fails, no answer arrives within the Claude timeout or the text is blank. The
  * classification itself is never changed.
  * <p>
- * Created at startup, so a timeout that is not positive stops the run before any PR is processed.
+ * Created at startup, so a timeout that is not positive stops the run before any PR is processed (only when a
+ * Claude key is set: without one, Claude and its timeout are not used).
  */
 @Startup
 @ApplicationScoped
@@ -50,7 +51,7 @@ public class SummaryService {
             @ConfigProperty(name = "quarkus.langchain4j.anthropic.api-key") String apiKey,
             @ConfigProperty(name = "quarkus.langchain4j.anthropic.chat-model.model-name") String model,
             @ConfigProperty(name = "quarkus.langchain4j.anthropic.timeout") Duration timeout) {
-        if (timeout.isNegative() || timeout.isZero()) {
+        if (!NO_KEY.equals(apiKey) && (timeout.isNegative() || timeout.isZero())) {
             throw new IllegalArgumentException("ANTHROPIC_TIMEOUT must be positive, but is " + timeout);
         }
         this.summarizer = summarizer;
@@ -69,10 +70,9 @@ public class SummaryService {
         }
         String answers = answers(classification);
         String changedFiles = changedFiles(classification);
-        // The extension retries a failed attempt once and cannot be set to zero retries, so the whole call, retry
-        // included, gets the Claude timeout: that is the longest the summary can delay a PR. A Future from submit(),
-        // not a CompletableFuture, because only its cancel(true) interrupts the call, so it doesn't run on (and
-        // retry) in the background.
+        // The Claude timeout is the longest the summary can delay a PR. The call makes one attempt (see NoRetries).
+        // A Future from submit(), not a CompletableFuture, because only its cancel(true) interrupts the call at the
+        // timeout; with no retry, that ends it.
         Future<String> call = executor.submit(() -> summarizer.summarize(answers, changedFiles));
         String text;
         try {

@@ -28,5 +28,6 @@ quarkus:
         api-key: test-key
       anthropic:
         api-key: test-key
-        # Nothing listens here: a test that forgets the Claude stub fails to connect instead of calling Anthropic.
-        base-url: http://localhost:1/v1/
+        # A test points this at its Claude stub with claude-stub.base-url. Without one, nothing listens on port 1,
+        # so a test that forgets the stub fails to connect instead of calling Anthropic.
+        base-url: ${claude-stub.base-url:http://localhost:1/v1/}

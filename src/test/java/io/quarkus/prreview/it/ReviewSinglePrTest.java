@@ -138,8 +138,8 @@ class ReviewSinglePrTest {
         assertTrue(markdown.contains("## Summary\n\n**fallback template:** " + TEMPLATE + "\n"), markdown);
         assertTrue(markdown.contains("- Summary: fallback template"), markdown);
         assertEquals(1, jevPosts().size());
-        // The extension retries once (it cannot be set to zero retries), then the template is used.
-        assertEquals(2, claude.posts().size());
+        // One attempt, no retry, then the template.
+        assertEquals(1, claude.posts().size());
     }
 
     @Test
@@ -153,7 +153,7 @@ class ReviewSinglePrTest {
 
             assertEquals(0, result.exitCode(), result.getErrorOutput());
             assertTrue(result.getOutputStream().contains("Summary (fallback template): " + TEMPLATE), result.getOutput());
-            assertTrue(claude.posts().size() >= 1);
+            assertEquals(1, claude.posts().size());
             // The run does not wait for Claude's answer; the exact bound is checked in SummaryServiceTimeoutTest.
             assertTrue(took.compareTo(Duration.ofSeconds(20)) < 0, "waited for the slow answer: " + took);
         } finally {
@@ -167,13 +167,28 @@ class ReviewSinglePrTest {
         try {
             LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
 
-            assertTrue(result.exitCode() != 0, result.getOutput());
+            assertEquals(1, result.exitCode(), result.getOutput());
             // Under @QuarkusMainTest the startup failure's log lines are captured with stdout.
             String output = result.getOutput() + result.getErrorOutput();
             assertTrue(output.contains("ANTHROPIC_TIMEOUT must be positive"), output);
             assertEquals(0, jevPosts().size());
             assertEquals(0, claude.posts().size());
         } finally {
+            System.clearProperty(TIMEOUT_PROPERTY);
+        }
+    }
+
+    @Test
+    void withoutAClaudeKeyTheTimeoutIsNotUsed(QuarkusMainLauncher launcher) {
+        System.setProperty(API_KEY_PROPERTY, "not-set");
+        System.setProperty(TIMEOUT_PROPERTY, "0s");
+        try {
+            LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+
+            assertEquals(0, result.exitCode(), result.getOutput());
+            assertTrue(result.getOutputStream().contains("Summary (fallback template): " + TEMPLATE), result.getOutput());
+        } finally {
+            System.clearProperty(API_KEY_PROPERTY);
             System.clearProperty(TIMEOUT_PROPERTY);
         }
     }

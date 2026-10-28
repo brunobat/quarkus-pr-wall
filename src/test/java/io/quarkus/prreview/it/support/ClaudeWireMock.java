@@ -18,8 +18,8 @@ import com.github.tomakehurst.wiremock.verification.LoggedRequest;
  */
 public final class ClaudeWireMock implements AutoCloseable {
 
-    /** Profile-qualified, so it outranks the test profile's unreachable base URL in {@code application.yml}. */
-    static final String BASE_URL_PROPERTY = "%test.quarkus.langchain4j.anthropic.base-url";
+    /** Read by the test profile's Anthropic base URL in {@code application.yml}. */
+    static final String BASE_URL_PROPERTY = "claude-stub.base-url";
     static final String PATH = "/v1/messages";
 
     public static final String SUMMARY = "jev finds a likely runtime behaviour change and no changed tests.";
@@ -32,13 +32,28 @@ public final class ClaudeWireMock implements AutoCloseable {
 
     private final WireMockServer server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
 
-    /** Starts the server and points every later launch at it; the base URL must end in {@code /v1/}. */
+    /** Whether {@link #start()} set the system property, so {@link #close()} only removes its own. */
+    private boolean setProperty;
+
+    /** Starts the server and points every later launch at it. */
     public static ClaudeWireMock start() {
+        ClaudeWireMock claude = startServer();
+        System.setProperty(BASE_URL_PROPERTY, claude.baseUrl());
+        claude.setProperty = true;
+        return claude;
+    }
+
+    /** Starts the server only; the caller points the app at {@link #baseUrl()}. */
+    public static ClaudeWireMock startServer() {
         ClaudeWireMock claude = new ClaudeWireMock();
         claude.server.start();
         claude.answer();
-        System.setProperty(BASE_URL_PROPERTY, claude.server.baseUrl() + "/v1/");
         return claude;
+    }
+
+    /** The Anthropic base URL for this server; it must end in {@code /v1/}. */
+    public String baseUrl() {
+        return server.baseUrl() + "/v1/";
     }
 
     /** From now on every request gets HTTP 500, until {@link #reset()}. */
@@ -74,7 +89,10 @@ public final class ClaudeWireMock implements AutoCloseable {
 
     @Override
     public void close() {
-        System.clearProperty(BASE_URL_PROPERTY);
+        // A @QuarkusTest stops its resources lazily, possibly after another test class has started its own stub.
+        if (setProperty) {
+            System.clearProperty(BASE_URL_PROPERTY);
+        }
         server.stop();
     }
 }
