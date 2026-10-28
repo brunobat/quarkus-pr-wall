@@ -5,6 +5,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 
+import java.time.Duration;
 import java.util.List;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -12,12 +13,13 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 
 /**
- * Stands in for the Anthropic Messages API: a WireMock server on localhost that answers with a fixed summary, or
- * with HTTP 500 after {@link #failWith500()}. Owned by the test for the whole class, like {@link JevWireMock}.
+ * Stands in for the Anthropic Messages API: a WireMock server on localhost that answers with a fixed summary, with
+ * HTTP 500 after {@link #failWith500()}, or late after {@link #delay(Duration)}. Owned by the test for the whole class, like {@link JevWireMock}.
  */
 public final class ClaudeWireMock implements AutoCloseable {
 
-    static final String BASE_URL_PROPERTY = "quarkus.langchain4j.anthropic.base-url";
+    /** Profile-qualified, so it outranks the test profile's unreachable base URL in {@code application.yml}. */
+    static final String BASE_URL_PROPERTY = "%test.quarkus.langchain4j.anthropic.base-url";
     static final String PATH = "/v1/messages";
 
     public static final String SUMMARY = "jev finds a likely runtime behaviour change and no changed tests.";
@@ -45,6 +47,13 @@ public final class ClaudeWireMock implements AutoCloseable {
         server.stubFor(post(urlEqualTo(PATH)).willReturn(aResponse().withStatus(500)
                 .withHeader("Content-Type", "application/json")
                 .withBody("{\"type\": \"error\", \"error\": {\"type\": \"api_error\", \"message\": \"Internal error\"}}")));
+    }
+
+    /** From now on every answer arrives after {@code delay}, until {@link #reset()}. */
+    public void delay(Duration delay) {
+        server.resetMappings();
+        server.stubFor(post(urlEqualTo(PATH)).willReturn(aResponse().withFixedDelay((int) delay.toMillis())
+                .withHeader("Content-Type", "application/json").withBody(MESSAGE)));
     }
 
     /** The requests received since the last {@link #reset()}. */

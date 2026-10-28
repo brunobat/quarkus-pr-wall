@@ -115,6 +115,13 @@
                         <excludedEnvironmentVariable>GH_BINARY</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>GH_TIMEOUT</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>JEV_URL</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>JEV_TIMEOUT</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>JEV_MODEL</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>TYPESAFE_API_KEY</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>ANTHROPIC_API_KEY</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>ANTHROPIC_MODEL</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>ANTHROPIC_TIMEOUT</excludedEnvironmentVariable>
                         <!-- SmallRye also maps these environment names onto pr-review.* -->
                         <excludedEnvironmentVariable>PR_REVIEW_OUTPUT_DIR</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_GH_REPO</excludedEnvironmentVariable>

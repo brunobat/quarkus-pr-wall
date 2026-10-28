@@ -14,8 +14,9 @@ quarkus:
       decision-model:
         model-name: ${JEV_MODEL:jev-latest}
     anthropic:
-      # "dummy" is the extension's own "not configured" value; the summary then uses the fallback template.
-      api-key: ${ANTHROPIC_API_KEY:dummy}
+      # "not-set" means no key: the summary then uses the fallback template without calling Claude. Not the
+      # extension's own "dummy", which makes startup fail once an AI service exists.
+      api-key: ${ANTHROPIC_API_KEY:not-set}
       timeout: ${ANTHROPIC_TIMEOUT:60s}
       chat-model:
         model-name: ${ANTHROPIC_MODEL:claude-opus-5-5}
@@ -27,3 +28,5 @@ quarkus:
         api-key: test-key
       anthropic:
         api-key: test-key
+        # Nothing listens here: a test that forgets the Claude stub fails to connect instead of calling Anthropic.
+        base-url: http://localhost:1/v1/

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
@@ -28,6 +29,11 @@ import io.quarkus.test.junit.main.QuarkusMainTest;
 @QuarkusMainTest
 @WithTestResource(FakeGh.class)
 class ReviewSinglePrTest {
+
+    static final String TEMPLATE = "jev classification: behaviour 0.88; tests no-test-changes 0.64.";
+    static final String TIMEOUT_PROPERTY = "quarkus.langchain4j.anthropic.timeout";
+    /** Profile-qualified, so it outranks the test profile's key in {@code application.yml}. */
+    static final String API_KEY_PROPERTY = "%test.quarkus.langchain4j.anthropic.api-key";
 
     static JevWireMock jev;
     static ClaudeWireMock claude;
@@ -127,13 +133,49 @@ class ReviewSinglePrTest {
         LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
 
         assertEquals(0, result.exitCode(), result.getErrorOutput());
-        String template = "jev classification: behaviour 0.88; tests no-test-changes 0.64.";
-        assertTrue(result.getOutputStream().contains("Summary (fallback template): " + template), result.getOutput());
+        assertTrue(result.getOutputStream().contains("Summary (fallback template): " + TEMPLATE), result.getOutput());
         String markdown = Files.readString(out.resolve("review-101.md"));
-        assertTrue(markdown.contains("## Summary\n\n**fallback template:** " + template + "\n"), markdown);
+        assertTrue(markdown.contains("## Summary\n\n**fallback template:** " + TEMPLATE + "\n"), markdown);
         assertTrue(markdown.contains("- Summary: fallback template"), markdown);
         assertEquals(1, jevPosts().size());
-        assertTrue(claude.posts().size() >= 1);
+        // The extension retries once (it cannot be set to zero retries), then the template is used.
+        assertEquals(2, claude.posts().size());
+    }
+
+    @Test
+    void aSlowClaudeGivesTheFallbackTemplateWithinTheTimeout(QuarkusMainLauncher launcher) {
+        claude.delay(Duration.ofSeconds(10));
+        System.setProperty(TIMEOUT_PROPERTY, "2s");
+        try {
+            long start = System.nanoTime();
+            LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+            Duration took = Duration.ofNanos(System.nanoTime() - start);
+
+            assertEquals(0, result.exitCode(), result.getErrorOutput());
+            assertTrue(result.getOutputStream().contains("Summary (fallback template): " + TEMPLATE), result.getOutput());
+            assertTrue(claude.posts().size() >= 1);
+            // The timeout bounds the whole call: a timed-out attempt and its retry would take 4 s.
+            assertTrue(took.compareTo(Duration.ofMillis(3800)) < 0, "waited about one timeout: " + took);
+        } finally {
+            System.clearProperty(TIMEOUT_PROPERTY);
+        }
+    }
+
+    @Test
+    void withoutAClaudeKeyTheRunUsesTheTemplateAndNeverCallsClaude(QuarkusMainLauncher launcher) throws IOException {
+        // "not-set" is what application.yml resolves to when ANTHROPIC_API_KEY is not set.
+        System.setProperty(API_KEY_PROPERTY, "not-set");
+        try {
+            LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+
+            assertEquals(0, result.exitCode(), result.getErrorOutput());
+            assertTrue(result.getOutputStream().contains("Summary (fallback template): " + TEMPLATE), result.getOutput());
+            assertTrue(Files.readString(out.resolve("review-101.md")).contains("- Summary: fallback template"));
+            assertEquals(1, jevPosts().size());
+            assertEquals(0, claude.posts().size());
+        } finally {
+            System.clearProperty(API_KEY_PROPERTY);
+        }
     }
 
     private static List<LoggedRequest> jevPosts() {

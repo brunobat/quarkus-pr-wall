@@ -17,8 +17,9 @@ import io.quarkus.prreview.report.summary.model.Summary;
 /**
  * The markdown report for one classified PR: title, Classification, Summary, Changed files, Run. Probabilities are
  * written as returned. Text from GitHub, {@code jev} or Claude never starts a line: it follows a fixed label on its
- * line, is kept on that one line, and is escaped in table cells, so it cannot add headings, quotes, lists, code
- * blocks, rows or sections.
+ * line, is kept on that one line, is escaped in table cells, and has {@code &} and {@code <} escaped outside code
+ * spans, so it cannot add headings, quotes, lists, code blocks, rows, sections or HTML (such as a comment that hides
+ * the rest of the report).
  */
 public final class MarkdownReport {
 
@@ -83,7 +84,7 @@ public final class MarkdownReport {
                 .append("| Option | Description | Probability |\n|---|---|---|\n");
         for (Map.Entry<String, String> option : choice.options().entrySet()) {
             Double p = choice.probabilities().get(option.getKey());
-            md.append("| ").append(cell(code(option.getKey()))).append(" | ").append(cell(option.getValue()))
+            md.append("| ").append(escapePipes(code(option.getKey()))).append(" | ").append(cell(option.getValue()))
                     .append(" | ").append(p == null ? "not reported" : AnswerFormat.exact(p)).append(" |\n");
         }
     }
@@ -99,23 +100,37 @@ public final class MarkdownReport {
         return tokens == null ? "not reported" : tokens.toString();
     }
 
-    /** Keeps text on one line, so it cannot start a heading, list item or table row. */
+    /**
+     * Keeps text on one line, so it cannot start a heading, list item or table row, and escapes {@code &} and
+     * {@code <}, so it cannot open HTML. Display is unchanged: GitHub shows {@code &lt;} as {@code <}.
+     */
     static String inline(String text) {
+        return oneLine(text).replace("&", "&amp;").replace("<", "&lt;");
+    }
+
+    private static String oneLine(String text) {
         return text == null ? "" : text.strip().replaceAll("\\s+", " ");
     }
 
-    /**
-     * One-line text inside a table cell, with {@code |} escaped. Backslashes right before a {@code |} are escaped
-     * too, so {@code a\\|b} cannot turn the pipe back into a column separator.
-     */
+    /** One-line text inside a table cell, see {@link #escapePipes(String)}. */
     static String cell(String text) {
-        return PIPE.matcher(inline(text))
-                .replaceAll(m -> Matcher.quoteReplacement(m.group(1).repeat(2) + "\\|"));
+        return escapePipes(inline(text));
     }
 
-    /** Inline code, using a longer fence when the text itself contains a backtick. */
+    /**
+     * Escapes {@code |}. Backslashes right before a {@code |} are escaped too, so {@code a\\|b} cannot turn the pipe
+     * back into a column separator.
+     */
+    private static String escapePipes(String text) {
+        return PIPE.matcher(text).replaceAll(m -> Matcher.quoteReplacement(m.group(1).repeat(2) + "\\|"));
+    }
+
+    /**
+     * Inline code, using a longer fence when the text itself contains a backtick. Not HTML-escaped: GitHub shows
+     * code spans literally, so an entity there would be displayed as typed.
+     */
     static String code(String text) {
-        String value = inline(text);
+        String value = oneLine(text);
         return value.contains("`") ? "`` " + value + " ``" : "`" + value + "`";
     }
 }
