@@ -1,0 +1,116 @@
+package io.quarkus.prreview.report.summary;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import jakarta.inject.Inject;
+
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
+import dev.langchain4j.model.output.TokenUsage;
+import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
+import io.quarkus.prreview.classification.model.CheckResult;
+import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
+import io.quarkus.prreview.pr.model.ChangedFile;
+import io.quarkus.prreview.pr.model.PrContext;
+import io.quarkus.prreview.pr.model.PullRequest;
+import io.quarkus.prreview.report.summary.model.Summary;
+import io.quarkus.test.InjectMock;
+import io.quarkus.test.junit.QuarkusTest;
+
+@QuarkusTest
+class SummaryServiceTest {
+
+    @InjectMock
+    ClassificationSummarizer summarizer;
+
+    @Inject
+    SummaryService service;
+
+    static Classification classification() {
+        PullRequest pr = new PullRequest(57720, "Fix the thing", "https://github.com/quarkusio/quarkus/pull/57720",
+                "OPEN", "diff --git a/SECRET-DIFF b/SECRET-DIFF");
+        List<ChangedFile> files = List.of(
+                new ChangedFile("core/src/main/java/Foo.java", ChangedFile.Kind.MODIFIED, null, false),
+                new ChangedFile("core/src/test/java/FooTest.java", ChangedFile.Kind.ADDED, null, false));
+        Map<String, Double> probabilities = new LinkedHashMap<>();
+        probabilities.put("partially-exercised", 0.6123456789);
+        probabilities.put("fully-exercised", 0.3876543211);
+        CheckResult check = new CheckResult("test-adequacy", List.of(
+                new QuestionResult("test-adequacy", "behaviour", "behaviour", TestAdequacyCheck.BEHAVIOUR.text(),
+                        new QuestionResult.YesNo(0.876543219)),
+                new QuestionResult("test-adequacy", "tests", "tests", TestAdequacyCheck.TESTS.text(),
+                        new QuestionResult.Choice("partially-exercised", TestAdequacyCheck.TESTS.options(),
+                                probabilities))));
+        return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,
+                60000);
+    }
+
+    @Test
+    void claudeAnswerCarriesTheClaudeSourceAndSeesOnlyAnswersAndFiles() {
+        when(summarizer.summarize(anyString(), anyString())).thenReturn("  jev sees a behaviour change.  ");
+
+        Summary summary = service.summarize(classification());
+
+        assertEquals(new Summary("jev sees a behaviour change.", "claude-opus-5-5"), summary);
+        assertEquals("Claude (claude-opus-5-5)", summary.source());
+
+        ArgumentCaptor<String> answers = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> files = ArgumentCaptor.forClass(String.class);
+        verify(summarizer).summarize(answers.capture(), files.capture());
+        assertTrue(answers.getValue().contains("behaviour (" + TestAdequacyCheck.BEHAVIOUR.text() + ")"),
+                answers.getValue());
+        assertTrue(answers.getValue().contains("0.876543219"), answers.getValue());
+        assertTrue(answers.getValue().contains("chosen option partially-exercised"), answers.getValue());
+        assertTrue(answers.getValue().contains("partially-exercised 0.6123456789, fully-exercised 0.3876543211"),
+                answers.getValue());
+        assertEquals("- core/src/main/java/Foo.java (modified)\n- core/src/test/java/FooTest.java (added)",
+                files.getValue());
+        String sent = answers.getValue() + files.getValue();
+        assertFalse(sent.contains("Fix the thing"), sent);
+        assertFalse(sent.contains("SECRET-DIFF"), sent);
+    }
+
+    @Test
+    void aFailedCallGivesTheExactTemplate() {
+        when(summarizer.summarize(anyString(), anyString())).thenThrow(new RuntimeException("HTTP 500"));
+
+        Summary summary = service.summarize(classification());
+
+        assertEquals(FallbackSummary.of(classification()), summary);
+        assertEquals("jev classification: behaviour 0.88; tests partially-exercised 0.61.", summary.text());
+        assertEquals("fallback template", summary.source());
+    }
+
+    @Test
+    void blankTextGivesTheExactTemplate() {
+        when(summarizer.summarize(anyString(), anyString())).thenReturn(" \n ");
+
+        assertEquals(FallbackSummary.of(classification()), service.summarize(classification()));
+    }
+
+    @Test
+    void theClassificationIsTheSameWithAndWithoutClaude() {
+        Classification classification = classification();
+        Classification before = classification();
+
+        when(summarizer.summarize(anyString(), anyString())).thenReturn("A summary.");
+        service.summarize(classification);
+        assertEquals(before, classification);
+
+        when(summarizer.summarize(anyString(), anyString())).thenThrow(new RuntimeException("down"));
+        service.summarize(classification);
+        assertEquals(before, classification);
+    }
+}
