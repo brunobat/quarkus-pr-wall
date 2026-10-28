@@ -1,5 +1,84 @@
 # quarkus-pr-wall
 
+> **Status: proof of concept, work in progress.** This is an incomplete experiment, not a supported tool.
+> It implements **one** classification (test adequacy) for the **triage** stage, and it takes **no
+> decisions** yet. The classifications and decisions listed below are the plan, not features. Expect the
+> questions, the output and the code layout to change.
+
+## Where this is going
+
+The goal is to help Quarkus maintainers triage pull requests. It works in two layers that are kept apart on
+purpose:
+
+1. **Classifications.** TypeSafe `jev` answers questions about a PR and returns probabilities. The tool
+   records them exactly as returned. This is the only layer that exists today.
+2. **Decisions.** Rules that turn classifications into something a maintainer acts on, such as a review
+   priority or "ask for tests". None exist yet. They will come only after enough classifications have been
+   collected on real PRs to calibrate them against maintainers' judgement.
+
+The tool stays **read-only** in both layers. A decision is a suggestion to a human. The tool never comments,
+labels, approves or merges.
+
+### Classifications
+
+| Classification | Stage | What `jev` is asked | Status |
+|---|---|---|---|
+| **Test adequacy** | triage | Does the PR change runtime behaviour? Does it add or modify tests? How much of the changed code do those tests execute, and do they assert its outcome? | **done** (this PoC) |
+| Change area | triage | Which part of Quarkus the diff changes: core runtime, extension, SPI, build/CI, dev tools, integration tests, docs | planned |
+| Change kind | triage | What the diff actually does, whatever the title says: bug fix, feature, refactor, docs, test-only, build/CI, dependency upgrade, revert | planned |
+| Change size | triage | Semantic size, from trivial or mechanical to large and intricate | planned |
+| Blast radius | triage | From isolated to foundational (core, build, security, BOM) | planned |
+| API exposure | triage | How public the touched surface is: internal, extension SPI, public API, configuration | planned |
+| Breaking change | triage | Does the diff break existing callers? What kind of break? Does it carry a migration note or a deprecation? | planned |
+| Test weakening | triage | Does the PR remove, disable or loosen existing tests or assertions? | planned |
+| Missing docs | triage | Does a user-visible change (configuration, behaviour, API) come without documentation? | planned |
+| Domain | triage | Which specialist areas it touches: security, messaging, persistence, native image | planned |
+| Proportionality | triage | Does the PR make a reviewer read more than the change warrants? This is about volume, never about who or what wrote it. | planned |
+| Per-file test adequacy | deep analysis | For each changed file: is it exercised and asserted by the PR's tests? This points at the files that need tests. | planned |
+| Per-file breaking change | deep analysis | Which changed files carry the break, and which callers are affected | planned |
+
+The planned list comes from the earlier, larger prototype (branch `poc-full-jev-2`, kept read-only for
+reference). Its classifications are being rebuilt **one at a time** on this simpler base. Each one adds its
+questions to the same single `jev` call per PR, and each lands only after a live run on real PRs shows its
+answers are sensible. Test adequacy took three iterations (one choice question, then four questions, then a
+project context and one option per reason) before its answers held up. Expect the same for the others.
+
+**Facts are not classifications.** Some inputs are attested facts rather than model answers: who opened the
+PR, whether the account is a bot, whether the author is a committer, and whether AI assistance was declared.
+They may appear in a report, but no decision may ever read them. In particular, declaring AI assistance must
+never count against a PR.
+
+### Decisions the classifications are meant to support
+
+None of these is implemented. Each will be one explicit rule, declared in one place, with its thresholds
+calibrated on collected data rather than guessed.
+
+| Decision | What it tells a maintainer | Classifications it would read |
+|---|---|---|
+| **Review priority** | skim, read through, or read closely | change size, blast radius, API exposure, breaking change |
+| **Ranking a list of PRs** | which open PRs to look at first | review priority across PRs |
+| **Ask for tests** | runtime behaviour changes but the PR adds no tests, or its tests don't execute or assert the change | test adequacy, test weakening |
+| **Ask for docs or a migration note** | a user-visible or breaking change lacks documentation or a migration path | missing docs, breaking change, API exposure |
+| **Severity per concern** | blocker, needs attention, FYI, or nothing to say (the default) | each concern's classification and how confident `jev` is |
+| **Who else should look** | route to security, messaging, persistence or native-image reviewers | domain, blast radius |
+| **Run deep analysis** | spend the more expensive per-file analysis only on PRs triage flags | any triage classification |
+| **Fast-track candidates** | low-risk PRs, such as docs-only changes or isolated dependency bumps | change kind, change size, blast radius, test adequacy |
+
+### What this PoC does not do yet
+
+- **Decisions:** no thresholds, no verdicts, no severities. A probability is shown, never compared with a
+  number.
+- **Large PRs:** a PR whose submission exceeds `JEV_MAX_SUBMISSION_CHARS` (60,000 characters by default) is
+  not classified. It is noted and the run continues.
+- **Accuracy:** no accuracy has been measured. Answers have been checked by hand on a handful of live PRs
+  only, and there is no evaluation set yet.
+- **Other repositories:** the project context describes `quarkusio/quarkus` only.
+- **Error handling:** some lower-severity code-review findings are known and not yet fixed. For example, an
+  empty `TYPESAFE_API_KEY` or a bad `JEV_PROJECT_CONTEXT` gives a long startup error instead of a one-line
+  message.
+
+## What it does today
+
 A **read-only** command-line tool that classifies Quarkus pull requests for **test adequacy**. It is the triage
 stage: for each PR it asks TypeSafe `jev` four PR-level questions in a single submission and reports `jev`'s
 probabilities **exactly as returned**. Claude then writes a short prose summary of those answers.
