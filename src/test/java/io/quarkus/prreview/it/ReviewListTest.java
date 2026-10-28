@@ -94,7 +94,10 @@ class ReviewListTest {
                 result.getOutput());
         assertTrue(block(result.getOutputStream(), 406).contains("  not classified: gh: "), result.getOutput());
         assertTrue(Files.readString(out.resolve("review-404.md")).startsWith("# PR #404\n"));
-        assertTrue(Files.readString(out.resolve("review-406.md")).contains("too_large"));
+        String report406 = Files.readString(out.resolve("review-406.md"));
+        assertTrue(report406.contains("too_large"), report406);
+        // gh pr view worked and only the diff failed, so the report keeps the title.
+        assertTrue(report406.startsWith("# PR #406: Reformat everything\n"), report406);
         assertEquals(0, jev.posts().size());
         assertEquals(0, claude.posts().size());
     }

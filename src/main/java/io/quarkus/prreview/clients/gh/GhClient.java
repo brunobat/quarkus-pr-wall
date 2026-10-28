@@ -35,16 +35,26 @@ public class GhClient {
         this.mapper = mapper;
     }
 
-    /** Fetches the PR metadata and its unified diff. */
+    /**
+     * Fetches the PR metadata and its unified diff. When only the diff fails (e.g. GitHub's 406 for more than 300
+     * files), the exception carries the metadata, so the error report can still show the title.
+     */
     public PullRequest fetch(int pr) {
         String json = run(List.of("pr", "view", Integer.toString(pr), "--json", "number,title,url,state"));
-        String diff = run(List.of("pr", "diff", Integer.toString(pr)));
+        View view;
         try {
-            View view = mapper.readValue(json, View.class);
-            return new PullRequest(view.number(), view.title(), view.url(), view.state(), diff);
+            view = mapper.readValue(json, View.class);
         } catch (JacksonException e) {
             throw new GhException("unexpected output from gh pr view " + pr + ": " + e.getOriginalMessage(), e);
         }
+        String diff;
+        try {
+            diff = run(List.of("pr", "diff", Integer.toString(pr)));
+        } catch (GhException e) {
+            throw new GhException(e.getMessage(),
+                    new PullRequest(view.number(), view.title(), view.url(), view.state(), ""), e);
+        }
+        return new PullRequest(view.number(), view.title(), view.url(), view.state(), diff);
     }
 
     private record View(int number, String title, String url, String state) {

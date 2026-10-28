@@ -4,6 +4,7 @@
 #   view.json   output of `gh pr view`
 #   diff.patch  output of `gh pr diff`
 #   error.txt   if present, printed to stderr and the command exits 1
+#   diff-error.txt  like error.txt, for `gh pr diff` only (`gh pr view` still answers)
 #   sleep       if present, the script first waits on a child `sleep` of that many seconds, which keeps
 #               stdout/stderr open; its pid is logged as `sleep-pid <pid>` in calls.log
 # Every invocation is appended to calls.log next to this script.
@@ -26,6 +27,11 @@ if [[ -f "$dir/error.txt" ]]; then
   exit 1
 fi
 [[ -d "$dir" ]] || { echo "no pull requests found for branch \"$pr\"" >&2; exit 1; }
+
+if [[ "$sub" == "diff" && -f "$dir/diff-error.txt" ]]; then
+  cat "$dir/diff-error.txt" >&2
+  exit 1
+fi
 
 case "$sub" in
   view) cat "$dir/view.json" ;;

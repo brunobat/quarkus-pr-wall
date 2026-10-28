@@ -61,6 +61,8 @@ class PrOutcomeTest {
         assertTrue(outcome.reason().startsWith("gh: "), outcome.reason());
         assertTrue(outcome.reason().contains("too_large"), outcome.reason());
         assertEquals(-1, outcome.reason().indexOf('\n'), "one line");
+        // Only the diff failed: the PR's title was fetched and is kept.
+        assertEquals("Reformat everything", outcome.pullRequest().title());
         verifyNoInteractions(model, summarizer);
     }
 

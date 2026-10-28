@@ -53,7 +53,8 @@ public class PrClassifier {
             pr = gh.fetch(number);
         } catch (GhException e) {
             LOG.warnf(e, "PR #%d: gh failed", number);
-            return new PrOutcome.NotClassified(number, checkIds(), null, "gh: " + oneLine(e.getMessage()),
+            // The PR's title is kept when only its diff failed.
+            return new PrOutcome.NotClassified(number, checkIds(), e.pullRequest(), "gh: " + oneLine(e.getMessage()),
                     e.getMessage(), null, null, null);
         }
         if (pr.diff().isBlank()) {

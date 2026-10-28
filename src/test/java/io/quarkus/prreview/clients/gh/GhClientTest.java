@@ -1,6 +1,7 @@
 package io.quarkus.prreview.clients.gh;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,6 +40,7 @@ class GhClientTest {
     void unknownPrCarriesGhMessage() {
         GhException e = assertThrows(GhException.class, () -> client.fetch(404));
         assertTrue(e.getMessage().contains("no pull requests found"), e.getMessage());
+        assertNull(e.pullRequest());
     }
 
     @Test
@@ -46,6 +48,9 @@ class GhClientTest {
         GhException e = assertThrows(GhException.class, () -> client.fetch(406));
         assertTrue(e.getMessage().contains("HTTP 406"), e.getMessage());
         assertTrue(e.getMessage().contains("too_large"), e.getMessage());
+        // gh pr view succeeded; only the diff failed, so the title is kept.
+        assertEquals("Reformat everything", e.pullRequest().title());
+        assertEquals("https://github.com/quarkusio/quarkus/pull/406", e.pullRequest().url());
     }
 
     @Test
