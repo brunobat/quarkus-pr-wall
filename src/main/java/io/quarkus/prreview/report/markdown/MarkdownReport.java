@@ -65,6 +65,8 @@ public final class MarkdownReport {
                 : inline(classification.jevModel())).append("\n");
         md.append("- Submission size: ").append(classification.submissionChars()).append(" characters (limit ")
                 .append(classification.limit()).append(")\n");
+        md.append("- Project context: ").append(inline(classification.projectContext().source())).append(" (")
+                .append(classification.projectContext().text().length()).append(" characters)\n");
         md.append("- jev tokens: ").append(tokens(classification.tokenUsage())).append("\n");
         md.append("- Summary: ").append(inline(summary.source())).append("\n");
         md.append("- Claude submission: ").append(summary.claudeChars() == null ? "not sent"

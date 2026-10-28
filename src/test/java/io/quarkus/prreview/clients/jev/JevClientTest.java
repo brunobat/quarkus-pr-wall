@@ -39,12 +39,15 @@ import io.quarkus.prreview.classification.api.ClassificationCheck;
 import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
 import io.quarkus.prreview.classification.submission.JevSubmission;
 import io.quarkus.prreview.clients.jev.model.JevDecision;
+import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.pr.DiffFiles;
 import io.quarkus.prreview.pr.model.PrContext;
 import io.quarkus.prreview.pr.model.PullRequest;
 
 class JevClientTest {
+
+    static final ProjectContext CONTEXT = new ProjectContext("test", "Project context: a test repository.");
 
     static final DecisionRequest REQUEST = DecisionRequest.builder()
             .input("Changed files:\n- a.java (modified)\n\nUnified diff:\ndiff --git a/a.java b/a.java\n\"quoted\" é\n")
@@ -106,8 +109,9 @@ class JevClientTest {
                 questions.yesNo("q", "q", YesNoQuestion.of("Another question?"));
             }
         };
-        DecisionRequest oneCheck = JevSubmission.of(pr, List.of(new TestAdequacyCheck())).toDecisionRequest();
-        DecisionRequest twoChecks = JevSubmission.of(pr, List.of(new TestAdequacyCheck(), other)).toDecisionRequest();
+        DecisionRequest oneCheck = JevSubmission.of(pr, CONTEXT, List.of(new TestAdequacyCheck())).toDecisionRequest();
+        DecisionRequest twoChecks = JevSubmission.of(pr, CONTEXT, List.of(new TestAdequacyCheck(), other))
+                .toDecisionRequest();
         DecisionModel model = mock(DecisionModel.class);
         when(model.decide(any(DecisionRequest.class)))
                 .thenReturn(DecisionResponse.builder().answer("c.q", YesNoAnswer.of(0.5)).build());
@@ -175,7 +179,17 @@ class JevClientTest {
 
             @Override
             public Jev jev() {
-                return () -> limit;
+                return new Jev() {
+                    @Override
+                    public int maxSubmissionChars() {
+                        return limit;
+                    }
+
+                    @Override
+                    public String projectContext() {
+                        throw new UnsupportedOperationException();
+                    }
+                };
             }
 
             @Override

@@ -50,5 +50,13 @@ public interface ReviewConfig {
          */
         @WithDefault("${JEV_MAX_SUBMISSION_CHARS:60000}")
         int maxSubmissionChars();
+
+        /**
+         * The project context sent at the start of every {@code jev} submission: a file path, or
+         * {@code classpath:<resource>} for a bundled one. It describes the repository's language, build and layout
+         * conventions, never a PR or an answer.
+         */
+        @WithDefault("${JEV_PROJECT_CONTEXT:classpath:project-context/quarkusio-quarkus.txt}")
+        String projectContext();
     }
 }

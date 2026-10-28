@@ -20,12 +20,15 @@ import io.quarkus.prreview.classification.api.CheckQuestions;
 import io.quarkus.prreview.classification.api.ClassificationCheck;
 import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
 import io.quarkus.prreview.classification.model.CheckResult;
+import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.pr.DiffFiles;
 import io.quarkus.prreview.pr.model.PrContext;
 import io.quarkus.prreview.pr.model.PullRequest;
 
 class JevSubmissionTest {
+
+    static final ProjectContext CONTEXT = new ProjectContext("test", "Project context: a test repository.");
 
     static final String MIXED_DIFF = """
             diff --git a/core/runtime/src/main/java/io/quarkus/Foo.java b/core/runtime/src/main/java/io/quarkus/Foo.java
@@ -71,8 +74,9 @@ class JevSubmissionTest {
 
     @Test
     void inputHasEveryFileOnceInTheListAndTheFullDiffButNoTitle() {
-        String input = JevSubmission.of(pr(MIXED_DIFF), List.of(new TestAdequacyCheck())).input();
+        String input = JevSubmission.of(pr(MIXED_DIFF), CONTEXT, List.of(new TestAdequacyCheck())).input();
 
+        assertTrue(input.startsWith("Project context: a test repository.\n\nChanged files:\n"), input);
         assertTrue(input.contains("- core/runtime/src/main/java/io/quarkus/Foo.java (modified)\n"), input);
         assertTrue(input.contains("- core/runtime/src/test/java/io/quarkus/FooTest.java (modified)\n"), input);
         assertTrue(input.endsWith("Unified diff:\n" + MIXED_DIFF), input);
@@ -85,22 +89,22 @@ class JevSubmissionTest {
     @Test
     void sameFourQuestionsWhateverTheDiffContains() {
         for (String diff : List.of(MIXED_DIFF, TESTS_ONLY_DIFF, DOCS_ONLY_DIFF)) {
-            DecisionRequest request = JevSubmission.of(pr(diff), List.of(new TestAdequacyCheck())).toDecisionRequest();
+            DecisionRequest request = JevSubmission.of(pr(diff), CONTEXT, List.of(new TestAdequacyCheck())).toDecisionRequest();
             assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests-changed", "test-adequacy.reach",
                     "test-adequacy.assert"), List.copyOf(request.questions().keySet()));
-            assertEquals(request.input(), JevSubmission.input(pr(diff)));
+            assertEquals(request.input(), JevSubmission.input(pr(diff), CONTEXT));
         }
     }
 
     @Test
     void duplicateQuestionIdIsRejected() {
         ClassificationCheck twice = new FixedCheck("dup", "q", "q");
-        assertThrows(IllegalStateException.class, () -> JevSubmission.of(pr(MIXED_DIFF), List.of(twice)));
+        assertThrows(IllegalStateException.class, () -> JevSubmission.of(pr(MIXED_DIFF), CONTEXT, List.of(twice)));
     }
 
     @Test
     void checksShareOneRequestAndEachGetsOnlyItsOwnAnswers() {
-        JevSubmission submission = JevSubmission.of(pr(MIXED_DIFF),
+        JevSubmission submission = JevSubmission.of(pr(MIXED_DIFF), CONTEXT,
                 List.of(new TestAdequacyCheck(), new FixedCheck("other", "behaviour")));
         DecisionRequest request = submission.toDecisionRequest();
 
@@ -139,7 +143,7 @@ class JevSubmissionTest {
 
     @Test
     void choiceKeepsJevsValueAndDeclaredOptionOrder() {
-        JevSubmission submission = JevSubmission.of(pr(MIXED_DIFF), List.of(new TestAdequacyCheck()));
+        JevSubmission submission = JevSubmission.of(pr(MIXED_DIFF), CONTEXT, List.of(new TestAdequacyCheck()));
         // jev's chosen value is kept even when another option has a higher probability: the app never picks.
         DecisionResponse response = DecisionResponse.builder()
                 .answer("test-adequacy.behaviour", YesNoAnswer.of(0.5))

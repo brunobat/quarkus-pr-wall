@@ -35,6 +35,8 @@ class ReviewSinglePrTest {
     static final String TIMEOUT_PROPERTY = "quarkus.langchain4j.anthropic.timeout";
     /** Profile-qualified, so it outranks the test profile's key in {@code application.yml}. */
     static final String API_KEY_PROPERTY = "%test.quarkus.langchain4j.anthropic.api-key";
+    static final String CONTEXT_PROPERTY = "pr-review.jev.project-context";
+    static final Path BUNDLED_CONTEXT = Path.of("src/main/resources/project-context/quarkusio-quarkus.txt");
 
     static JevWireMock jev;
     static ClaudeWireMock claude;
@@ -89,6 +91,12 @@ class ReviewSinglePrTest {
         assertTrue(markdown.contains("- Submission size: " + posts.getFirst().getBodyAsString().length()
                 + " characters (limit 60000)"), markdown);
         assertTrue(markdown.contains("- jev model: jev-test"), markdown);
+        // jev's input starts with the bundled project context, which the footer names.
+        String context = Files.readString(BUNDLED_CONTEXT).strip();
+        assertTrue(posts.getFirst().getBodyAsString().contains(jsonString(context + "\n\nChanged files:\n")),
+                posts.getFirst().getBodyAsString());
+        assertTrue(markdown.contains("- Project context: classpath:project-context/quarkusio-quarkus.txt ("
+                + context.length() + " characters)\n"), markdown);
         assertTrue(markdown.contains("- jev tokens: 1234 input, 56 output"), markdown);
         assertTrue(markdown.contains("| behaviour | Does this PR change the runtime behaviour of the software? | 0.88 |"),
                 markdown);
@@ -215,6 +223,49 @@ class ReviewSinglePrTest {
         } finally {
             System.clearProperty(API_KEY_PROPERTY);
         }
+    }
+
+    @Test
+    void anotherProjectContextIsSentWithoutACodeChange(QuarkusMainLauncher launcher) throws IOException {
+        Path context = Files.writeString(out.resolveSibling(out.getFileName() + "-context.txt"),
+                "Project context: a stand-in repository.\n");
+        System.setProperty(CONTEXT_PROPERTY, context.toString());
+        try {
+            LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+
+            assertEquals(0, result.exitCode(), result.getOutput());
+            assertTrue(jevPosts().getFirst().getBodyAsString().contains(
+                    jsonString("Project context: a stand-in repository.\n\nChanged files:\n")));
+            assertTrue(Files.readString(out.resolve("review-101.md")).contains("- Project context: " + context
+                    + " (39 characters)\n"));
+        } finally {
+            System.clearProperty(CONTEXT_PROPERTY);
+            Files.deleteIfExists(context);
+        }
+    }
+
+    @Test
+    void anUnreadableProjectContextStopsTheRunBeforeAnyPr(QuarkusMainLauncher launcher) throws IOException {
+        System.setProperty(CONTEXT_PROPERTY, out.resolve("missing.txt").toString());
+        try {
+            LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+
+            assertEquals(1, result.exitCode(), result.getOutput());
+            // Under @QuarkusMainTest the startup failure's log lines are captured with stdout.
+            String output = result.getOutput() + result.getErrorOutput();
+            assertTrue(output.contains("JEV_PROJECT_CONTEXT: cannot read"), output);
+            assertEquals(0, jevPosts().size());
+            try (var files = Files.list(out)) {
+                assertEquals(List.of(), files.toList(), "nothing written");
+            }
+        } finally {
+            System.clearProperty(CONTEXT_PROPERTY);
+        }
+    }
+
+    /** {@code text} as it appears inside a JSON string: quotes, backslashes and line breaks escaped. */
+    private static String jsonString(String text) {
+        return text.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 
     private static List<LoggedRequest> jevPosts() {

@@ -11,6 +11,7 @@ import dev.langchain4j.model.decision.response.DecisionResponse;
 import io.quarkus.arc.All;
 import io.quarkus.prreview.classification.api.ClassificationCheck;
 import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.submission.JevSubmission;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
@@ -38,11 +39,14 @@ public class PrClassifier {
     private final JevClient jev;
     private final SummaryService summaries;
     private final List<ClassificationCheck> checks;
+    private final ProjectContext projectContext;
 
-    public PrClassifier(GhClient gh, JevClient jev, SummaryService summaries, @All List<ClassificationCheck> checks) {
+    public PrClassifier(GhClient gh, JevClient jev, SummaryService summaries, @All List<ClassificationCheck> checks,
+            ProjectContext projectContext) {
         this.gh = gh;
         this.jev = jev;
         this.summaries = summaries;
+        this.projectContext = projectContext;
         // Sorted by id so contribution order (questions, output, fallback template) is stable across runs.
         this.checks = checks.stream().sorted(Comparator.comparing(ClassificationCheck::id)).toList();
     }
@@ -64,7 +68,7 @@ public class PrClassifier {
         }
 
         PrContext context = new PrContext(pr, DiffFiles.parse(pr.diff()));
-        JevSubmission submission = JevSubmission.of(context, checks);
+        JevSubmission submission = JevSubmission.of(context, projectContext, checks);
         JevDecision decision;
         try {
             decision = jev.decide(submission.toDecisionRequest());
@@ -82,7 +86,7 @@ public class PrClassifier {
         Classification classification;
         try {
             classification = new Classification(context, submission.results(response), response.modelName(),
-                    response.tokenUsage(), decision.submissionChars(), decision.limit());
+                    response.tokenUsage(), decision.submissionChars(), decision.limit(), projectContext);
         } catch (RuntimeException e) {
             // An answer jev's response lacks, or one of the wrong kind.
             LOG.warnf(e, "PR #%d: jev's response does not answer every question", number);

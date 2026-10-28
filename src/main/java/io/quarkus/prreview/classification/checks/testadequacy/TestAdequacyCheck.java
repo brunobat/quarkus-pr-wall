@@ -25,8 +25,8 @@ public class TestAdequacyCheck implements ClassificationCheck {
 
     public static final YesNoQuestion TESTS_CHANGED = YesNoQuestion.builder()
             .text("Does this PR add or modify tests?")
-            .yesWhen("it adds or modifies test sources or test resources")
-            .noWhen("it touches no test files")
+            .yesWhen("it adds or modifies files under a src/test/ directory")
+            .noWhen("it changes no file under a src/test/ directory")
             .build();
 
     public static final ChoiceQuestion REACH = ChoiceQuestion.builder()

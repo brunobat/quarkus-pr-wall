@@ -15,6 +15,7 @@ import dev.langchain4j.model.output.TokenUsage;
 import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PrContext;
@@ -30,6 +31,7 @@ class RenderingTest {
     static final Summary CLAUDE = new Summary("Runtime behaviour changes; no tests were changed.", "claude-opus-5-5",
             1234, new TokenUsage(300, 25));
     static final Path REPORT = Path.of("reports/review-57720.md");
+    static final ProjectContext CONTEXT = new ProjectContext("contexts/test.txt", "Project context: a test repository.");
 
     /**
      * The four test-adequacy answers: {@code behaviour} and {@code reach} vary; {@code tests-changed} (0.12) and
@@ -50,7 +52,7 @@ class RenderingTest {
                         new QuestionResult.Choice("not-applicable", TestAdequacyCheck.ASSERTS.options(),
                                 probs("not-applicable", 0.77, "none", 0.23)))));
         return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,
-                60000);
+                60000, CONTEXT);
     }
 
     static Classification sample(double behaviour, String chosen, Map<String, Double> options) {
@@ -158,6 +160,7 @@ class RenderingTest {
 
                 - jev model: jev-1
                 - Submission size: 5000 characters (limit 60000)
+                - Project context: contexts/test.txt (35 characters)
                 - jev tokens: 1200 input, 40 output
                 - Summary: Claude (claude-opus-5-5)
                 - Claude submission: 1234 characters (system and user messages)
@@ -203,7 +206,7 @@ class RenderingTest {
     void untrustedTextNeverStartsALine() {
         PullRequest pr = new PullRequest(1, "t", "> quote", "- list", "");
         Classification c = new Classification(new PrContext(pr, List.of()), sample(0.5, "undetermined",
-                probs("undetermined", 0.5)).checks(), "jev", null, 1, 2);
+                probs("undetermined", 0.5)).checks(), "jev", null, 1, 2, CONTEXT);
         for (String text : List.of("# Heading", "```", "> quote", "- item", "1. item", "| a | b |", "~~~")) {
             String report = MarkdownReport.render(c, new Summary(text + "\n## Run\nmore", "m"));
 
