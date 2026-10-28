@@ -23,7 +23,6 @@ class ReviewConfigTest {
         assertEquals("gh", config.gh().binary());
         assertEquals(Duration.ofSeconds(60), config.gh().timeout());
         assertEquals(60_000, config.jev().maxSubmissionChars());
-        assertEquals("classpath:project-context/quarkusio-quarkus.txt", config.jev().projectContext());
         assertEquals(Path.of("reports"), config.outputDir());
     }
 }

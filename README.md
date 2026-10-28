@@ -121,9 +121,8 @@ title or body), plus every question.
 **Project context.** Fixed prose that tells `jev` what the repository is (Quarkus, a Java framework built with
 Maven) and its layout: where shipped runtime code, build-time code and dependency versions live, that tests are
 under `src/test/`, and that `integration-tests/` and `test-framework/` hold test-only modules and test
-infrastructure rather than tests. It is the same for every PR and names no answer. The bundled file is
-[`project-context/quarkusio-quarkus.txt`](src/main/resources/project-context/quarkusio-quarkus.txt);
-`JEV_PROJECT_CONTEXT` points at another one, for example when `GH_REPO` names a different repository. It counts
+infrastructure rather than tests. It is always sent, is the same for every PR, and names no answer. It lives in
+[`project-context/quarkusio-quarkus.txt`](src/main/resources/project-context/quarkusio-quarkus.txt), and it counts
 toward the submission size.
 
 **Questions.** Each asks about one thing:
@@ -171,8 +170,7 @@ Report: reports/review-57715.md
    `jev`'s chosen option and every option's description and probability, all **unrounded**;
 3. **Summary**: the prose and where it came from, `Claude (<model>)` or `fallback template`;
 4. **Changed files**: each path and its change kind (context only);
-5. **Run**: the `jev` model, the submission size and its limit, the project context used and its size,
-   `jev`'s token usage, the summary source, and the
+5. **Run**: the `jev` model, the submission size and its limit, `jev`'s token usage, the summary source, and the
    Claude submission: the characters of the system and user messages sent (or "not sent") and Claude's reported
    token usage.
 
@@ -200,7 +198,6 @@ Each of these counts as an error for that PR, and its full detail is logged to s
 | At least one PR without an error | 0, whatever `jev`'s answers are |
 | Every PR had an error | 1 |
 | `TYPESAFE_API_KEY` not set or empty: stops before any PR, `error: … TYPESAFE_API_KEY` on stderr | 1 |
-| `JEV_PROJECT_CONTEXT` unreadable or blank: stops before any PR, `error: JEV_PROJECT_CONTEXT: …` on stderr (`--help` still works) | 1 |
 | Bad arguments (no PR, non-numeric PR, unknown option) | 2 |
 
 ## Configuration
@@ -214,7 +211,6 @@ Every value is set by an environment variable and declared once, in `ReviewConfi
 | `GH_BINARY` | the `gh` executable | `gh` |
 | `GH_TIMEOUT` | how long one `gh` call may run before that PR is noted as not classified | `60s` |
 | `JEV_MAX_SUBMISSION_CHARS` | the largest `jev` submission sent, in characters of the request body; a larger one is noted as not classified before sending, rather than being rejected by `jev` or sent partially | `60000` |
-| `JEV_PROJECT_CONTEXT` | the project context sent at the start of every `jev` submission: a file path, or `classpath:<resource>` for a bundled one; it describes the repository's conventions, never an answer | `classpath:project-context/quarkusio-quarkus.txt` |
 | `TYPESAFE_API_KEY` | `jev` API key | none (required) |
 | `JEV_MODEL` | `jev` model name | `jev-latest` |
 | `JEV_URL` | `jev` base URL | `https://api.typesafe.ai` |

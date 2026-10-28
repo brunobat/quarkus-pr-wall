@@ -11,7 +11,6 @@ import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
 
 import io.quarkus.arc.Unremovable;
-import io.quarkus.prreview.classification.submission.ProjectContextLoader;
 import io.quarkus.prreview.clients.jev.JevClient;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.report.ReportWriter;
@@ -35,9 +34,6 @@ public class ReviewCommand implements Callable<Integer> {
     @Inject
     JevClient jev;
 
-    @Inject
-    ProjectContextLoader projectContext;
-
     @CommandLine.Parameters(arity = "1..*", paramLabel = "<pr>", description = "PR numbers, processed in the order given.")
     List<Integer> prs;
 
@@ -51,12 +47,9 @@ public class ReviewCommand implements Callable<Integer> {
         Path dir = reportDir();
         if (!jev.keyConfigured()) {
             // A setup error: every PR would fail the same way, so none is processed.
-            return setupError("no jev API key; set TYPESAFE_API_KEY");
-        }
-        try {
-            projectContext.get();
-        } catch (IllegalArgumentException e) {
-            return setupError(e.getMessage());
+            spec.commandLine().getErr().println("error: no jev API key; set TYPESAFE_API_KEY");
+            spec.commandLine().getErr().flush();
+            return 1;
         }
         PrintWriter out = spec.commandLine().getOut();
         int errors = 0;
@@ -74,13 +67,6 @@ public class ReviewCommand implements Callable<Integer> {
             }
         }
         return exitCode(uniquePrs.size(), errors);
-    }
-
-    /** Prints a one-line {@code error: <message>} and returns exit code 1. */
-    private int setupError(String message) {
-        spec.commandLine().getErr().println("error: " + message);
-        spec.commandLine().getErr().flush();
-        return 1;
     }
 
     /**

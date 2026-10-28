@@ -129,7 +129,6 @@
                         <excludedEnvironmentVariable>JEV_URL</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_TIMEOUT</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_MODEL</excludedEnvironmentVariable>
-                        <excludedEnvironmentVariable>JEV_PROJECT_CONTEXT</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>TYPESAFE_API_KEY</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>ANTHROPIC_API_KEY</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>ANTHROPIC_MODEL</excludedEnvironmentVariable>
@@ -140,7 +139,6 @@
                         <excludedEnvironmentVariable>PR_REVIEW_GH_BINARY</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_GH_TIMEOUT</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
-                        <excludedEnvironmentVariable>PR_REVIEW_JEV_PROJECT_CONTEXT</excludedEnvironmentVariable>
                     </excludedEnvironmentVariables>
                     <systemPropertyVariables>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
