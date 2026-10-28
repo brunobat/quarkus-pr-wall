@@ -33,6 +33,7 @@ labels, approves or merges.
 | Test weakening | triage | Does the PR remove, disable or loosen existing tests or assertions? | planned |
 | Missing docs | triage | Does a user-visible change (configuration, behaviour, API) come without documentation? | planned |
 | Domain | triage | Which specialist areas it touches: security, messaging, persistence, native image | planned |
+| Authorship provenance | triage | Not asked of `jev`: read from attested GitHub facts only. Is the account a bot, and is it allowlisted automation? Did the PR body or a commit declare AI assistance? Does a bot-opened PR carry a human's commits? Result: `bot`, `agent` (a bot account that is not allowlisted), `human+ai` (declared assistance) or `human`. `human` means nothing was declared, not that no AI was used: nothing inspects the code or the writing style. | planned |
 | Proportionality | triage | Does the PR make a reviewer read more than the change warrants? This is about volume, never about who or what wrote it. | planned |
 | Per-file test adequacy | deep analysis | For each changed file: is it exercised and asserted by the PR's tests? This points at the files that need tests. | planned |
 | Per-file breaking change | deep analysis | Which changed files carry the break, and which callers are affected | planned |
@@ -43,10 +44,10 @@ questions to the same single `jev` call per PR, and each lands only after a live
 answers are sensible. Test adequacy took three iterations (one choice question, then four questions, then a
 project context and one option per reason) before its answers held up. Expect the same for the others.
 
-**Facts are not classifications.** Some inputs are attested facts rather than model answers: who opened the
-PR, whether the account is a bot, whether the author is a committer, and whether AI assistance was declared.
-They may appear in a report, but no decision may ever read them. In particular, declaring AI assistance must
-never count against a PR.
+**Provenance is reported, never judged.** Authorship provenance, and facts such as whether the author is a
+committer, come from GitHub's own data rather than from a model's guess. They may appear in a report, but no
+decision may ever read them. In particular, declaring AI assistance must never count against a PR, and
+proportionality must never be read as a sign of AI use.
 
 ### Decisions the classifications are meant to support
 
@@ -253,3 +254,20 @@ Layout (base package `io.quarkus.prreview`):
 - [Quarkus LangChain4j](https://docs.quarkiverse.io/quarkus-langchain4j/dev/index.html)
 - [LangChain4j](https://docs.langchain4j.dev/)
 - [GitHub CLI manual](https://cli.github.com/manual/)
+
+## LangChain4j limitations we worked around
+
+This PoC runs on Quarkus `4.0.0.Beta1` with quarkus-langchain4j `2.0.0.Beta1` (LangChain4j `1.21.0`). These
+are the gaps we hit and how the code works around each one. Each is worth revisiting on a newer release.
+
+| Limitation | Workaround |
+|---|---|
+| The Decision API's `@Decide` decision services make one `jev` call per method, so several questions cost several calls. | Our own single-submission contract (`classification/api`, `JevSubmission`): every check adds its questions to one `DecisionRequest`, answered in one call per PR. |
+| `DecisionRequest` has only `input`, `questions`, `parameters` and `modelName`. There is no system or context field. | The project context is placed at the start of the input text, and it counts toward the submission size. |
+| There is no public way to know a submission's size before sending it. `jev` rejects an oversized one with a 400 `max_tokens_exceeded`, which arrives as an `InvalidRequestException` with `jev`'s body in the message. | `SubmissionSize` serializes the request with `langchain4j-typesafe`'s own internal mapper and codec settings. It depends on LangChain4j internals, and an end-to-end test checks that the size matches the body `jev` receives. Oversized PRs are noted before anything is sent. |
+| A choice answer's probabilities are a map, with no guarantee they come back in the order the options were declared. | `JevSubmission` reorders them to the declared order before they are recorded. |
+| An AI service is request-scoped by default, and a picocli command has no request context, so the call fails. | `ClassificationSummarizer` is `@ApplicationScoped`, with no tools and no chat memory declared explicitly. |
+| A plain `String` return type gives no token usage. | The AI service returns `Result<String>`, which carries Claude's token usage for the report. |
+| The Anthropic extension accepts only `max-retries` of 1 or more. LangChain4j also retries an attempt that was interrupted by our timeout, so the call carries on in the background. | `NoRetries`, a `ModelBuilderCustomizer`, sets `maxRetries(0)` after the configuration is applied. A test proves exactly one request is made on a timeout or an HTTP 500. |
+| There is no single cap on how long a Claude call may delay a PR. | `SummaryService` runs the call on a `ManagedExecutor` and waits at most `ANTHROPIC_TIMEOUT`, then cancels it. It uses `submit()`'s `Future`, because `CompletableFuture.cancel` does not interrupt the thread. |
+| An empty API key, or the extension's own `dummy` placeholder, makes startup fail once an AI service exists, even for `--help`. | `application.yml` defaults both keys to `not-set`. The app treats that as "no key": the run stops with a one-line error for `jev`, and the summary falls back to the template for Claude. An exported but **empty** `TYPESAFE_API_KEY` still fails at startup with the extension's message (open). |
