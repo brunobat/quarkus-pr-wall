@@ -1,6 +1,87 @@
 # AGENTS.md -- Quarkus Project Instructions
 
-This is a Quarkus application. Follow these rules when working on this project.
+This is a Quarkus application. Follow these rules when working on this project. The project rules come first;
+the Quarkus sections after them are the generic template.
+
+## Project rules -- quarkus-pr-wall (read these first)
+
+This is a read-only picocli CLI that classifies Quarkus pull requests for test adequacy with TypeSafe `jev`, through
+the LangChain4j Decision Models API, and has Claude write a prose summary. It is a work-in-progress PoC; the
+README's top section lists the planned classifications and decisions.
+
+### GitHub is read-only
+
+- NEVER change anything on GitHub: no comments, labels, reviews, approvals, merges or issue edits.
+- The only `gh` commands the code may run are `gh pr view` and `gh pr diff`. Don't add others.
+
+### Classify, don't decide
+
+- The app records `jev`'s probabilities exactly as returned. It never compares a probability with a number,
+  never ranks or combines answers, and never turns them into a verdict, severity or exit code.
+- Don't add thresholds, cut-offs or rules on top of the classifications unless the user explicitly asks for a
+  decision. If a design choice would add one, flag it and ask.
+- `NoDecisionLogicTest` guards this. It is a heuristic, so don't work around it.
+- Operational limits (the submission size and the timeouts) are declared once, in `ReviewConfig` or
+  `application.yml`, with their purpose stated. Never repeat them as literals in code.
+- Authorship provenance, when it lands, is reported and never read by a decision.
+
+### Asking `jev`
+
+- There is one `jev` call per PR. Every check adds its questions to the single submission
+  (`classification/api`, `JevSubmission`); don't use `@Decide` services.
+- Questions are PR-level only. Per-file questions belong to the later deep-analysis stage.
+- Each question asks about one thing, and each choice option is one situation. When a question doesn't apply,
+  its own option says why (`no-runtime-change`, `no-test-changes`, ...). Never use a combined "not applicable".
+- The input starts with the project context (`JEV_PROJECT_CONTEXT`, default
+  `src/main/resources/project-context/quarkusio-quarkus.txt`), then the changed-file list and the diff. The PR
+  title and body are never sent.
+- `TestAdequacyCheckTest` pins the question wording. Changing what `jev` is asked is a deliberate change: update
+  the spec, that test and the README's question table together, then confirm with a manual live run.
+
+### Package layout
+
+Base package `io.quarkus.prreview`:
+
+- `clients/{gh,jev,claude}` holds the only code that talks to external systems. Business code goes through it,
+  and clients return our model types.
+- `classification/{api,model,submission,checks/<name>}`, `pr/`, `triage/` and `report/{terminal,markdown,summary}`
+  hold the business logic.
+- Place a class by what it is: results go in `model`, contracts in `api`, and anything that only presents a
+  classification goes under `report/`. Don't make packages flat.
+- Tests mirror the main packages. Test support (WireMock stubs, the fake `gh`) lives in `it/support`.
+
+### Configuration and defaults
+
+- Every option and setting has a sensible default. The command must run with only PR numbers, and at least one
+  end-to-end test runs it with no optional flags.
+- A new environment variable is declared once (`ReviewConfig` or `application.yml`) and added to the pom's
+  `excludedEnvironmentVariables` list, together with its `PR_REVIEW_*` form, so a developer's shell can't leak
+  into tests. It is also documented in the README's configuration table.
+- An exported but empty environment variable counts as unset (`BlankEnvironmentIsUnset`).
+- Setup errors (a missing key, an unreadable project context) are one line, `error: ...` on stderr, exit 1. They
+  are checked after argument parsing, so `--help` still works. Bad arguments exit 2. Known exception: a
+  non-positive `ANTHROPIC_TIMEOUT` with a Claude key set still fails at startup.
+
+### Tests in this project
+
+- This is a CLI, not a long-running app, so the Dev MCP test runner below doesn't apply. Run the suite with
+  `./mvnw test`, and note in your summary that you did.
+- To count tests, delete `target/surefire-reports` first. Stale reports from renamed tests otherwise inflate the
+  count.
+- Tests never reach a real service: `gh` is a fake script (`src/test/resources/fake-gh`), and `jev` and Claude
+  are WireMock stubs or mocks. A test that calls a real GitHub, `jev` or Claude endpoint must be tagged
+  `@Tag("live")`. It then runs only with `./mvnw verify -Plive`.
+- For behaviour the stubs can't show (startup, environment variables, real `jev` answers), also check the packaged
+  jar (`./mvnw package -DskipTests`, then `java -jar target/quarkus-app/quarkus-run.jar ...`). Live runs against
+  real PRs are done manually by the user.
+
+### Workflow
+
+- Features go through the QRSPI workflow in `qrspi/<feature>/` (spec, plan, phases, reviews, `state.json`). The
+  folder is git-ignored. Change the spec first, then the plan, then the code.
+- Commit messages end with the `Co-Authored-By` line from the session instructions.
+- Keep `README.md` current, including its "LangChain4j limitations we worked around" section when a new
+  workaround is needed.
 
 ## CRITICAL -- Extension-First Rule (NEVER skip this)
 
@@ -13,8 +94,6 @@ This is a Quarkus application. Follow these rules when working on this project.
 3. **Load skills** with `quarkus_skills` for the chosen extension BEFORE writing any code.
 
 Skipping any of these steps is a violation. NEVER implement a feature by hand-coding HTML, JavaScript, REST endpoints, or other functionality when a Quarkus extension exists for it.
-
-NEVER change any issues in github. All Git operations mas be read-only.
 
 ## Required Workflow
 
@@ -38,6 +117,9 @@ NEVER change any issues in github. All Git operations mas be read-only.
 - Use `%dev.` and `%test.` profile prefixes for dev/test configuration -- never hardcode connection URLs without a profile prefix.
 
 ## Testing
+
+> **In this project** the tests run with `./mvnw test`, not the Dev MCP runner described below; see
+> "Tests in this project" above.
 
 If your agent supports subagents, run tests in a **subagent** so the main conversation stays responsive:
 
