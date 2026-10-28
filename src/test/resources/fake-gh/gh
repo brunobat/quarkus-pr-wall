@@ -3,8 +3,7 @@
 # prs/<n>/ next to this script:
 #   view.json   output of `gh pr view`
 #   diff.patch  output of `gh pr diff`
-#   error.txt   if present, printed to stderr and the command exits 1
-#   diff-error.txt  like error.txt, for `gh pr diff` only (`gh pr view` still answers)
+#   diff-error.txt  if present, `gh pr diff` prints it to stderr and exits 1 (`gh pr view` still answers)
 #   sleep       if present, the script first waits on a child `sleep` of that many seconds, which keeps
 #               stdout/stderr open; its pid is logged as `sleep-pid <pid>` in the call log
 # Every invocation is appended to the call log, target/fake-gh-calls.log in the project, so the build output
@@ -24,10 +23,6 @@ if [[ -f "$dir/sleep" ]]; then
   sleep "$(cat "$dir/sleep")" &
   echo "sleep-pid $!" >> "$log"
   wait
-fi
-if [[ -f "$dir/error.txt" ]]; then
-  cat "$dir/error.txt" >&2
-  exit 1
 fi
 [[ -d "$dir" ]] || { echo "no pull requests found for branch \"$pr\"" >&2; exit 1; }
 

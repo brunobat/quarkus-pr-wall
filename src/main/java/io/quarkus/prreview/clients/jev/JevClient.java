@@ -8,6 +8,7 @@ import dev.langchain4j.model.decision.DecisionModel;
 import dev.langchain4j.model.decision.request.DecisionRequest;
 import dev.langchain4j.model.decision.request.DecisionRequestParameters;
 import io.quarkus.prreview.clients.jev.model.JevDecision;
+import io.quarkus.prreview.config.ApiKey;
 import io.quarkus.prreview.config.ReviewConfig;
 
 /**
@@ -17,9 +18,6 @@ import io.quarkus.prreview.config.ReviewConfig;
  */
 @ApplicationScoped
 public class JevClient {
-
-    /** The key's value when {@code TYPESAFE_API_KEY} is not set, see {@code application.yml}. */
-    private static final String NO_KEY = "not-set";
 
     private final DecisionModel model;
     private final ReviewConfig config;
@@ -37,7 +35,7 @@ public class JevClient {
 
     /** Whether a {@code jev} API key is set; without one every submission would fail the same way. */
     public boolean keyConfigured() {
-        return !NO_KEY.equals(apiKey);
+        return !ApiKey.NOT_SET.equals(apiKey);
     }
 
     /** The configured {@code jev} model name, sent with every submission. */

@@ -21,6 +21,7 @@ import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
+import io.quarkus.prreview.config.ApiKey;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.report.AnswerFormat;
 import io.quarkus.prreview.report.summary.model.Summary;
@@ -40,9 +41,6 @@ public class SummaryService {
 
     private static final Logger LOG = Logger.getLogger(SummaryService.class);
 
-    /** The key's value when {@code ANTHROPIC_API_KEY} is not set, see {@code application.yml}. */
-    private static final String NO_KEY = "not-set";
-
     private final ClassificationSummarizer summarizer;
     private final ManagedExecutor executor;
     private final String apiKey;
@@ -53,7 +51,7 @@ public class SummaryService {
             @ConfigProperty(name = "quarkus.langchain4j.anthropic.api-key") String apiKey,
             @ConfigProperty(name = "quarkus.langchain4j.anthropic.chat-model.model-name") String model,
             @ConfigProperty(name = "quarkus.langchain4j.anthropic.timeout") Duration timeout) {
-        if (!NO_KEY.equals(apiKey) && (timeout.isNegative() || timeout.isZero())) {
+        if (!ApiKey.NOT_SET.equals(apiKey) && (timeout.isNegative() || timeout.isZero())) {
             throw new IllegalArgumentException("ANTHROPIC_TIMEOUT must be positive, but is " + timeout);
         }
         this.summarizer = summarizer;
@@ -66,7 +64,7 @@ public class SummaryService {
     /** Call only with a classification built from a successful {@code jev} answer. */
     public Summary summarize(Classification classification) {
         int pr = classification.pr().pullRequest().number();
-        if (NO_KEY.equals(apiKey)) {
+        if (ApiKey.NOT_SET.equals(apiKey)) {
             LOG.warnf("PR #%d: no ANTHROPIC_API_KEY set, using the fallback summary", pr);
             return FallbackSummary.of(classification);
         }

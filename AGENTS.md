@@ -57,7 +57,8 @@ Base package `io.quarkus.prreview`:
 - A new environment variable is declared once (`ReviewConfig` or `application.yml`) and added to the pom's
   `excludedEnvironmentVariables` list, together with its `PR_REVIEW_*` form, so a developer's shell can't leak
   into tests. It is also documented in the README's configuration table.
-- An exported but empty environment variable counts as unset (`BlankEnvironmentIsUnset`).
+- An exported but empty environment variable counts as unset (`BlankEnvironmentIsUnset`). A blank API-key property
+  means no key (`ApiKey.NOT_SET`). An empty `PR_REVIEW_*` variable is not supported.
 - Setup errors (a missing key, an unreadable project context) are one line, `error: ...` on stderr, exit 1. They
   are checked after argument parsing, so `--help` still works. Bad arguments exit 2. Known exception: a
   non-positive `ANTHROPIC_TIMEOUT` with a Claude key set still fails at startup.

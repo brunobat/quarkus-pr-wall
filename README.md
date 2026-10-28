@@ -73,7 +73,8 @@ calibrated on collected data rather than guessed.
   not classified. It is noted and the run continues.
 - **Accuracy:** no accuracy has been measured. Answers have been checked by hand on a handful of live PRs
   only, and there is no evaluation set yet.
-- **Other repositories:** the project context describes `quarkusio/quarkus` only.
+- **Other repositories:** only a `quarkusio/quarkus` project context is bundled. Another repository needs its
+  own, set with `JEV_PROJECT_CONTEXT`.
 
 ## What it does today
 
@@ -131,7 +132,7 @@ toward the submission size.
 | Label | Kind | Question | Options |
 |---|---|---|---|
 | `behaviour` | yes/no | Does this PR change the runtime behaviour of the software? | |
-| `tests-changed` | yes/no | Does this PR add or modify tests (files under a `src/test/` directory)? | |
+| `tests-changed` | yes/no | Does this PR add or modify tests? | yes when it adds or modifies files under a `src/test/` directory |
 | `reach` | choice | How much of the changed runtime code do the tests this PR adds or modifies execute? | `all`, `some`, `none`, `no-runtime-change`, `no-test-changes`, `undetermined` |
 | `assert` | choice | Do the tests this PR adds or modifies assert the outcome of the changed code they execute? | `all`, `some`, `none`, `no-runtime-change`, `no-test-changes`, `no-changed-code-reached`, `undetermined` |
 
@@ -225,6 +226,11 @@ Every value is set by an environment variable and declared once, in `ReviewConfi
 
 None of these settings interprets `jev`'s answers.
 
+An exported but empty variable counts as unset. Each setting can also be set under its property name, e.g.
+`PR_REVIEW_JEV_PROJECT_CONTEXT` or `QUARKUS_LANGCHAIN4J_TYPESAFE_API_KEY`. An empty API-key property means no key,
+but an empty `PR_REVIEW_*` variable is not supported: it would hide the default and startup fails. Use the names
+above.
+
 ## Development
 
 ```shell
@@ -237,7 +243,7 @@ Tests never reach a real service unless they are tagged `live`, and live tests r
 Layout (base package `io.quarkus.prreview`):
 
 - `cli/`: the `review` command;
-- `config/`: `ReviewConfig`;
+- `config/`: `ReviewConfig`, `ApiKey` and `BlankEnvironmentIsUnset`;
 - `clients/{gh,jev,claude}/`: the only code that talks to `gh`, `jev` and Claude;
 - `pr/`: the PR model and diff parsing;
 - `classification/`: the check contract, the single `jev` submission and the test-adequacy check;
@@ -267,4 +273,4 @@ are the gaps we hit and how the code works around each one. Each is worth revisi
 | A plain `String` return type gives no token usage. | The AI service returns `Result<String>`, which carries Claude's token usage for the report. |
 | The Anthropic extension accepts only `max-retries` of 1 or more. LangChain4j also retries an attempt that was interrupted by our timeout, so the call carries on in the background. | `NoRetries`, a `ModelBuilderCustomizer`, sets `maxRetries(0)` after the configuration is applied. A test proves exactly one request is made on a timeout or an HTTP 500. |
 | There is no single cap on how long a Claude call may delay a PR. | `SummaryService` runs the call on a `ManagedExecutor` and waits at most `ANTHROPIC_TIMEOUT`, then cancels it. It uses `submit()`'s `Future`, because `CompletableFuture.cancel` does not interrupt the thread. |
-| An empty API key, or the extension's own `dummy` placeholder, makes startup fail once an AI service exists, even for `--help`. | `application.yml` defaults both keys to `not-set`. The app treats that as "no key": the run stops with a one-line error for `jev`, and the summary falls back to the template for Claude. An exported but empty variable still reached the extension as an empty value, so `BlankEnvironmentIsUnset`, a SmallRye `ConfigSourceInterceptor`, makes a blank environment variable count as unset and `${VAR:default}` falls back to its default. It must sit below SmallRye's expression interceptor to see those lookups. |
+| An empty API key, or the extension's own `dummy` placeholder, makes startup fail once an AI service exists, even for `--help`. | `application.yml` defaults both keys to `not-set`. The app treats that as "no key": the run stops with a one-line error for `jev`, and the summary falls back to the template for Claude. An exported but empty variable still reached the extension as an empty value, so `BlankEnvironmentIsUnset`, a SmallRye `ConfigSourceInterceptor`, makes a blank environment variable count as unset and `${VAR:default}` falls back to its default. It must sit below SmallRye's expression interceptor to see those lookups. An interceptor can't skip one source, so a blank property-form variable (`PR_REVIEW_*`) can't fall back to its default; only a blank API-key property is handled, by replacing it with `not-set`. |

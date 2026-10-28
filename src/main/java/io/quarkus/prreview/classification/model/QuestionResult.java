@@ -2,8 +2,9 @@ package io.quarkus.prreview.classification.model;
 
 import java.util.Map;
 
-/** One question and {@code jev}'s answer to it, unchanged. Its check is the enclosing {@link CheckResult}. */
 /**
+ * One question and {@code jev}'s answer to it, unchanged. Its check is the enclosing {@link CheckResult}.
+ *
  * @param label the short name shown in the output, e.g. {@code behaviour}
  * @param text the question as asked
  */
