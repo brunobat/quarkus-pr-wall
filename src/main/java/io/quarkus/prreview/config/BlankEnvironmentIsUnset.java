@@ -11,8 +11,8 @@ import io.smallrye.config.Priorities;
 
 /**
  * An exported but empty environment variable counts as unset, so {@code ${TYPESAFE_API_KEY:not-set}} falls back to
- * its default. Without this, an empty {@code TYPESAFE_API_KEY} makes startup fail with a message that names only an
- * internal property, even for {@code --help}.
+ * its default. Without this, an empty {@code TYPESAFE_API_KEY} or {@code JEV_PROJECT_CONTEXT} makes startup fail with
+ * a message that names only an internal property, even for {@code --help}.
  */
 // Below SmallRye's ExpressionConfigSourceInterceptor (LIBRARY + 300): it looks up ${...} variables further down the
 // chain, so this interceptor must sit there to see them.

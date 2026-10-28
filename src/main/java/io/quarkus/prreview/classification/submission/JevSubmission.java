@@ -15,6 +15,7 @@ import dev.langchain4j.model.decision.response.DecisionResponse;
 import io.quarkus.prreview.classification.api.CheckQuestions;
 import io.quarkus.prreview.classification.api.ClassificationCheck;
 import io.quarkus.prreview.classification.model.CheckResult;
+import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PrContext;
@@ -26,15 +27,17 @@ import io.quarkus.prreview.pr.model.PrContext;
 public final class JevSubmission {
 
     private final String input;
+    private final ProjectContext projectContext;
     private final Map<String, Asked> questions = new LinkedHashMap<>();
 
-    private JevSubmission(String input) {
+    private JevSubmission(String input, ProjectContext projectContext) {
         this.input = input;
+        this.projectContext = projectContext;
     }
 
     /** Builds the submission: the shared input from the PR, then each check's questions in the order given. */
-    public static JevSubmission of(PrContext pr, List<? extends ClassificationCheck> checks) {
-        JevSubmission submission = new JevSubmission(input(pr));
+    public static JevSubmission of(PrContext pr, ProjectContext context, List<? extends ClassificationCheck> checks) {
+        JevSubmission submission = new JevSubmission(input(pr, context), context);
         for (ClassificationCheck check : checks) {
             check.ask(pr, submission.questionsFor(check.id()));
         }
@@ -45,8 +48,8 @@ public final class JevSubmission {
      * The shared input: the project context, then the changed-file list and the raw unified diff, each file
      * appearing once in each. The PR title, body and linked issues are deliberately not sent.
      */
-    static String input(PrContext pr) {
-        StringBuilder text = new StringBuilder(ProjectContext.TEXT).append("\n\nChanged files:\n");
+    static String input(PrContext pr, ProjectContext context) {
+        StringBuilder text = new StringBuilder(context.text()).append("\n\nChanged files:\n");
         for (ChangedFile file : pr.changedFiles()) {
             text.append("- ").append(file.path()).append(" (").append(file.describe()).append(")\n");
         }
@@ -73,6 +76,11 @@ public final class JevSubmission {
         if (questions.putIfAbsent(id, asked) != null) {
             throw new IllegalStateException("Duplicate jev question id: " + id);
         }
+    }
+
+    /** The project context the input starts with. */
+    public ProjectContext projectContext() {
+        return projectContext;
     }
 
     public DecisionRequest toDecisionRequest() {
