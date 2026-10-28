@@ -55,6 +55,11 @@
             <groupId>io.quarkiverse.langchain4j</groupId>
             <artifactId>quarkus-langchain4j-typesafe</artifactId>
         </dependency>
+        <!-- ManagedExecutor: the Claude call runs on a managed thread so it can be stopped at its timeout. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-context-propagation</artifactId>
+        </dependency>
         <!-- Claude, for the prose summary of jev's classification. -->
         <dependency>
             <groupId>io.quarkiverse.langchain4j</groupId>

@@ -18,8 +18,8 @@ import io.quarkus.prreview.report.summary.model.Summary;
  * The markdown report for one classified PR: title, Classification, Summary, Changed files, Run. Probabilities are
  * written as returned. Text from GitHub, {@code jev} or Claude never starts a line: it follows a fixed label on its
  * line, is kept on that one line, is escaped in table cells, and has {@code &} and {@code <} escaped outside code
- * spans, so it cannot add headings, quotes, lists, code blocks, rows, sections or HTML (such as a comment that hides
- * the rest of the report).
+ * spans (GitHub shows code spans literally), so it cannot add headings, quotes, lists, code blocks, rows, sections
+ * or HTML (such as a comment that hides the rest of the report).
  */
 public final class MarkdownReport {
 
@@ -102,10 +102,66 @@ public final class MarkdownReport {
 
     /**
      * Keeps text on one line, so it cannot start a heading, list item or table row, and escapes {@code &} and
-     * {@code <}, so it cannot open HTML. Display is unchanged: GitHub shows {@code &lt;} as {@code <}.
+     * {@code <} outside code spans, so it cannot open HTML. Display is unchanged: GitHub shows {@code &lt;} as
+     * {@code <}, and code spans, which it shows literally, are left as they are.
      */
     static String inline(String text) {
-        return oneLine(text).replace("&", "&amp;").replace("<", "&lt;");
+        String line = oneLine(text);
+        StringBuilder out = new StringBuilder(line.length());
+        int i = 0;
+        while (i < line.length()) {
+            char c = line.charAt(i);
+            if (c == '\\' && i + 1 < line.length()) {
+                char next = line.charAt(i + 1);
+                if (next == '`' || next == '\\') {
+                    // An escaped backtick opens no code span; an escaped backslash escapes nothing after it.
+                    out.append(c).append(next);
+                    i += 2;
+                } else if (next == '&' || next == '<') {
+                    // The backslash only kept the character literal, which the entity now does.
+                    i++;
+                } else {
+                    out.append(c);
+                    i++;
+                }
+            } else if (c == '`') {
+                int run = backtickRun(line, i);
+                int close = closingRun(line, i + run, run);
+                int end = close < 0 ? i + run : close + run;
+                // A code span is kept as is; an unmatched run is literal backticks.
+                out.append(line, i, end);
+                i = end;
+            } else {
+                out.append(c == '&' ? "&amp;" : c == '<' ? "&lt;" : String.valueOf(c));
+                i++;
+            }
+        }
+        return out.toString();
+    }
+
+    private static int backtickRun(String text, int from) {
+        int end = from;
+        while (end < text.length() && text.charAt(end) == '`') {
+            end++;
+        }
+        return end - from;
+    }
+
+    /** Where the next run of exactly {@code length} backticks starts, at or after {@code from}, or -1. */
+    private static int closingRun(String text, int from, int length) {
+        int i = from;
+        while (i < text.length()) {
+            if (text.charAt(i) == '`') {
+                int run = backtickRun(text, i);
+                if (run == length) {
+                    return i;
+                }
+                i += run;
+            } else {
+                i++;
+            }
+        }
+        return -1;
     }
 
     private static String oneLine(String text) {
@@ -126,11 +182,21 @@ public final class MarkdownReport {
     }
 
     /**
-     * Inline code, using a longer fence when the text itself contains a backtick. Not HTML-escaped: GitHub shows
-     * code spans literally, so an entity there would be displayed as typed.
+     * Inline code, fenced by one backtick more than the longest run of backticks in the text, so the text cannot
+     * close it. Not HTML-escaped: GitHub shows code spans literally, so an entity there would be displayed as typed.
      */
     static String code(String text) {
         String value = oneLine(text);
-        return value.contains("`") ? "`` " + value + " ``" : "`" + value + "`";
+        int longest = 0;
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) == '`') {
+                int run = backtickRun(value, i);
+                longest = Math.max(longest, run);
+                i += run - 1;
+            }
+        }
+        String fence = "`".repeat(longest + 1);
+        // Spaces keep a backtick at either end of the text from joining the fence; GitHub strips one on each side.
+        return longest == 0 ? fence + value + fence : fence + " " + value + " " + fence;
     }
 }

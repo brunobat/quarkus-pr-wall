@@ -143,9 +143,9 @@ class ReviewSinglePrTest {
     }
 
     @Test
-    void aSlowClaudeGivesTheFallbackTemplateWithinTheTimeout(QuarkusMainLauncher launcher) {
-        claude.delay(Duration.ofSeconds(10));
-        System.setProperty(TIMEOUT_PROPERTY, "2s");
+    void aSlowClaudeGivesTheFallbackTemplate(QuarkusMainLauncher launcher) {
+        claude.delay(Duration.ofSeconds(30));
+        System.setProperty(TIMEOUT_PROPERTY, "1s");
         try {
             long start = System.nanoTime();
             LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
@@ -154,8 +154,25 @@ class ReviewSinglePrTest {
             assertEquals(0, result.exitCode(), result.getErrorOutput());
             assertTrue(result.getOutputStream().contains("Summary (fallback template): " + TEMPLATE), result.getOutput());
             assertTrue(claude.posts().size() >= 1);
-            // The timeout bounds the whole call: a timed-out attempt and its retry would take 4 s.
-            assertTrue(took.compareTo(Duration.ofMillis(3800)) < 0, "waited about one timeout: " + took);
+            // The run does not wait for Claude's answer; the exact bound is checked in SummaryServiceTimeoutTest.
+            assertTrue(took.compareTo(Duration.ofSeconds(20)) < 0, "waited for the slow answer: " + took);
+        } finally {
+            System.clearProperty(TIMEOUT_PROPERTY);
+        }
+    }
+
+    @Test
+    void aTimeoutThatIsNotPositiveStopsTheRunBeforeAnyPr(QuarkusMainLauncher launcher) {
+        System.setProperty(TIMEOUT_PROPERTY, "0s");
+        try {
+            LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+
+            assertTrue(result.exitCode() != 0, result.getOutput());
+            // Under @QuarkusMainTest the startup failure's log lines are captured with stdout.
+            String output = result.getOutput() + result.getErrorOutput();
+            assertTrue(output.contains("ANTHROPIC_TIMEOUT must be positive"), output);
+            assertEquals(0, jevPosts().size());
+            assertEquals(0, claude.posts().size());
         } finally {
             System.clearProperty(TIMEOUT_PROPERTY);
         }

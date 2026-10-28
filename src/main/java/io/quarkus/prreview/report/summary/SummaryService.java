@@ -4,15 +4,15 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
 
 import io.quarkus.prreview.classification.model.CheckResult;
@@ -22,12 +22,16 @@ import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.report.AnswerFormat;
 import io.quarkus.prreview.report.summary.model.Summary;
+import io.quarkus.runtime.Startup;
 
 /**
  * Describes a classification in prose. Claude writes it; the {@link FallbackSummary} template is used instead when
  * no Claude key is set, the call fails, no answer arrives within the Claude timeout or the text is blank. The
  * classification itself is never changed.
+ * <p>
+ * Created at startup, so a timeout that is not positive stops the run before any PR is processed.
  */
+@Startup
 @ApplicationScoped
 public class SummaryService {
 
@@ -36,18 +40,21 @@ public class SummaryService {
     /** The key's value when {@code ANTHROPIC_API_KEY} is not set, see {@code application.yml}. */
     private static final String NO_KEY = "not-set";
 
-    private static final Executor CLAUDE_CALLS = task -> Thread.ofVirtual().name("claude-summary").start(task);
-
     private final ClassificationSummarizer summarizer;
+    private final ManagedExecutor executor;
     private final String apiKey;
     private final String model;
     private final Duration timeout;
 
-    public SummaryService(ClassificationSummarizer summarizer,
+    public SummaryService(ClassificationSummarizer summarizer, ManagedExecutor executor,
             @ConfigProperty(name = "quarkus.langchain4j.anthropic.api-key") String apiKey,
             @ConfigProperty(name = "quarkus.langchain4j.anthropic.chat-model.model-name") String model,
             @ConfigProperty(name = "quarkus.langchain4j.anthropic.timeout") Duration timeout) {
+        if (timeout.isNegative() || timeout.isZero()) {
+            throw new IllegalArgumentException("ANTHROPIC_TIMEOUT must be positive, but is " + timeout);
+        }
         this.summarizer = summarizer;
+        this.executor = executor;
         this.apiKey = apiKey;
         this.model = model;
         this.timeout = timeout;
@@ -63,9 +70,10 @@ public class SummaryService {
         String answers = answers(classification);
         String changedFiles = changedFiles(classification);
         // The extension retries a failed attempt once and cannot be set to zero retries, so the whole call, retry
-        // included, gets the Claude timeout: that is the longest the summary can delay a PR.
-        CompletableFuture<String> call = CompletableFuture.supplyAsync(
-                () -> summarizer.summarize(answers, changedFiles), CLAUDE_CALLS);
+        // included, gets the Claude timeout: that is the longest the summary can delay a PR. A Future from submit(),
+        // not a CompletableFuture, because only its cancel(true) interrupts the call, so it doesn't run on (and
+        // retry) in the background.
+        Future<String> call = executor.submit(() -> summarizer.summarize(answers, changedFiles));
         String text;
         try {
             text = call.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
