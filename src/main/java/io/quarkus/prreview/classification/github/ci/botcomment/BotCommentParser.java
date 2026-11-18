@@ -1,6 +1,7 @@
 package io.quarkus.prreview.classification.github.ci.botcomment;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,6 +23,8 @@ public final class BotCommentParser {
 
     public static final String BOT = "quarkus-bot";
 
+    /** ISO-8601 creation times compare as text; a missing one is older than any other. */
+    private static final Comparator<String> CREATED = Comparator.nullsFirst(Comparator.naturalOrder());
     private static final Pattern HEADING = Pattern.compile("# Status for workflow `([^`]+)`");
     private static final Pattern SENTENCE = Pattern
             .compile("This is the status report for running `([^`]+)` on commit ([0-9a-fA-F]{40})\\.");
@@ -47,7 +50,8 @@ public final class BotCommentParser {
 
     /**
      * The status comment for {@code workflow} on commit {@code head}: the one created last when there are several
-     * (re-runs on the same commit). Comments for other commits are never returned.
+     * (re-runs on the same commit); one without a creation time counts as the oldest. Comments for other commits are
+     * never returned.
      */
     public static Optional<BotStatusComment> forHead(List<GhComment> comments, String workflow, String head) {
         BotStatusComment found = null;
@@ -55,7 +59,7 @@ public final class BotCommentParser {
             Optional<BotStatusComment> parsed = parse(comment);
             if (parsed.isPresent() && parsed.get().workflow().equals(workflow)
                     && parsed.get().commit().equalsIgnoreCase(head)
-                    && (found == null || parsed.get().createdAt().compareTo(found.createdAt()) >= 0)) {
+                    && (found == null || CREATED.compare(parsed.get().createdAt(), found.createdAt()) >= 0)) {
                 found = parsed.get();
             }
         }

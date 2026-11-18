@@ -122,4 +122,17 @@ public class BotCommentParserTest {
         assertTrue(BotCommentParser.hasBotComment(comments));
         assertFalse(BotCommentParser.hasBotComment(List.of(new GhComment("someone", "hi", "x"))));
     }
+
+    @Test
+    void aCommentWithoutACreationTimeCountsAsTheOldest() {
+        String rerun = body("2026-failures.md").replace("JVM Tests - JDK 21", "JVM Tests - JDK 21 again");
+        GhComment undated = new GhComment("quarkus-bot", rerun, null);
+
+        BotStatusComment dated = BotCommentParser
+                .forHead(List.of(undated, bot("2026-failures.md", "2026-10-22T13:46:09Z")), "Quarkus CI", COMMIT_57715)
+                .orElseThrow();
+        assertFalse(dated.failures().containsKey("JVM Tests - JDK 21 again"), dated.toString());
+        BotStatusComment alone = BotCommentParser.forHead(List.of(undated), "Quarkus CI", COMMIT_57715).orElseThrow();
+        assertTrue(alone.failures().containsKey("JVM Tests - JDK 21 again"), alone.toString());
+    }
 }

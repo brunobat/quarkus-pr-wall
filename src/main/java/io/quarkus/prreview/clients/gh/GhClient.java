@@ -143,13 +143,13 @@ public class GhClient {
 
     /**
      * The size counts of each requested PR found by one {@code gh pr list} search, keyed by number. A PR the search
-     * did not return, or returned without every count, is absent; the search may also match PRs that weren't
+     * did not return, or returned without its number or every count, is absent; the search may also match PRs that weren't
      * requested (it matches text), and those are dropped.
      */
     public Map<Integer, GhSize> sizes(List<Integer> prs) {
         Map<Integer, GhSize> sizes = new LinkedHashMap<>();
         for (SizeItem item : list(prs, "additions,deletions,changedFiles", SizeItem[].class)) {
-            if (item.additions() != null && item.deletions() != null && item.changedFiles() != null) {
+            if (item.number() != null && item.additions() != null && item.deletions() != null && item.changedFiles() != null) {
                 sizes.put(item.number(), new GhSize(item.additions(), item.deletions(), item.changedFiles()));
             }
         }
@@ -167,7 +167,7 @@ public class GhClient {
     public Map<Integer, GhChecks> checks(List<Integer> prs) {
         Map<Integer, GhChecks> checks = new LinkedHashMap<>();
         for (ChecksItem item : list(prs, "headRefOid,statusCheckRollup", ChecksItem[].class)) {
-            if (item.statusCheckRollup() != null) {
+            if (item.number() != null && item.statusCheckRollup() != null) {
                 checks.put(item.number(), new GhChecks(item.headRefOid(), item.statusCheckRollup()));
             }
         }
@@ -185,7 +185,7 @@ public class GhClient {
     public Map<Integer, List<GhComment>> comments(List<Integer> prs) {
         Map<Integer, List<GhComment>> comments = new LinkedHashMap<>();
         for (CommentsItem item : list(prs, "comments", CommentsItem[].class)) {
-            if (item.comments() != null) {
+            if (item.number() != null && item.comments() != null) {
                 comments.put(item.number(), toComments(item.comments()));
             }
         }

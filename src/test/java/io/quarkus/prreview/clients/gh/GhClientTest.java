@@ -195,13 +195,14 @@ class GhClientTest {
     }
 
     @Test
-    void bulkResultsAreKeyedByNumberWithoutUnrequestedOrIncompletePrs(@TempDir Path dir) throws IOException {
+    void bulkResultsAreKeyedByNumberWithoutUnrequestedIncompleteOrUnnumberedPrs(@TempDir Path dir) throws IOException {
         Path gh = dir.resolve("gh");
         Files.writeString(gh, """
                 #!/bin/sh
                 cat <<'JSON'
                 [{"number":1,"additions":5,"deletions":2,"changedFiles":1},
                  {"number":7,"additions":1,"deletions":1,"changedFiles":1},
+                 {"additions":9,"deletions":9,"changedFiles":9,"headRefOid":"def","statusCheckRollup":[],"comments":[]},
                  {"number":2,"additions":null,"deletions":2,"changedFiles":1},
                  {"number":3,"headRefOid":"abc","statusCheckRollup":[],"comments":[{"author":{"login":"x"},\
                 "body":"hi","createdAt":"2026-01-01T00:00:00Z"}]}]
