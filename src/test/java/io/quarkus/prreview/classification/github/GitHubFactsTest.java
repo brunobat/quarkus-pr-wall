@@ -1,0 +1,148 @@
+package io.quarkus.prreview.classification.github;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
+import io.quarkus.prreview.classification.github.ci.CiSource;
+import io.quarkus.prreview.classification.github.size.SizeSource;
+import io.quarkus.prreview.clients.gh.GhClient;
+import io.quarkus.prreview.clients.gh.GhException;
+import io.quarkus.prreview.clients.gh.model.GhCheck;
+import io.quarkus.prreview.clients.gh.model.GhChecks;
+import io.quarkus.prreview.clients.gh.model.GhComment;
+import io.quarkus.prreview.clients.gh.model.GhSize;
+
+class GitHubFactsTest {
+
+    static final GhCheck FAILED = new GhCheck(GhCheck.CHECK_RUN, "JVM Tests", "Quarkus CI", "COMPLETED", "FAILURE",
+            "https://github.com/q/q/actions/runs/1/job/2", null, null, null);
+    static final GhChecks CHECKS = new GhChecks("abc", List.of(FAILED));
+    static final List<GhComment> COMMENTS = List.of(new GhComment("someone", "hi", "2026-01-01T00:00:00Z"));
+    static final GhSize SIZE = new GhSize(12, 3, 2);
+
+    final GhClient gh = mock(GhClient.class);
+    final GitHubFacts facts = new GitHubFacts(gh);
+    final SizeSource size = new SizeSource(gh, facts);
+    final CiSource ci = new CiSource(gh, facts);
+
+    /** What the sources return with no bulk results at all: today's per-PR calls only. */
+    List<Object> perPr(int pr) {
+        GhClient perPr = mock(GhClient.class);
+        when(perPr.size(pr)).thenReturn(SIZE);
+        when(perPr.checks(pr)).thenReturn(CHECKS);
+        when(perPr.comments(pr)).thenReturn(COMMENTS);
+        GitHubFacts none = new GitHubFacts(perPr);
+        return List.of(new SizeSource(perPr, none).gather(pr), new CiSource(perPr, none).gather(pr));
+    }
+
+    List<Object> gather(int pr) {
+        return List.of(size.gather(pr), ci.gather(pr));
+    }
+
+    @Test
+    void completeBulkResultsNeedNoPerPrCall() {
+        when(gh.sizes(List.of(1))).thenReturn(Map.of(1, SIZE));
+        when(gh.checks(List.of(1))).thenReturn(Map.of(1, CHECKS));
+        when(gh.comments(List.of(1))).thenReturn(Map.of(1, COMMENTS));
+
+        facts.prefetch(List.of(1));
+
+        assertEquals(List.of(perPr(1)), List.of(gather(1)), "same result as per-PR calls");
+        verify(gh, never()).size(anyInt());
+        verify(gh, never()).checks(anyInt());
+        verify(gh, never()).comments(anyInt());
+    }
+
+    @Test
+    void aPrMissingFromTheBulkResultsIsReadOnItsOwn() {
+        when(gh.sizes(List.of(1))).thenReturn(Map.of());
+        when(gh.checks(List.of(1))).thenReturn(Map.of());
+        stubPerPr(1);
+
+        facts.prefetch(List.of(1));
+
+        assertEquals(List.of(perPr(1)), List.of(gather(1)));
+        verify(gh).size(1);
+        verify(gh).checks(1);
+        verify(gh).comments(1);
+        // No checks in bulk, so no bulk comments call is needed.
+        verify(gh, never()).comments(anyList());
+    }
+
+    @Test
+    void aFailedBulkCallLeavesOnlyItsOwnFactToPerPrCalls() {
+        when(gh.sizes(List.of(1))).thenThrow(new GhException("HTTP 502"));
+        when(gh.checks(List.of(1))).thenReturn(Map.of(1, CHECKS));
+        when(gh.comments(List.of(1))).thenThrow(new GhException("HTTP 502"));
+        stubPerPr(1);
+
+        facts.prefetch(List.of(1));
+
+        assertEquals(List.of(perPr(1)), List.of(gather(1)));
+        verify(gh).size(1);
+        verify(gh, never()).checks(anyInt());
+        verify(gh).comments(1);
+    }
+
+    @Test
+    void exactly100ChecksOrCommentsMayBeCutOffSoAreReadAgain() {
+        GhChecks hundred = new GhChecks("abc", Collections.nCopies(100, FAILED));
+        List<GhComment> hundredComments = Collections.nCopies(100, COMMENTS.getFirst());
+        when(gh.sizes(List.of(1, 2))).thenReturn(Map.of(1, SIZE, 2, SIZE));
+        when(gh.checks(List.of(1, 2))).thenReturn(Map.of(1, hundred, 2, CHECKS));
+        when(gh.comments(List.of(1, 2))).thenReturn(Map.of(1, COMMENTS, 2, hundredComments));
+        stubPerPr(1);
+        stubPerPr(2);
+
+        facts.prefetch(List.of(1, 2));
+
+        assertEquals(List.of(perPr(1), perPr(2)), List.of(gather(1), gather(2)));
+        verify(gh).checks(1);
+        verify(gh, never()).checks(2);
+        verify(gh).comments(2);
+    }
+
+    @Test
+    void aFailingFallbackMakesTheFactUnavailable() {
+        when(gh.sizes(List.of(1))).thenReturn(Map.of());
+        when(gh.checks(List.of(1))).thenReturn(Map.of());
+        when(gh.size(1)).thenThrow(new GhException("HTTP 403: forbidden"));
+        when(gh.checks(1)).thenThrow(new GhException("HTTP 403: forbidden"));
+
+        facts.prefetch(List.of(1));
+
+        assertEquals("Unavailable[reason=gh: HTTP 403: forbidden]", size.gather(1).toString());
+        assertEquals("Unavailable[reason=gh: HTTP 403: forbidden]", ci.gather(1).toString());
+    }
+
+    @Test
+    void commentsAreReadInBulkOnlyForPrsWithACheckThatDidNotPass() {
+        GhCheck passed = new GhCheck(GhCheck.CHECK_RUN, "Build", "Quarkus CI", "COMPLETED", "SUCCESS", "", null, null,
+                null);
+        when(gh.sizes(List.of(1, 2))).thenReturn(Map.of());
+        when(gh.checks(List.of(1, 2))).thenReturn(Map.of(1, CHECKS, 2, new GhChecks("def", List.of(passed))));
+        when(gh.comments(List.of(1))).thenReturn(Map.of(1, COMMENTS));
+
+        facts.prefetch(List.of(1, 2));
+
+        verify(gh).comments(List.of(1));
+        assertEquals(COMMENTS, facts.comments(1).orElseThrow());
+    }
+
+    void stubPerPr(int pr) {
+        when(gh.size(pr)).thenReturn(SIZE);
+        when(gh.checks(pr)).thenReturn(CHECKS);
+        when(gh.comments(pr)).thenReturn(COMMENTS);
+    }
+}

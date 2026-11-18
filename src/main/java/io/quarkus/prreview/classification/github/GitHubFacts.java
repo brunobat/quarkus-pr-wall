@@ -22,11 +22,18 @@ import io.quarkus.prreview.clients.gh.model.GhSize;
  * call per batch for the sizes, one for the checks and, for the PRs with a check that did not pass, one for the
  * comments. Each call fails on its own; what it would have returned is then simply not here. Kept for this run
  * only.
+ * <p>
+ * A fact is not here, so its source reads it with its own per-PR call, when the PR was missing from the results,
+ * when the bulk call failed, or when the list may have been cut off: gh returns at most 100 checks or comments per
+ * PR in a bulk call, so exactly 100 is not trusted.
  */
 @ApplicationScoped
 public class GitHubFacts {
 
     private static final Logger LOG = Logger.getLogger(GitHubFacts.class);
+
+    /** The most checks or comments gh returns for one PR in a bulk call. */
+    static final int BULK_LIST_CAP = 100;
 
     private final GhClient gh;
     private final Map<Integer, GhSize> sizes = new ConcurrentHashMap<>();
@@ -65,13 +72,13 @@ public class GitHubFacts {
         return Optional.ofNullable(sizes.get(pr));
     }
 
-    /** The PR's checks from the bulk read, or empty when it has none. */
+    /** The PR's checks from the bulk read, or empty when it has none or the rollup may have been cut off. */
     public Optional<GhChecks> checks(int pr) {
-        return Optional.ofNullable(checks.get(pr));
+        return Optional.ofNullable(checks.get(pr)).filter(c -> c.rollup().size() != BULK_LIST_CAP);
     }
 
-    /** The PR's comments from the bulk read, or empty when it has none. */
+    /** The PR's comments from the bulk read, or empty when it has none or the list may have been cut off. */
     public Optional<List<GhComment>> comments(int pr) {
-        return Optional.ofNullable(comments.get(pr));
+        return Optional.ofNullable(comments.get(pr)).filter(c -> c.size() != BULK_LIST_CAP);
     }
 }

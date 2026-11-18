@@ -7,6 +7,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import org.jboss.logging.Logger;
 
+import io.quarkus.prreview.classification.github.GitHubFacts;
 import io.quarkus.prreview.classification.github.ci.model.CiCheck;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
@@ -31,9 +32,11 @@ public class CiSource {
     static final Set<String> PASSED = Set.of("SUCCESS", "SKIPPED", "NEUTRAL");
 
     private final GhClient gh;
+    private final GitHubFacts facts;
 
-    public CiSource(GhClient gh) {
+    public CiSource(GhClient gh, GitHubFacts facts) {
         this.gh = gh;
+        this.facts = facts;
     }
 
     /** Whether a check in {@code checks} did not pass, so that the PR's comments are needed for its rows. */
@@ -44,7 +47,7 @@ public class CiSource {
     public SourceResult<CiChecks> gather(int pr) {
         GhChecks checks;
         try {
-            checks = gh.checks(pr);
+            checks = facts.checks(pr).orElseGet(() -> gh.checks(pr));
         } catch (GhException e) {
             LOG.warnf(e, "PR #%d: checks unavailable", pr);
             return SourceResult.unavailable("gh: " + e.getMessage().strip().replaceAll("\\s+", " "));
@@ -52,7 +55,7 @@ public class CiSource {
         List<GhComment> comments = null;
         if (anyNotPassed(checks)) {
             try {
-                comments = gh.comments(pr);
+                comments = facts.comments(pr).orElseGet(() -> gh.comments(pr));
             } catch (GhException e) {
                 LOG.warnf(e, "PR #%d: comments unavailable, so are failure details", pr);
             }
