@@ -49,6 +49,8 @@ public class GhClient {
     static final Pattern LOGIN = Pattern.compile("[A-Za-z0-9-]+(\\[bot\\])?");
     /** A full commit SHA. */
     static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
+    /** The HTTP status line {@code gh api -i} prints first, e.g. {@code HTTP/2.0 404 Not Found}. */
+    private static final Pattern STATUS_LINE = Pattern.compile("HTTP/\\S+ ([0-9]{3})\\b.*");
     /** A {@code gh api --cache} duration, as Go writes one: e.g. {@code 3600s} or {@code 1h}. */
     private static final Pattern CACHE_TTL = Pattern.compile("([0-9]+(ns|us|ms|s|m|h))+");
 
@@ -226,6 +228,57 @@ public class GhClient {
             throw new GhException("GitHub did not report the author association of PR " + pr);
         }
         return value;
+    }
+
+    /**
+     * Whether {@code login} is a member of the configured repository's org, as GitHub shows it to this token: a
+     * 2xx answer is a member, a 404 is not, and any other status is a failure. A private member looks like a
+     * non-member to a token that does not belong to the org.
+     */
+    public boolean isMember(String login) {
+        String path = "orgs/" + owner() + "/members/" + validLogin(login);
+        Result result = execute(List.of("api", path, "-i"));
+        String first = result.stdout().lines().findFirst().orElse("").strip();
+        var status = STATUS_LINE.matcher(first);
+        if (!status.matches()) {
+            String message = result.stderr().strip();
+            throw new GhException(message.isEmpty() ? "gh api " + path + " gave no HTTP status" : message);
+        }
+        int code = Integer.parseInt(status.group(1));
+        if (code == 404) {
+            return false;
+        }
+        if (code / 100 != 2) {
+            throw new GhException("HTTP " + code);
+        }
+        return true;
+    }
+
+    /** Whether {@code login} authored a commit reachable from {@code baseSha} in the configured repository. */
+    public boolean hasCommitsBefore(String login, String baseSha) {
+        if (baseSha == null || !SHA.matcher(baseSha).matches()) {
+            throw new GhException("not a commit SHA: " + baseSha);
+        }
+        String json = run(List.of("api", "repos/" + config.gh().repo() + "/commits?author=" + validLogin(login)
+                + "&sha=" + baseSha + "&per_page=1"));
+        Object[] commits;
+        try {
+            commits = mapper.readValue(json, Object[].class);
+        } catch (JacksonException e) {
+            throw new GhException("unexpected output from gh api commits: " + e.getOriginalMessage(), e);
+        }
+        if (commits == null) {
+            throw new GhException("gh api commits returned no list");
+        }
+        return commits.length > 0;
+    }
+
+    /** A login that is safe to put in an {@code api} path; anything else is a lookup failure, not a crash. */
+    private static String validLogin(String login) {
+        if (login == null || !LOGIN.matcher(login).matches()) {
+            throw new GhException("not a GitHub login: " + login);
+        }
+        return login;
     }
 
     /**
@@ -423,6 +476,20 @@ public class GhClient {
     }
 
     private String run(List<String> args) {
+        Result result = execute(args);
+        if (result.exitCode() != 0) {
+            String message = result.stderr().strip();
+            throw new GhException(message.isEmpty() ? "gh exited with " + result.exitCode() : message);
+        }
+        return result.stdout();
+    }
+
+    /** What one gh invocation that ran to completion printed, and its exit code. */
+    private record Result(int exitCode, String stdout, String stderr) {
+    }
+
+    /** Runs gh to completion; a gh that cannot start, times out or is interrupted is a {@link GhException}. */
+    private Result execute(List<String> args) {
         List<String> command = command(args);
         Process process;
         try {
@@ -439,11 +506,7 @@ public class GhClient {
                 kill(process);
                 throw new GhException("gh " + String.join(" ", args) + " timed out after " + config.gh().timeout());
             }
-            if (process.exitValue() != 0) {
-                String message = output(stderr).strip();
-                throw new GhException(message.isEmpty() ? "gh exited with " + process.exitValue() : message);
-            }
-            return output(stdout);
+            return new Result(process.exitValue(), output(stdout), output(stderr));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             kill(process);

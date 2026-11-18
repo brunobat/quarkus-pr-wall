@@ -22,6 +22,11 @@
 # `gh api <path> ...` answers GET paths, printing what `--jq` would have selected:
 #   repos/<owner>/<repo>/pulls/<n>  prs/<n>/api-pulls.txt; api-pulls-error.txt instead prints it to stderr and exits 1;
 #                  api-pulls-sleep first waits that many seconds, like `sleep`
+#   orgs/<owner>/members/<login>  with -i, prints `HTTP/2.0 <status>` from api/members/<login>/status (404 when there is
+#                  none) and a blank line; a status other than 2xx also prints `gh: ... (HTTP <status>)` to stderr and
+#                  exits 1
+#   repos/<owner>/<repo>/commits?author=<login>&sha=...&per_page=1  api/commits/<login>/body.json (`[]` when there is
+#                  none); api/commits/<login>/error.txt instead prints it to stderr and exits 1
 #   any other path exits 2
 # Every invocation is appended to the call log, target/fake-gh-calls.log in the project, so the build output
 # holds it and `mvn clean` clears it.
@@ -44,6 +49,26 @@ if [[ "${1:-}" == "api" ]]; then
     fi
     [[ -f "$d/api-pulls.txt" ]] || { echo "gh: Not Found (HTTP 404)" >&2; exit 1; }
     cat "$d/api-pulls.txt"
+    exit 0
+  fi
+  if [[ "$path" =~ ^orgs/[^/]+/members/([^/?]+)$ ]]; then
+    d="$here/api/members/${BASH_REMATCH[1]}"
+    status=404
+    [[ -f "$d/status" ]] && status="$(tr -d '[:space:]' < "$d/status")"
+    printf 'HTTP/2.0 %s\n\n' "$status"
+    if [[ "$status" != 2* ]]; then
+      echo "gh: HTTP error (HTTP $status)" >&2
+      exit 1
+    fi
+    exit 0
+  fi
+  if [[ "$path" =~ ^repos/[^/]+/[^/]+/commits\?author=([^\&]+)\& ]]; then
+    d="$here/api/commits/${BASH_REMATCH[1]}"
+    if [[ -f "$d/error.txt" ]]; then
+      cat "$d/error.txt" >&2
+      exit 1
+    fi
+    if [[ -f "$d/body.json" ]]; then cat "$d/body.json"; else echo '[]'; fi
     exit 0
   fi
   echo "fake gh: unsupported api path: $path" >&2

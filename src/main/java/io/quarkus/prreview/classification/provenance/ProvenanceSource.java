@@ -51,7 +51,7 @@ public class ProvenanceSource {
         Person author = who.prAuthor(pr, authorship);
         List<Person> commitAuthors = new ArrayList<>();
         for (GhCommit.Author subject : commitAuthorSubjects(authorship)) {
-            commitAuthors.add(who.commitAuthor(subject));
+            commitAuthors.add(who.commitAuthor(subject, authorship.baseSha()));
         }
         return new SourceResult.Available<>(new Provenance(author, List.copyOf(commitAuthors), AiLabel.NONE, readAt));
     }

@@ -1,6 +1,7 @@
 package io.quarkus.prreview.clients.gh;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -171,6 +172,30 @@ class GhClientTest {
         GhException e = assertThrows(GhException.class, () -> client.association(104));
         assertTrue(e.getMessage().contains("HTTP 502"), e.getMessage());
         assertThrows(GhException.class, () -> client.association(404));
+    }
+
+    @Test
+    void membershipIsReadFromTheHttpStatus() {
+        assertTrue(client.isMember("member"));
+        assertFalse(client.isMember("nobody"));
+        GhException e = assertThrows(GhException.class, () -> client.isMember("flaky"));
+        assertEquals("HTTP 502", e.getMessage());
+    }
+
+    @Test
+    void commitsBeforeTheBaseAreReadFromTheCommitsList() {
+        assertTrue(client.hasCommitsBefore("regular", SHA));
+        assertFalse(client.hasCommitsBefore("new", SHA));
+        GhException e = assertThrows(GhException.class, () -> client.hasCommitsBefore("broken", SHA));
+        assertTrue(e.getMessage().contains("HTTP 500"), e.getMessage());
+    }
+
+    @Test
+    void anUnsafeLoginOrBaseIsALookupFailureBeforeAnyProcessStarts() {
+        assertThrows(GhException.class, () -> client.isMember("a/b"));
+        assertThrows(GhException.class, () -> client.isMember(null));
+        assertThrows(GhException.class, () -> client.hasCommitsBefore("a?b", SHA));
+        assertThrows(GhException.class, () -> client.hasCommitsBefore("regular", "main"));
     }
 
     @Test

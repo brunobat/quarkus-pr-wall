@@ -28,7 +28,8 @@ public class WhoRules {
 
     /**
      * The PR author: deleted, bot, then GitHub's {@code author_association} for the PR, read now (team for
-     * {@code MEMBER} or {@code OWNER}, first-time, community, or other with the reason).
+     * {@code MEMBER} or {@code OWNER}, first-time, community, or other with the reason). A collaborator is first-time
+     * or community by whether they have a commit reachable from the PR's base.
      */
     public Person prAuthor(int pr, GhAuthorship authorship) {
         String login = authorship.login();
@@ -48,7 +49,8 @@ public class WhoRules {
             case "MEMBER", "OWNER" -> Person.of(login, Who.TEAM);
             case "FIRST_TIME_CONTRIBUTOR", "FIRST_TIMER" -> Person.of(login, Who.FIRST_TIME);
             case "CONTRIBUTOR" -> Person.of(login, Who.COMMUNITY);
-            case "COLLABORATOR" -> Person.other(login, "collaborator check not yet available");
+            // An outside collaborator has repository access without org membership: never team.
+            case "COLLABORATOR" -> byCommitsBefore(login, authorship.baseSha());
             case "NONE" -> Person.other(login, "no association");
             case "MANNEQUIN" -> Person.other(login, "placeholder account");
             default -> Person.other(login, "unknown association " + association);
@@ -57,13 +59,31 @@ public class WhoRules {
 
     /**
      * A commit's git author: a bot by the shape of its login or name ({@code app/...} or {@code ...[bot]}), since
-     * GitHub reports no bot flag for commit authors.
+     * GitHub reports no bot flag for commit authors; then team when a member of the org; then community or
+     * first-time by whether they have a commit reachable from the PR's base. A 404 on membership is "not a member",
+     * not a failure.
      */
-    public Person commitAuthor(GhCommit.Author author) {
+    public Person commitAuthor(GhCommit.Author author, String baseSha) {
+        String login = author.login();
         if (isBotShaped(author)) {
-            return Person.of(author.login(), Who.BOT);
+            return Person.of(login, Who.BOT);
         }
-        return Person.other(author.login(), "not looked up");
+        boolean member;
+        try {
+            member = gh.isMember(login);
+        } catch (GhException e) {
+            return Person.other(login, "membership lookup failed: " + oneLine(e.getMessage()));
+        }
+        return member ? Person.of(login, Who.TEAM) : byCommitsBefore(login, baseSha);
+    }
+
+    /** Community when the person has a commit reachable from the PR's base, first-time when not. */
+    private Person byCommitsBefore(String login, String baseSha) {
+        try {
+            return Person.of(login, gh.hasCommitsBefore(login, baseSha) ? Who.COMMUNITY : Who.FIRST_TIME);
+        } catch (GhException e) {
+            return Person.other(login, "commit history lookup failed: " + oneLine(e.getMessage()));
+        }
     }
 
     /** Whether a commit author's login or name has a bot account's shape. */
