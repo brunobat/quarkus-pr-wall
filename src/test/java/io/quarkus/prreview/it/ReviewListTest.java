@@ -326,8 +326,12 @@ class ReviewListTest {
         LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
 
         assertEquals(0, result.exitCode(), result.getErrorOutput());
-        assertEquals(List.of("api repos/quarkusio/quarkus/pulls/101 --jq .author_association"),
-                apiCalls(callsSince(before)));
+        List<String> calls = callsSince(before);
+        assertEquals(List.of("api repos/quarkusio/quarkus/pulls/101 --jq .author_association"), apiCalls(calls));
+        // Who wrote it came from the bulk read: no per-PR call for it.
+        assertEquals(List.of(), authorshipViews(calls));
+        assertTrue(calls.contains("pr list --state all --search 101 --json number,author,body,baseRefOid,commits "
+                + "--limit 1 -R quarkusio/quarkus"), calls.toString());
         assertTrue(block(result.getOutputStream(), 101).contains("Author: alice (team) · AI: none declared\n"),
                 result.getOutput());
         String report = Files.readString(out.resolve("review-101.md"));
@@ -383,6 +387,42 @@ class ReviewListTest {
                 "Author: hank (community) · AI: none declared · Commits: helper (community)\n"), result.getOutput());
         assertTrue(block(result.getOutputStream(), 115).contains(
                 "Author: ivy (first-time) · AI: none declared · Commits: helper (community)\n"), result.getOutput());
+    }
+
+    @Test
+    void whoWroteEachPrIsReadInBulkAndOnItsOwnOnlyWhenTheBulkReadFallsShort(QuarkusMainLauncher launcher)
+            throws IOException {
+        // 103's bulk answer has exactly 100 commits, where gh cuts the list off.
+        long before = ghCalls();
+        LaunchResult result = launcher.launch("review", "101", "103", "106", "--output-dir", out.toString());
+        List<String> calls = callsSince(before);
+        assertTrue(calls.contains("pr list --state all --search 101 103 106 --json number,author,body,baseRefOid,"
+                + "commits --limit 3 -R quarkusio/quarkus"), calls.toString());
+        assertEquals(List.of("pr view 103 --json author,body,baseRefOid,commits -R quarkusio/quarkus"),
+                authorshipViews(calls));
+        // The per-PR answer has one commit, by the PR author: no one else to list.
+        assertTrue(block(result.getOutputStream(), 103).contains("Author: bob (community) · AI: none declared\n"),
+                result.getOutput());
+
+        // 109 is left out of every list.
+        before = ghCalls();
+        launcher.launch("review", "107", "109", "--output-dir", out.toString());
+        assertEquals(List.of("pr view 109 --json author,body,baseRefOid,commits -R quarkusio/quarkus"),
+                authorshipViews(callsSince(before)));
+
+        // Listing 111 fails, so every PR of that batch is read on its own.
+        before = ghCalls();
+        result = launcher.launch("review", "101", "111", "--output-dir", out.toString());
+        assertEquals(List.of("pr view 101 --json author,body,baseRefOid,commits -R quarkusio/quarkus",
+                "pr view 111 --json author,body,baseRefOid,commits -R quarkusio/quarkus"),
+                authorshipViews(callsSince(before)));
+        assertTrue(block(result.getOutputStream(), 101).contains("Author: alice (team) · AI: none declared\n"),
+                result.getOutput());
+    }
+
+    /** The per-PR {@code gh pr view} calls for who wrote a PR, in order. */
+    private static List<String> authorshipViews(List<String> calls) {
+        return calls.stream().filter(c -> c.startsWith("pr view ") && c.contains(" author,body,")).toList();
     }
 
     /** The {@code gh api} calls, in order. */
