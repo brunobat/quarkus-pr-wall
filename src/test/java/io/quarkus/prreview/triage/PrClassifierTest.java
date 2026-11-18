@@ -60,7 +60,7 @@ class PrClassifierTest {
         when(summarizer.summarize(any())).thenReturn(Result.<String>builder().content("A summary.").build());
 
         PrOutcome outcome = classifier.classify(101);
-        JevResult.Classified jev = (JevResult.Classified) outcome.jev();
+        JevResult.Answered jev = (JevResult.Answered) outcome.jev();
         Classification classification = jev.classification();
         assertEquals("A summary.", jev.summary().text());
         assertNotNull(outcome.size());

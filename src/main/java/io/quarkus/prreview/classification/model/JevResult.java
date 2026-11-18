@@ -2,14 +2,18 @@ package io.quarkus.prreview.classification.model;
 
 import io.quarkus.prreview.report.summary.model.Summary;
 
-/** What {@code jev} gave for one PR: its answers with their summary, or why the PR was not classified. */
-public sealed interface JevResult permits JevResult.Classified, JevResult.NotClassified {
+/**
+ * What {@code jev} gave for one PR: its answers with their summary, or why it gave none. {@code jev} gives none when
+ * the PR could not be fetched, its diff was empty, the submission was over the limit, or {@code jev} itself failed;
+ * the report calls such a PR "not classified".
+ */
+public sealed interface JevResult permits JevResult.Answered, JevResult.NotAnswered {
 
-    record Classified(Classification classification, Summary summary) implements JevResult {
+    record Answered(Classification classification, Summary summary) implements JevResult {
     }
 
     /**
-     * A PR {@code jev} did not classify, with the run details known when it stopped.
+     * No answers from {@code jev} for this PR, with the run details known when it stopped.
      *
      * @param reason the one-line reason shown after {@code not classified:}, e.g. {@code gh: <message>}
      * @param message the full error message, e.g. {@code jev}'s response body
@@ -17,7 +21,7 @@ public sealed interface JevResult permits JevResult.Classified, JevResult.NotCla
      * @param submissionChars the measured submission size, or {@code null} when not measured
      * @param limit the submission limit, or {@code null} when no submission was measured
      */
-    record NotClassified(String reason, String message, String jevModel, Integer submissionChars, Integer limit)
+    record NotAnswered(String reason, String message, String jevModel, Integer submissionChars, Integer limit)
             implements JevResult {
     }
 }

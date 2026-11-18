@@ -12,8 +12,8 @@ import io.quarkus.prreview.pr.model.PullRequest;
 import io.quarkus.prreview.report.summary.model.Summary;
 
 /**
- * How one PR ended: one result from each classification source. {@code jev}'s result says whether the PR was
- * classified; GitHub's size and CI results are there for every PR, classified or not.
+ * How one PR ended: one result from each classification source. {@code jev}'s result says whether {@code jev} answered,
+ * that is, whether the PR was classified; GitHub's size and CI results are there for every PR, classified or not.
  *
  * @param number the PR number
  * @param checks the ids of {@code jev}'s checks, for the header
@@ -30,18 +30,18 @@ public record PrOutcome(int number, List<String> checks, PullRequest pullRequest
     public static final String NOT_GATHERED = "not gathered";
 
     /** A PR {@code jev} classified; the GitHub sources are not gathered. */
-    public static PrOutcome classified(Classification classification, Summary summary) {
+    public static PrOutcome answered(Classification classification, Summary summary) {
         PullRequest pr = classification.pr().pullRequest();
         return new PrOutcome(pr.number(), classification.checks().stream().map(CheckResult::checkId).toList(), pr,
-                new JevResult.Classified(classification, summary), SourceResult.unavailable(NOT_GATHERED),
+                new JevResult.Answered(classification, summary), SourceResult.unavailable(NOT_GATHERED),
                 SourceResult.unavailable(NOT_GATHERED));
     }
 
     /** A PR {@code jev} did not classify; the GitHub sources are not gathered. */
-    public static PrOutcome notClassified(int number, List<String> checks, PullRequest pullRequest, String reason,
+    public static PrOutcome notAnswered(int number, List<String> checks, PullRequest pullRequest, String reason,
             String message, String jevModel, Integer submissionChars, Integer limit) {
         return new PrOutcome(number, checks, pullRequest,
-                new JevResult.NotClassified(reason, message, jevModel, submissionChars, limit),
+                new JevResult.NotAnswered(reason, message, jevModel, submissionChars, limit),
                 SourceResult.unavailable(NOT_GATHERED), SourceResult.unavailable(NOT_GATHERED));
     }
 }

@@ -47,7 +47,7 @@ class PrOutcomeTest {
     @Test
     void aPrGhCannotFindIsAGhFailure() {
         PrOutcome outcome = classifier.classify(404);
-        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
+        JevResult.NotAnswered jev = (JevResult.NotAnswered) outcome.jev();
 
         assertEquals(404, outcome.number());
         assertEquals("gh: no pull requests found for branch \"404\"", jev.reason());
@@ -60,7 +60,7 @@ class PrOutcomeTest {
     @Test
     void aDiffTooLargeForGitHubIsAGhFailure() {
         PrOutcome outcome = classifier.classify(406);
-        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
+        JevResult.NotAnswered jev = (JevResult.NotAnswered) outcome.jev();
 
         assertTrue(jev.reason().startsWith("gh: "), jev.reason());
         assertTrue(jev.reason().contains("too_large"), jev.reason());
@@ -73,7 +73,7 @@ class PrOutcomeTest {
     @Test
     void anEmptyDiffIsNotSentToJev() {
         PrOutcome outcome = classifier.classify(103);
-        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
+        JevResult.NotAnswered jev = (JevResult.NotAnswered) outcome.jev();
 
         assertEquals("empty diff", jev.reason());
         assertEquals("Touch nothing", outcome.pullRequest().title());
@@ -86,7 +86,7 @@ class PrOutcomeTest {
                 "{\"error\": {\"type\": \"max_tokens_exceeded\",\n \"message\": \"too long\"}}"));
 
         PrOutcome outcome = classifier.classify(101);
-        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
+        JevResult.NotAnswered jev = (JevResult.NotAnswered) outcome.jev();
 
         assertEquals("jev: {\"error\": {\"type\": \"max_tokens_exceeded\", \"message\": \"too long\"}}",
                 jev.reason());
@@ -104,7 +104,7 @@ class PrOutcomeTest {
                 .thenThrow(new InvalidDecisionResponseException("probability 1.5 is out of range"));
 
         assertEquals("jev: probability 1.5 is out of range",
-                ((JevResult.NotClassified) classifier.classify(101).jev()).reason());
+                ((JevResult.NotAnswered) classifier.classify(101).jev()).reason());
         verifyNoInteractions(summarizer);
     }
 
@@ -113,7 +113,7 @@ class PrOutcomeTest {
         when(model.decide(any(DecisionRequest.class)))
                 .thenThrow(new RuntimeException("request timed out", new HttpTimeoutException("request timed out")));
 
-        assertEquals("jev: request timed out", ((JevResult.NotClassified) classifier.classify(101).jev()).reason());
+        assertEquals("jev: request timed out", ((JevResult.NotAnswered) classifier.classify(101).jev()).reason());
         verifyNoInteractions(summarizer);
     }
 
@@ -123,7 +123,7 @@ class PrOutcomeTest {
                 .answer("test-adequacy.behaviour", YesNoAnswer.of(0.5)).build());
 
         PrOutcome outcome = classifier.classify(101);
-        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
+        JevResult.NotAnswered jev = (JevResult.NotAnswered) outcome.jev();
 
         assertTrue(jev.reason().startsWith("jev: "), jev.reason());
         assertEquals("jev-test", jev.jevModel());

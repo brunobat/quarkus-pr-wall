@@ -70,7 +70,7 @@ public class ReviewCommand implements Callable<Integer> {
             // Each block is printed as soon as its PR is done.
             out.print(TerminalRenderer.render(outcome, report));
             out.flush();
-            if (!(outcome.jev() instanceof JevResult.Classified) || !(report instanceof ReportWriter.Written)) {
+            if (!(outcome.jev() instanceof JevResult.Answered) || !(report instanceof ReportWriter.Written)) {
                 errors++;
             }
         }

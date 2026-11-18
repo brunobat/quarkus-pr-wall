@@ -45,7 +45,7 @@ class PrOutcomeOverLimitTest {
     @Test
     void aSubmissionOverTheLimitIsNotSent() {
         PrOutcome outcome = classifier.classify(101);
-        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
+        JevResult.NotAnswered jev = (JevResult.NotAnswered) outcome.jev();
 
         assertTrue(jev.submissionChars() > 1000, outcome.toString());
         assertEquals("submission " + jev.submissionChars() + " chars exceeds limit 1000", jev.reason());

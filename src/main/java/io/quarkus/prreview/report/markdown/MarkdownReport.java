@@ -37,16 +37,15 @@ public final class MarkdownReport {
         StringBuilder md = new StringBuilder();
         appendTitle(md, outcome.number(), outcome.pullRequest());
         switch (outcome.jev()) {
-            case JevResult.Classified classified -> appendClassified(md, classified.classification(),
-                    classified.summary());
-            case JevResult.NotClassified notClassified -> appendNotClassified(md, notClassified);
+            case JevResult.Answered answered -> appendClassified(md, answered.classification(), answered.summary());
+            case JevResult.NotAnswered notAnswered -> appendNotClassified(md, notAnswered);
         }
         return md.toString();
     }
 
     /** The report for a classified PR whose GitHub facts were not gathered. */
     public static String render(Classification classification, Summary summary) {
-        return render(PrOutcome.classified(classification, summary));
+        return render(PrOutcome.answered(classification, summary));
     }
 
     private static void appendClassified(StringBuilder md, Classification classification, Summary summary) {
@@ -82,7 +81,7 @@ public final class MarkdownReport {
         md.append("- Claude tokens: ").append(tokens(summary.claudeTokens())).append("\n");
     }
 
-    private static void appendNotClassified(StringBuilder md, JevResult.NotClassified outcome) {
+    private static void appendNotClassified(StringBuilder md, JevResult.NotAnswered outcome) {
         md.append("## Not classified\n\n");
         md.append("Reason: ").append(inline(outcome.reason())).append("\n\n");
         md.append("Message: ").append(inline(outcome.message())).append("\n");

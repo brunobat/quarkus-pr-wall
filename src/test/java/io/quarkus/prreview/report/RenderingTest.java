@@ -61,12 +61,12 @@ class RenderingTest {
 
     /** The terminal block for a classified PR whose report was written to {@link #REPORT}. */
     static String terminal(Classification classification, Summary summary) {
-        return TerminalRenderer.render(PrOutcome.classified(classification, summary),
+        return TerminalRenderer.render(PrOutcome.answered(classification, summary),
                 new ReportWriter.Written(REPORT));
     }
 
-    static PrOutcome notClassified(PullRequest pr, String reason, String message) {
-        return PrOutcome.notClassified(57715, List.of("test-adequacy"), pr, reason, message, "jev-latest", 61234,
+    static PrOutcome notAnswered(PullRequest pr, String reason, String message) {
+        return PrOutcome.notAnswered(57715, List.of("test-adequacy"), pr, reason, message, "jev-latest", 61234,
                 60000);
     }
 
@@ -235,7 +235,7 @@ class RenderingTest {
 
     @Test
     void notClassifiedTerminalBlockMatchesTheSpecLayout() {
-        PrOutcome outcome = notClassified(null, "jev: {\"error\":\n \"max_tokens_exceeded\"}", "body");
+        PrOutcome outcome = notAnswered(null, "jev: {\"error\":\n \"max_tokens_exceeded\"}", "body");
 
         assertEquals("""
                 PR #57715 - test adequacy
@@ -252,7 +252,7 @@ class RenderingTest {
 
     @Test
     void reportNotWrittenAlsoEndsAClassifiedBlock() {
-        String block = TerminalRenderer.render(PrOutcome.classified(sample(0.88, "no-test-changes",
+        String block = TerminalRenderer.render(PrOutcome.answered(sample(0.88, "no-test-changes",
                 probs("no-test-changes", 0.83)), CLAUDE), new ReportWriter.Failed("AccessDeniedException: x"));
 
         assertTrue(block.endsWith("Summary (Claude): Runtime behaviour changes; no tests were changed.\n"
@@ -263,7 +263,7 @@ class RenderingTest {
     void errorReportWithATitle() {
         PullRequest pr = new PullRequest(57715, "Big | change", "https://github.com/quarkusio/quarkus/pull/57715",
                 "OPEN", "");
-        String report = MarkdownReport.render(notClassified(pr, "submission 61234 chars exceeds limit 60000",
+        String report = MarkdownReport.render(notAnswered(pr, "submission 61234 chars exceeds limit 60000",
                 "submission is 61234 characters,\nover the limit of 60000"));
 
         assertEquals("""
@@ -288,7 +288,7 @@ class RenderingTest {
 
     @Test
     void errorReportWithoutATitleShowsOnlyWhatIsKnown() {
-        PrOutcome outcome = PrOutcome.notClassified(404, List.of("test-adequacy"), null,
+        PrOutcome outcome = PrOutcome.notAnswered(404, List.of("test-adequacy"), null,
                 "gh: no pull requests found", "no pull requests found\n## Run\n<!-- hidden", null, null, null);
 
         assertEquals("""

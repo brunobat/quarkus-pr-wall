@@ -41,8 +41,8 @@ public final class TerminalRenderer {
 
     private static String jev(JevResult jev) {
         return switch (jev) {
-            case JevResult.Classified classified -> classified(classified.classification(), classified.summary());
-            case JevResult.NotClassified notClassified -> "  not classified: " + oneLine(notClassified.reason()) + "\n";
+            case JevResult.Answered answered -> classified(answered.classification(), answered.summary());
+            case JevResult.NotAnswered notAnswered -> "  not classified: " + oneLine(notAnswered.reason()) + "\n";
         };
     }
 
