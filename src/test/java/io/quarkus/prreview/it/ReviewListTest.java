@@ -72,7 +72,7 @@ class ReviewListTest {
         assertTrue(block(stdout, 101).contains("Summary (Claude): "), result.getOutput());
         assertTrue(block(stdout, 104).contains("Summary (Claude): "), result.getOutput());
         // Size comes from its own gh call: 104's fails, and only its size is unavailable.
-        assertTrue(block(stdout, 101).contains("Size: 2 files changed, +12 \u22123\n"), result.getOutput());
+        assertTrue(block(stdout, 101).contains("Size: 2 files changed, +12 -3\n"), result.getOutput());
         assertTrue(block(stdout, 102).contains("Size: unavailable\n"), result.getOutput());
         assertTrue(block(stdout, 104).contains("Size: unavailable\n"), result.getOutput());
         assertTrue(Files.readString(out.resolve("review-104.md")).contains("## Size (GitHub)\n\nunavailable\n"));
@@ -112,7 +112,7 @@ class ReviewListTest {
         // gh pr view worked and only the diff failed, so the report keeps the title.
         assertTrue(report406.startsWith("# PR #406: Reformat everything\n"), report406);
         // GitHub refused the diff, but its size counts are still known.
-        assertTrue(block(result.getOutputStream(), 406).contains("Size: 1244 files changed, +17 \u221219751\n"),
+        assertTrue(block(result.getOutputStream(), 406).contains("Size: 1244 files changed, +17 -19751\n"),
                 result.getOutput());
         assertTrue(report406.contains("- Changed files: 1244\n- Lines added: 17\n- Lines deleted: 19751\n"), report406);
         assertTrue(block(result.getOutputStream(), 404).contains("Size: unavailable\n"), result.getOutput());
@@ -135,7 +135,7 @@ class ReviewListTest {
             assertTrue(report.contains("## Not classified"), report);
             assertTrue(report.contains("(limit 1000)"), report);
             // Too large for jev, but its size is reported.
-            assertTrue(block.contains("Size: 2 files changed, +12 \u22123\n"), block);
+            assertTrue(block.contains("Size: 2 files changed, +12 -3\n"), block);
             assertTrue(report.contains("## Size (GitHub)\n\n- Changed files: 2\n"), report);
             assertEquals(0, jev.posts().size());
         } finally {

@@ -56,7 +56,7 @@ public final class TerminalRenderer {
     private static String size(SourceResult<PrSize> size) {
         return "Size: " + switch (size) {
             case SourceResult.Available<PrSize> available -> available.facts().changedFiles() + " files changed, +"
-                    + available.facts().additions() + " \u2212" + available.facts().deletions();
+                    + available.facts().additions() + " -" + available.facts().deletions();
             case SourceResult.Unavailable<PrSize> unavailable -> "unavailable";
         } + "\n";
     }

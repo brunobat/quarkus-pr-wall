@@ -346,7 +346,7 @@ class RenderingTest {
 
         assertTrue(TerminalRenderer.render(classified, new ReportWriter.Written(REPORT)).endsWith("""
                 Summary (Claude): Runtime behaviour changes; no tests were changed.
-                Size: 61 files changed, +933 \u2212197
+                Size: 61 files changed, +933 -197
                 CI: unavailable
                 Report: reports/review-57720.md
                 """));
@@ -373,7 +373,7 @@ class RenderingTest {
         assertEquals("""
                 PR #404 - test adequacy
                   not classified: gh: no pull requests found
-                Size: 61 files changed, +933 \u2212197
+                Size: 61 files changed, +933 -197
                 CI: unavailable
                 Report: reports/review-57720.md
                 """, TerminalRenderer.render(titleLess, new ReportWriter.Written(REPORT)));
