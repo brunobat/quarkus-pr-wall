@@ -6,6 +6,10 @@ import java.util.regex.Pattern;
 
 import dev.langchain4j.model.output.TokenUsage;
 
+import io.quarkus.prreview.classification.github.ci.model.CiCheck;
+import io.quarkus.prreview.classification.github.ci.model.CiChecks;
+import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
+import io.quarkus.prreview.classification.github.ci.model.FailureRow;
 import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
@@ -15,6 +19,7 @@ import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PullRequest;
 import io.quarkus.prreview.report.AnswerFormat;
+import io.quarkus.prreview.report.CiFormat;
 import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.triage.model.PrOutcome;
 
@@ -39,6 +44,7 @@ public final class MarkdownReport {
         StringBuilder md = new StringBuilder();
         appendTitle(md, outcome.number(), outcome.pullRequest());
         appendSize(md, outcome.size());
+        appendCi(md, outcome.ci());
         switch (outcome.jev()) {
             case JevResult.Answered answered -> appendClassified(md, answered.classification(), answered.summary());
             case JevResult.NotAnswered notAnswered -> appendNotClassified(md, notAnswered);
@@ -61,6 +67,59 @@ public final class MarkdownReport {
             case SourceResult.Unavailable<PrSize> unavailable -> md.append("unavailable\n");
         }
         md.append("\n");
+    }
+
+    /** The count line, then a table of the checks that did not pass, linking only to {@code https://} URLs. */
+    private static void appendCi(StringBuilder md, SourceResult<CiChecks> ci) {
+        md.append("## CI checks (GitHub)\n\n");
+        switch (ci) {
+            case SourceResult.Unavailable<CiChecks> unavailable -> md.append(CiFormat.UNAVAILABLE).append("\n");
+            case SourceResult.Available<CiChecks> available -> appendCiTable(md, available.facts());
+        }
+        md.append("\n");
+    }
+
+    private static void appendCiTable(StringBuilder md, CiChecks ci) {
+        String count = CiFormat.count(ci);
+        if (ci.notPassed().isEmpty()) {
+            md.append(ci.checks().isEmpty() ? count : Character.toUpperCase(count.charAt(0)) + count.substring(1) + ".")
+                    .append("\n");
+            return;
+        }
+        md.append(count).append(".\n\n");
+        md.append("| ").append(String.join(" | ", CiFormat.COLUMNS)).append(" |\n|---|---|---|---|---|\n");
+        for (FailedCheck failed : ci.notPassed()) {
+            CiCheck check = failed.check();
+            String suffix = CiFormat.suffix(check);
+            for (FailureRow row : failed.rows()) {
+                md.append("| ").append(link(check.name(), check.link())).append(suffix.isEmpty() ? "" : " " + cell(suffix))
+                        .append(" | ").append(escapePipes(code(check.value())))
+                        .append(" | ").append(row.test() == null ? "" : linkedCode(row.test(), row.testLink()))
+                        .append(" | ").append(CiFormat.flaky(row))
+                        .append(" | ").append(cell(row.whatFailed()))
+                        .append(row.scanLink() != null && isLinkable(row.scanLink())
+                                ? " · [scan](" + row.scanLink() + ")" : "")
+                        .append(" |\n");
+            }
+        }
+    }
+
+    /** {@code text} as a table cell, linked to {@code url} when it is an {@code https://} URL. */
+    private static String link(String text, String url) {
+        String label = cell(text).replace("[", "\\[").replace("]", "\\]");
+        return isLinkable(url) ? "[" + label + "](" + url + ")" : label;
+    }
+
+    /** {@code text} as a code span in a table cell, linked to {@code url} when it is an {@code https://} URL. */
+    private static String linkedCode(String text, String url) {
+        String label = escapePipes(code(text));
+        return isLinkable(url) ? "[" + label + "](" + url + ")" : label;
+    }
+
+    /** An {@code https://} URL with nothing that could end the link or the table cell early. */
+    private static boolean isLinkable(String url) {
+        return url != null && url.startsWith("https://") && url.chars().noneMatch(
+                c -> Character.isWhitespace(c) || "()<>[]|`\"'\\".indexOf(c) >= 0);
     }
 
     private static void appendClassified(StringBuilder md, Classification classification, Summary summary) {

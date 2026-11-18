@@ -13,6 +13,10 @@ import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.model.output.TokenUsage;
 import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
+import io.quarkus.prreview.classification.github.ci.model.CiCheck;
+import io.quarkus.prreview.classification.github.ci.model.CiChecks;
+import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
+import io.quarkus.prreview.classification.github.ci.model.FailureRow;
 import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
@@ -90,6 +94,7 @@ class RenderingTest {
                   behaviour 0.88  tests-changed 0.12  reach: no-test-changes 0.83  assert: no-test-changes 0.77
                 Summary (Claude): Runtime behaviour changes; no tests were changed.
                 Size: unavailable
+                CI: unavailable
                 Report: reports/review-57720.md
                 """, block);
     }
@@ -197,7 +202,8 @@ class RenderingTest {
         assertTrue(report.contains("**Claude (model|x):** Line one. # Heading | x |\n"), report);
         assertFalse(report.lines().anyMatch(l -> l.startsWith("## Injected") || l.startsWith("# Heading")), report);
         // Only the renderer's own sections are headings.
-        assertEquals(List.of("# PR #57720: Fix | pipes ## Injected | a | b |", "## Size (GitHub)", "## Classification", "### reach", "### assert",
+        assertEquals(List.of("# PR #57720: Fix | pipes ## Injected | a | b |", "## Size (GitHub)", "## CI checks (GitHub)",
+                "## Classification", "### reach", "### assert",
                 "## Summary", "## Changed files", "## Run"),
                 report.lines().filter(l -> l.startsWith("#")).toList());
         // Every table row has exactly its columns: a '|' from text is escaped.
@@ -245,12 +251,14 @@ class RenderingTest {
                 PR #57715 - test adequacy
                   not classified: jev: {"error": "max_tokens_exceeded"}
                 Size: unavailable
+                CI: unavailable
                 Report: reports/review-57720.md
                 """, TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)));
         assertEquals("""
                 PR #57715 - test adequacy
                   not classified: jev: {"error": "max_tokens_exceeded"}
                 Size: unavailable
+                CI: unavailable
                 Report: not written: FileSystemException: /x: Not a directory
                 """, TerminalRenderer.render(outcome, new ReportWriter.Failed(
                 "FileSystemException: /x: Not a directory")));
@@ -262,7 +270,7 @@ class RenderingTest {
                 probs("no-test-changes", 0.83)), CLAUDE), new ReportWriter.Failed("AccessDeniedException: x"));
 
         assertTrue(block.endsWith("Summary (Claude): Runtime behaviour changes; no tests were changed.\n"
-                + "Size: unavailable\n" + "Report: not written: AccessDeniedException: x\n"), block);
+                + "Size: unavailable\n" + "CI: unavailable\n" + "Report: not written: AccessDeniedException: x\n"), block);
     }
 
     @Test
@@ -278,6 +286,10 @@ class RenderingTest {
                 Link: https://github.com/quarkusio/quarkus/pull/57715 · State: OPEN
 
                 ## Size (GitHub)
+
+                unavailable
+
+                ## CI checks (GitHub)
 
                 unavailable
 
@@ -308,6 +320,10 @@ class RenderingTest {
 
                 unavailable
 
+                ## CI checks (GitHub)
+
+                unavailable
+
                 ## Not classified
 
                 Reason: gh: no pull requests found
@@ -331,6 +347,7 @@ class RenderingTest {
         assertTrue(TerminalRenderer.render(classified, new ReportWriter.Written(REPORT)).endsWith("""
                 Summary (Claude): Runtime behaviour changes; no tests were changed.
                 Size: 61 files changed, +933 \u2212197
+                CI: unavailable
                 Report: reports/review-57720.md
                 """));
         assertTrue(MarkdownReport.render(classified).contains("""
@@ -341,6 +358,10 @@ class RenderingTest {
                 - Changed files: 61
                 - Lines added: 933
                 - Lines deleted: 197
+
+                ## CI checks (GitHub)
+
+                unavailable
 
                 ## Classification
                 """), MarkdownReport.render(classified));
@@ -353,6 +374,7 @@ class RenderingTest {
                 PR #404 - test adequacy
                   not classified: gh: no pull requests found
                 Size: 61 files changed, +933 \u2212197
+                CI: unavailable
                 Report: reports/review-57720.md
                 """, TerminalRenderer.render(titleLess, new ReportWriter.Written(REPORT)));
         assertTrue(MarkdownReport.render(titleLess).startsWith("""
@@ -362,5 +384,75 @@ class RenderingTest {
 
                 - Changed files: 61
                 """), MarkdownReport.render(titleLess));
+    }
+
+    static PrOutcome withCi(SourceResult<CiChecks> ci) {
+        PrOutcome outcome = PrOutcome.notAnswered(57715, List.of("test-adequacy"), null, "gh: x", "x", null, null, null);
+        return new PrOutcome(outcome.number(), outcome.checks(), null, outcome.jev(), outcome.size(), ci);
+    }
+
+    static CiChecks ci(List<CiCheck> checks) {
+        return new CiChecks("ba9690af", checks, checks.stream().filter(c -> !List.of("SUCCESS", "SKIPPED", "NEUTRAL")
+                .contains(c.value())).map(c -> new FailedCheck(c, List.of(FailureRow.withoutTest("details unavailable"))))
+                .toList());
+    }
+
+    @Test
+    void ciCountLineCoversEveryCase() {
+        CiCheck ok = new CiCheck(CiCheck.Kind.CHECK_RUN, "a", "W", "SUCCESS", "");
+        CiCheck neutral = new CiCheck(CiCheck.Kind.CHECK_RUN, "Build scans", "", "NEUTRAL", "");
+        Map<SourceResult<CiChecks>, String[]> cases = new LinkedHashMap<>();
+        cases.put(SourceResult.unavailable("gh: x"), new String[] { "CI: unavailable\n", "unavailable\n" });
+        cases.put(new SourceResult.Available<>(ci(List.of())), new String[] { "CI: none\n", "none\n" });
+        cases.put(new SourceResult.Available<>(ci(List.of(ok, neutral))), new String[] {
+                "CI: all 2 passed, skipped or neutral\n", "All 2 passed, skipped or neutral.\n" });
+        cases.forEach((ci, expected) -> {
+            PrOutcome outcome = withCi(ci);
+            assertTrue(TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)).contains(
+                    "Size: unavailable\n" + expected[0] + "Report: "), expected[0]);
+            assertTrue(MarkdownReport.render(outcome).contains("## CI checks (GitHub)\n\n" + expected[1]
+                    + "\n## Not classified"), MarkdownReport.render(outcome));
+        });
+    }
+
+    @Test
+    void notPassedChecksAreATableWithLinksOnlyInMarkdown() {
+        List<CiCheck> checks = List.of(
+                new CiCheck(CiCheck.Kind.CHECK_RUN, "Initial JDK 17 Build", "Quarkus CI", "SUCCESS",
+                        "https://github.com/q/q/actions/runs/1/job/1"),
+                new CiCheck(CiCheck.Kind.CHECK_RUN, "JVM Tests - JDK 17", "Quarkus CI", "FAILURE",
+                        "https://github.com/q/q/actions/runs/1/job/2"),
+                new CiCheck(CiCheck.Kind.CHECK_RUN, "Native Tests", "Quarkus CI", "IN_PROGRESS",
+                        "javascript:alert(1)"),
+                new CiCheck(CiCheck.Kind.CHECK_RUN, "Odd [x] | y", "", "CANCELLED", "https://github.com/q/q/runs/3"),
+                new CiCheck(CiCheck.Kind.STATUS, "CI Merge Gate", "", "FAILURE", ""));
+        PrOutcome outcome = withCi(new SourceResult.Available<>(ci(checks)));
+
+        assertEquals("""
+                PR #57715 - test adequacy
+                  not classified: gh: x
+                Size: unavailable
+                CI: 4 of 5 not passed
+                  Check                            Result       Test  Flaky  What failed
+                  JVM Tests - JDK 17 (Quarkus CI)  FAILURE                   details unavailable
+                  Native Tests (Quarkus CI)        IN_PROGRESS               details unavailable
+                  Odd [x] | y                      CANCELLED                 details unavailable
+                  CI Merge Gate (status)           FAILURE                   details unavailable
+                Report: reports/review-57720.md
+                """, TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)));
+        assertTrue(MarkdownReport.render(outcome).contains("""
+                ## CI checks (GitHub)
+
+                4 of 5 not passed.
+
+                | Check | Result | Test | Flaky | What failed |
+                |---|---|---|---|---|
+                | [JVM Tests - JDK 17](https://github.com/q/q/actions/runs/1/job/2) (Quarkus CI) | `FAILURE` |  |  | details unavailable |
+                | Native Tests (Quarkus CI) | `IN_PROGRESS` |  |  | details unavailable |
+                | [Odd \\[x\\] \\| y](https://github.com/q/q/runs/3) | `CANCELLED` |  |  | details unavailable |
+                | CI Merge Gate (status) | `FAILURE` |  |  | details unavailable |
+
+                ## Not classified
+                """), MarkdownReport.render(outcome));
     }
 }

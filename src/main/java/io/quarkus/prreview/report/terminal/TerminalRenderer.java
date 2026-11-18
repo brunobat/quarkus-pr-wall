@@ -3,6 +3,9 @@ package io.quarkus.prreview.report.terminal;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.quarkus.prreview.classification.github.ci.model.CiChecks;
+import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
+import io.quarkus.prreview.classification.github.ci.model.FailureRow;
 import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
@@ -10,6 +13,7 @@ import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.report.AnswerFormat;
+import io.quarkus.prreview.report.CiFormat;
 import io.quarkus.prreview.report.ReportWriter;
 import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.triage.model.PrOutcome;
@@ -35,7 +39,7 @@ public final class TerminalRenderer {
 
     /** The whole block: the header, then each classification source's part in a fixed order, then the report line. */
     public static String render(PrOutcome outcome, ReportWriter.Result report) {
-        return header(outcome.number(), outcome.checks()) + jev(outcome.jev()) + size(outcome.size())
+        return header(outcome.number(), outcome.checks()) + jev(outcome.jev()) + size(outcome.size()) + ci(outcome.ci())
                 + switch (report) {
                     case ReportWriter.Written written -> "Report: " + written.path() + "\n";
                     case ReportWriter.Failed failed -> "Report: not written: " + oneLine(failed.error()) + "\n";
@@ -55,6 +59,45 @@ public final class TerminalRenderer {
                     + available.facts().additions() + " \u2212" + available.facts().deletions();
             case SourceResult.Unavailable<PrSize> unavailable -> "unavailable";
         } + "\n";
+    }
+
+    /** The count line, then a table of the checks that did not pass, without links. */
+    private static String ci(SourceResult<CiChecks> ci) {
+        return switch (ci) {
+            case SourceResult.Unavailable<CiChecks> unavailable -> "CI: " + CiFormat.UNAVAILABLE + "\n";
+            case SourceResult.Available<CiChecks> available -> "CI: " + CiFormat.count(available.facts()) + "\n"
+                    + table(available.facts());
+        };
+    }
+
+    private static String table(CiChecks ci) {
+        if (ci.notPassed().isEmpty()) {
+            return "";
+        }
+        List<String[]> rows = new ArrayList<>();
+        rows.add(CiFormat.COLUMNS);
+        for (FailedCheck failed : ci.notPassed()) {
+            for (FailureRow row : failed.rows()) {
+                rows.add(new String[] { oneLine(failed.check().name() + CiFormat.suffix(failed.check())),
+                        oneLine(failed.check().value()), row.test() == null ? "" : oneLine(row.test()),
+                        CiFormat.flaky(row), oneLine(row.whatFailed()) });
+            }
+        }
+        int[] widths = new int[CiFormat.COLUMNS.length - 1];
+        for (String[] row : rows) {
+            for (int i = 0; i < widths.length; i++) {
+                widths[i] = Math.max(widths[i], row[i].length());
+            }
+        }
+        StringBuilder table = new StringBuilder();
+        for (String[] row : rows) {
+            StringBuilder line = new StringBuilder("  ");
+            for (int i = 0; i < widths.length; i++) {
+                line.append(row[i]).append(" ".repeat(widths[i] - row[i].length() + 2));
+            }
+            table.append(line.append(row[widths.length]).toString().stripTrailing()).append('\n');
+        }
+        return table.toString();
     }
 
     private static String classified(Classification classification, Summary summary) {
