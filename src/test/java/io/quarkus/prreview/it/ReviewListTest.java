@@ -361,6 +361,28 @@ class ReviewListTest {
                 .contains("## Provenance (GitHub)\n\nAuthor: gina (community) · AI: none declared\n"));
     }
 
+    @Test
+    void aSecondCommitAuthorIsLookedUpOnceWithCachedCallsAndATrailerCoAuthorNever(QuarkusMainLauncher launcher)
+            throws IOException {
+        // 113: hank's PR with a commit by helper that names trailer-person as co-author; 115: ivy's PR with a commit
+        // by helper too.
+        long before = ghCalls();
+        LaunchResult result = launcher.launch("review", "113", "115", "--output-dir", out.toString());
+
+        assertEquals(0, result.exitCode(), result.getErrorOutput());
+        List<String> api = apiCalls(callsSince(before));
+        assertEquals(List.of("api repos/quarkusio/quarkus/pulls/113 --jq .author_association",
+                "api orgs/quarkusio/members/helper -i --cache 3600s",
+                "api repos/quarkusio/quarkus/commits?author=helper&sha=1405df66cbe219b0bf6355bc3d60361a8376b6b4"
+                        + "&per_page=1 --cache 3600s",
+                "api repos/quarkusio/quarkus/pulls/115 --jq .author_association"), api);
+        assertFalse(callsSince(before).stream().anyMatch(c -> c.contains("trailer-person")), api.toString());
+        assertTrue(block(result.getOutputStream(), 113).contains(
+                "Author: hank (community) · AI: none declared · Commits: helper (community)\n"), result.getOutput());
+        assertTrue(block(result.getOutputStream(), 115).contains(
+                "Author: ivy (first-time) · AI: none declared · Commits: helper (community)\n"), result.getOutput());
+    }
+
     /** The {@code gh api} calls, in order. */
     private static List<String> apiCalls(List<String> calls) {
         return calls.stream().filter(c -> c.startsWith("api ")).toList();
