@@ -23,7 +23,8 @@ README's top section lists the planned classifications and decisions.
 - `NoDecisionLogicTest` guards this. It is a heuristic, so don't work around it.
 - Operational limits (the submission size and the timeouts) are declared once, in `ReviewConfig` or
   `application.yml`, with their purpose stated. Never repeat them as literals in code.
-- Authorship provenance, when it lands, is reported and never read by a decision.
+- Authorship provenance (`classification/provenance`) is reported and never read by a decision, nor sent to `jev`
+  or Claude.
 
 ### Asking `jev`
 
@@ -44,8 +45,8 @@ Base package `io.quarkus.prreview`:
 
 - `clients/{gh,jev,claude}` holds the only code that talks to external systems. Business code goes through it,
   and clients return our model types.
-- `classification/{api,model,submission,checks/<name>}`, `pr/`, `triage/` and `report/{terminal,markdown,summary}`
-  hold the business logic.
+- `classification/{api,model,submission,checks/<name>,github,provenance}`, `pr/`, `triage/` and
+  `report/{terminal,markdown,summary}` hold the business logic.
 - Place a class by what it is: results go in `model`, contracts in `api`, and anything that only presents a
   classification goes under `report/`. Don't make packages flat.
 - Tests mirror the main packages. Test support (WireMock stubs, the fake `gh`) lives in `it/support`.

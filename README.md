@@ -33,7 +33,7 @@ labels, approves or merges.
 | Test weakening | triage | Does the PR remove, disable or loosen existing tests or assertions? | planned |
 | Missing docs | triage | Does a user-visible change (configuration, behaviour, API) come without documentation? | planned |
 | Domain | triage | Which specialist areas it touches: security, messaging, persistence, native image | planned |
-| Authorship provenance | triage | Not asked of `jev`: read from attested GitHub facts only. Is the account a bot, and is it allowlisted automation? Did the PR body or a commit declare AI assistance? Does a bot-opened PR carry a human's commits? Result: `bot`, `agent` (a bot account that is not allowlisted), `human+ai` (declared assistance) or `human`. `human` means nothing was declared, not that no AI was used: nothing inspects the code or the writing style. | planned |
+| Authorship provenance | triage | Not asked of `jev`: read from GitHub's facts and two curated lists only. Who is the PR author, and each other commit author, to the repository: `team` (a member of the org), `community` (work already in the repository), `first-time`, `bot`, or `other (<reason>)`? Is the PR `agent` (opened or committed by a bot that is not routine automation), `declared` (an AI-declaration marker in the PR body or a commit message), or `none declared`? `none declared` means nothing was declared, not that no AI was used: nothing inspects the code or the writing style. See [Facts from GitHub](#facts-from-github). | **done** |
 | Proportionality | triage | Does the PR make a reviewer read more than the change warrants? This is about volume, never about who or what wrote it. | planned |
 | Per-file test adequacy | deep analysis | For each changed file: is it exercised and asserted by the PR's tests? This points at the files that need tests. | planned |
 | Per-file breaking change | deep analysis | Which changed files carry the break, and which callers are affected | planned |
@@ -45,7 +45,7 @@ answers are sensible. Test adequacy took three iterations (one choice question, 
 project context and one option per reason) before its answers held up. Expect the same for the others.
 
 **Provenance is reported, never judged.** Authorship provenance, and facts such as whether the author is a
-committer, come from GitHub's own data rather than from a model's guess. They may appear in a report, but no
+member of the org, come from GitHub's own data rather than from a model's guess. They may appear in a report, but no
 decision may ever read them. In particular, declaring AI assistance must never count against a PR, and
 proportionality must never be read as a sign of AI use.
 
@@ -81,12 +81,13 @@ calibrated on collected data rather than guessed.
 A **read-only** command-line tool that classifies Quarkus pull requests for **test adequacy**. It is the triage
 stage: for each PR it asks TypeSafe `jev` four PR-level questions in a single submission and reports `jev`'s
 probabilities **exactly as returned**. Claude then writes a short prose summary of those answers. Next to
-`jev`'s answers it shows facts read from GitHub: the PR's size and the CI checks on its head commit, with the
-failing tests quarkus-bot reported (see [Facts from GitHub](#facts-from-github)).
+`jev`'s answers it shows facts read from GitHub: the PR's size, the CI checks on its head commit, with the
+failing tests quarkus-bot reported, and who wrote the PR (see [Facts from GitHub](#facts-from-github)).
 
 The tool **classifies; it does not decide.** There are no thresholds, no verdicts and no severities. No
 probability is compared against a number, and no answer changes the exit code. The tool never posts, approves,
-labels or merges anything: the only `gh` commands it runs are `gh pr view`, `gh pr diff` and `gh pr list`.
+labels or merges anything: the only `gh` commands it runs are `gh pr view`, `gh pr diff`, `gh pr list`, and
+`gh api` GET requests to a PR, to a user's commits and to org membership.
 
 ## Prerequisites
 
@@ -158,6 +159,7 @@ PR #57088 - test adequacy
 Summary (Claude): jev judged it very likely that this PR changes runtime behaviour and unlikely that it adds or modifies tests, so for both reach and assert it chose no-test-changes.
 Size: 3 files changed, +40 -12
 CI: all 67 passed, skipped or neutral
+Author: some-member (team) · AI: none declared
 Report: reports/review-57088.md
 
 PR #57715 - test adequacy
@@ -167,6 +169,7 @@ CI: 2 of 67 not passed
   Check                                        Result   Test                                                          Flaky  What failed
   JVM Tests - JDK 21 (Quarkus CI)              FAILURE  io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test  yes    Timeout waiting for response - java.lang.RuntimeException
   JVM Integration Tests - JDK 17 (Quarkus CI)  FAILURE                                                                        Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.4:test (default-test) on project quarkus-inte…
+Author: newcomer (first-time) · AI: declared (commit 0123abc: "co-authored-by: claude") · Commits: some-member (team)
 Report: reports/review-57715.md
 ```
 
@@ -177,8 +180,9 @@ Report: reports/review-57715.md
 
 **The report** (`review-<pr>.md`) has, in order:
 1. the title, link and state;
-2. **Size (GitHub)** and **CI checks (GitHub)**: the same facts as the terminal, with each check linked to its run,
-   each failing test linked to its Develocity history, and the job's build scan when there is one;
+2. **Size (GitHub)**, **CI checks (GitHub)** and **Provenance (GitHub)**: the same facts as the terminal, with each
+   check linked to its run, each failing test linked to its Develocity history, the job's build scan when there is
+   one, and the time GitHub was read for who wrote the PR;
 3. **Classification**: each yes/no question with its text and probability, then each choice question with
    `jev`'s chosen option and every option's description and probability, all **unrounded**;
 4. **Summary**: the prose and where it came from, `Claude (<model>)` or `fallback template`;
@@ -193,7 +197,7 @@ line, is escaped in tables, and cannot open HTML.
 
 ## Facts from GitHub
 
-Two facts are read from GitHub for every PR, whatever `jev` answered. They are shown **as GitHub returned them**:
+Three facts are read from GitHub for every PR, whatever `jev` answered. They are shown **as GitHub returned them**:
 nothing is concluded from them, and they are **never sent to `jev` or Claude**.
 
 - **Size:** changed files, additions and deletions, as GitHub counts them. It is read even when GitHub refuses
@@ -216,10 +220,48 @@ nothing is concluded from them, and they are **never sent to `jev` or Claude**.
   gets one row saying `details unavailable`, or `no source for failure details` on a PR quarkus-bot never
   commented on. Flaky tests in jobs that passed are not shown.
 
+- **Provenance:** who wrote the PR, on one line: `Author: <login> (<who>) · AI: <label>`, followed by
+  `· Commits: <login> (<who>), ...` when commits were authored by someone else.
+
+  | Who | When |
+  |---|---|
+  | `team` | the PR author's association is `MEMBER` or `OWNER`; a commit author is a member of the repository's org |
+  | `community` | not a member, with work already in the repository (`CONTRIBUTOR`, or a commit reachable from the PR's base) |
+  | `first-time` | not a member, with nothing in the repository yet (`FIRST_TIME_CONTRIBUTOR`, or no such commit) |
+  | `bot` | a bot account (for commit authors: a login like `app/...` or `...[bot]`) |
+  | `other (<reason>)` | a deleted account, `NONE`, a placeholder account, a lookup that failed (with its error), or a commit author past `PROVENANCE_MAX_PEOPLE` |
+
+  An outside collaborator (`COLLABORATOR`) is never `team`; it is `community` or `first-time` by its commits.
+  Only each commit's **git author** is labelled: co-authors named in `Co-authored-by:` trailers come from text the
+  PR controls, so they are never labelled, even when GitHub matched them to an account.
+
+  | AI | When |
+  |---|---|
+  | `agent` | the PR author or a commit author is a bot that is not in the automation-accounts list |
+  | `declared` | a marker from the AI-signals list is in the PR body or a commit message (case-insensitive, whitespace runs collapsed); shows where and which |
+  | `none declared` | otherwise: nothing was declared, which does not mean no AI was used |
+
+  These labels are GitHub's view **when the run read it** (the report shows the time): an author's association
+  changes as their PRs are merged. GitHub shows **private** org members as members only to a token that belongs to
+  an org member; with another token a private member reads `community` or `first-time`. A PR author costs one
+  `gh api` call, made while `jev` is asked; each other commit author up to two, cached by `gh` for
+  `GH_CACHE_TTL` and made once per run.
+
+  The two lists are plain text files kept **outside the repository**, one entry per line, `#` comments and blank
+  lines ignored, case-insensitive. By default they are read from `resource-files/` in the current directory, which
+  is git-ignored:
+
+  ```
+  resource-files/ai-provenance-signals.txt   # markers, e.g. "co-authored-by: claude", "generated with claude code"
+  resource-files/automation-accounts.txt     # routine automation, e.g. "dependabot", "quarkus-bot"
+  ```
+
+  A missing list logs one warning and counts as empty: no PR is then `declared`, and every bot is an `agent`.
+
 `unavailable` means GitHub could not be read for that fact (the reason is logged to stderr); `none` means there
 was nothing to show. To spare time and API calls, the facts of all PRs in a run are read up front with
 `gh pr list`, a few dozen PRs per call; a PR missing from those results, a failed call, or a list of exactly 100
-checks or comments (where gh cuts lists off) is read again on its own with `gh pr view`.
+checks, comments or commits (where gh cuts lists off) is read again on its own with `gh pr view`.
 
 ## Per-PR errors and exit codes
 
@@ -255,6 +297,10 @@ Every value is set by an environment variable and declared once, in `ReviewConfi
 | `GH_REPO` | `owner/repo` passed to every `gh` call | `quarkusio/quarkus` |
 | `GH_BINARY` | the `gh` executable | `gh` |
 | `GH_TIMEOUT` | how long one `gh` call may run before that PR is noted as not classified | `60s` |
+| `GH_CACHE_TTL` | how long `gh api --cache` keeps a per-person answer (org membership, commits before a base); a PR's own author association is never cached | `1h` |
+| `PROVENANCE_AI_SIGNALS` | the AI-declaration markers: a file path, or `classpath:<resource>`; a missing file warns and counts as empty | `resource-files/ai-provenance-signals.txt` |
+| `PROVENANCE_AUTOMATION_ACCOUNTS` | the bot logins that are routine automation, not coding agents: a file path, or `classpath:<resource>`; a missing file warns and counts as empty | `resource-files/automation-accounts.txt` |
+| `PROVENANCE_MAX_PEOPLE` | the most commit authors looked up on GitHub for one PR, besides its author; the rest read `other (lookup limit)` | `10` |
 | `JEV_MAX_SUBMISSION_CHARS` | the largest `jev` submission sent, in characters of the request body; a larger one is noted as not classified before sending, rather than being rejected by `jev` or sent partially | `60000` |
 | `JEV_PROJECT_CONTEXT` | the project context sent at the start of every `jev` submission: a file path, or `classpath:<resource>` for a bundled one; it describes the repository's conventions, never an answer | `classpath:project-context/quarkusio-quarkus.txt` |
 | `TYPESAFE_API_KEY` | `jev` API key | none (required) |
@@ -287,7 +333,8 @@ Layout (base package `io.quarkus.prreview`):
 - `config/`: `ReviewConfig`, `ApiKey` and `BlankEnvironmentIsUnset`;
 - `clients/{gh,jev,claude}/`: the only code that talks to `gh`, `jev` and Claude;
 - `pr/`: the PR model and diff parsing;
-- `classification/`: the check contract, the single `jev` submission and the test-adequacy check;
+- `classification/`: the check contract, the single `jev` submission and the test-adequacy check; `github/`, the
+  facts read from GitHub (size, CI, and the bulk read); `provenance/`, who wrote a PR;
 - `triage/`: one PR from fetch to outcome;
 - `report/`: terminal, markdown and summary rendering.
 
