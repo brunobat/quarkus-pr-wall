@@ -466,7 +466,8 @@ class RenderingTest {
     @Test
     void failingTestsShowTheirNameFlakyAndErrorWithLinksOnlyInMarkdown() {
         PrOutcome outcome = withRows(List.of(
-                new FailureRow("io.q.MaxFrameSizeTest.testMaxFrameSize", false, "java.util.concurrent.CompletionException",
+                new FailureRow("io.q.MaxFrameSizeTest.testMaxFrameSize", false,
+                        "java.util.concurrent.CompletionException",
                         "https://develocity.quarkus.io/scans/tests?tests.test=testMaxFrameSize",
                         "https://develocity.quarkus.io/s/hzvs2"),
                 new FailureRow("io.q.GracefulShutdownFilterTest.test", true,

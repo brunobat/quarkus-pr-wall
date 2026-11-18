@@ -85,12 +85,12 @@ class GhClientTest {
         GhChecks checks = client.checks(101);
 
         assertEquals("ba9690af0e8bdc5d1c0f7a6c2b6b1e7d3c9a4f21", checks.headRefOid());
-        assertEquals(8, checks.rollup().size());
+        assertEquals(9, checks.rollup().size());
         GhCheck failed = checks.rollup().get(1);
         assertEquals(new GhCheck(GhCheck.CHECK_RUN, "JVM Integration Tests - JDK 17", "Quarkus CI", "COMPLETED",
                 "FAILURE", "https://github.com/quarkusio/quarkus/actions/runs/39914638446/job/120285311801", null, null,
                 null), failed);
-        GhCheck running = checks.rollup().get(3);
+        GhCheck running = checks.rollup().get(4);
         assertEquals("IN_PROGRESS", running.status());
         assertEquals("", running.conclusion());
         assertEquals(new GhCheck(GhCheck.STATUS_CONTEXT, null, null, null, null, null, "CI Merge Gate", "FAILURE", ""),

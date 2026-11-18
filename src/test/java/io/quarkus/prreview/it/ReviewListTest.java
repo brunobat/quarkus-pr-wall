@@ -78,12 +78,12 @@ class ReviewListTest {
         assertTrue(Files.readString(out.resolve("review-104.md")).contains("## Size (GitHub)\n\nunavailable\n"));
         // Checks come from their own gh call too. 101's failed checks don't change its classification or the
         // exit code; 102 has no answer for its checks.
-        assertTrue(block(stdout, 101).contains("CI: 4 of 8 not passed\n"), result.getOutput());
+        assertTrue(block(stdout, 101).contains("CI: 5 of 9 not passed\n"), result.getOutput());
         assertTrue(block(stdout, 101).contains("  CI Merge Gate (status)  "), result.getOutput());
         assertTrue(block(stdout, 102).contains("CI: unavailable\n"), result.getOutput());
         assertTrue(block(stdout, 104).contains("CI: all 3 passed, skipped or neutral\n"), result.getOutput());
         assertTrue(Files.readString(out.resolve("review-101.md"))
-                .contains("## CI checks (GitHub)\n\n4 of 8 not passed.\n"));
+                .contains("## CI checks (GitHub)\n\n5 of 9 not passed.\n"));
         // A blank line between blocks.
         int second = stdout.indexOf("PR #102 - test adequacy");
         assertEquals("", stdout.get(second - 1), result.getOutput());
@@ -231,6 +231,32 @@ class ReviewListTest {
         assertTrue(block(result.getOutputStream(), 103).contains("CI: none\n"), result.getOutput());
         assertTrue(block(result.getOutputStream(), 406).contains("CI: unavailable\n"), result.getOutput());
         assertTrue(Files.readString(out.resolve("review-103.md")).contains("## CI checks (GitHub)\n\nnone\n"));
+    }
+
+    @Test
+    void failureDetailsComeOnlyFromTheHeadCommitsBotComment(QuarkusMainLauncher launcher) throws IOException {
+        LaunchResult result = launcher.launch("review", "101", "106", "107", "108", "--output-dir", out.toString());
+        List<String> stdout = result.getOutputStream();
+
+        // 101: quarkus-bot's comment for the head commit names the failing tests, one flaky.
+        String pr101 = block(stdout, 101);
+        assertTrue(pr101.matches("(?s).*JVM Tests - JDK 21 \\(Quarkus CI\\) +FAILURE +io\\.quarkus\\.vertx\\.http\\.filters"
+                + "\\.GracefulShutdownFilterTest\\.test +yes +Timeout waiting for response - java\\.lang\\.RuntimeException\n.*"),
+                pr101);
+        assertTrue(pr101.matches("(?s).*JVM Integration Tests - JDK 17 \\(Quarkus CI\\) +FAILURE +Failed to execute goal .*"),
+                pr101);
+        assertFalse(pr101.contains("CompressionEnabledTestCase"), "flaky in a job that passed: " + pr101);
+        String report101 = Files.readString(out.resolve("review-101.md"));
+        assertTrue(report101.contains("[`io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test`]("
+                + "https://develocity.quarkus.io/scans/tests?"), report101);
+        assertTrue(report101.contains(" · [scan](https://develocity.quarkus.io/s/hzvs2pygcxpvk) |"), report101);
+
+        // 106: only a comment for an earlier commit; 107: quarkus-bot never commented; 108: comments unreadable.
+        assertTrue(block(stdout, 106).contains("details unavailable"), result.getOutput());
+        assertFalse(block(stdout, 106).contains("MaxFrameSizeTest"), result.getOutput());
+        assertTrue(block(stdout, 107).contains("no source for failure details"), result.getOutput());
+        assertTrue(block(stdout, 108).contains("CI: 1 of 2 not passed\n"), result.getOutput());
+        assertTrue(block(stdout, 108).contains("details unavailable"), result.getOutput());
     }
 
     /** The lines of one PR's block, from its header to the next blank line. */
