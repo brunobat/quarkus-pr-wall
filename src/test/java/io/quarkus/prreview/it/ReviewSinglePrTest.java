@@ -75,6 +75,8 @@ class ReviewSinglePrTest {
         LaunchResult bare = launcher.launch("review", "112", "--output-dir", out.toString());
         assertTrue(bare.getOutput().contains("Size: unavailable"), bare.getOutput());
         assertTrue(bare.getOutput().contains("CI: unavailable"), bare.getOutput());
+        assertTrue(bare.getOutput().contains("Author: unavailable"), bare.getOutput());
+        assertTrue(rich.getOutput().contains("Author: alice (team) · AI: none declared"), rich.getOutput());
 
         assertEquals(1, jevRich.size());
         assertEquals(1, claudeRich.size());
@@ -145,6 +147,12 @@ class ReviewSinglePrTest {
             assertTrue(Files.readString(report).contains("## CI checks (GitHub)\n\n5 of 9 not passed.\n"));
             assertTrue(result.getOutputStream().contains("Size: 1244 files changed, +17 -19751"), result.getOutput());
             assertTrue(result.getOutputStream().contains("CI: unavailable"), result.getOutput());
+            assertTrue(result.getOutputStream().contains("Author: alice (team) · AI: none declared"),
+                    result.getOutput());
+            assertTrue(Files.readString(report).contains("## Provenance (GitHub)\n\nAuthor: alice (team)"));
+            // GitHub refused 406's diff; who wrote it is still shown.
+            assertTrue(result.getOutputStream().contains("Author: frank (team) · AI: none declared"),
+                    result.getOutput());
             assertGitHubSections(report406);
 
             // The same PR over jev's submission limit still shows GitHub's facts.
@@ -172,6 +180,7 @@ class ReviewSinglePrTest {
         String markdown = Files.readString(report);
         assertTrue(markdown.contains("\n## Size (GitHub)\n"), markdown);
         assertTrue(markdown.contains("\n## CI checks (GitHub)\n"), markdown);
+        assertTrue(markdown.contains("\n## Provenance (GitHub)\n\nAuthor: "), markdown);
     }
 
     private static void restore(Path file, byte[] previous) throws IOException {

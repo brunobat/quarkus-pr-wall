@@ -318,6 +318,54 @@ class ReviewListTest {
         assertFalse(Files.exists(out.resolve("review-101.md")));
     }
 
+    @Test
+    void everyPrShowsWhoWroteItWithOneLookupPerPr(QuarkusMainLauncher launcher) throws IOException {
+        long before = ghCalls();
+        LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+
+        assertEquals(0, result.exitCode(), result.getErrorOutput());
+        assertEquals(List.of("api repos/quarkusio/quarkus/pulls/101 --jq .author_association"),
+                apiCalls(callsSince(before)));
+        assertTrue(block(result.getOutputStream(), 101).contains("Author: alice (team) · AI: none declared\n"),
+                result.getOutput());
+        String report = Files.readString(out.resolve("review-101.md"));
+        assertTrue(report.contains("## Provenance (GitHub)\n\nAuthor: alice (team) · AI: none declared\n\nRead at "),
+                report);
+    }
+
+    @Test
+    void aFailedLookupOrAnUnreadableAuthorshipNeverStopsAPrBeingClassified(QuarkusMainLauncher launcher)
+            throws IOException {
+        // 104's association lookup fails; 112 has no authorship at all.
+        LaunchResult result = launcher.launch("review", "104", "112", "--output-dir", out.toString());
+
+        assertEquals(0, result.exitCode(), result.getErrorOutput());
+        String block104 = block(result.getOutputStream(), 104);
+        assertTrue(block104.contains("  behaviour "), block104);
+        assertTrue(block104.contains("Author: carol (other: association lookup failed: gh: Server Error (HTTP 502))"
+                + " · AI: none declared\n"), block104);
+        String block112 = block(result.getOutputStream(), 112);
+        assertTrue(block112.contains("  behaviour "), block112);
+        assertTrue(block112.contains("Author: unavailable\n"), block112);
+        assertTrue(Files.readString(out.resolve("review-112.md")).contains("## Provenance (GitHub)\n\nunavailable\n"));
+    }
+
+    @Test
+    void aPrThatCouldNotBeFetchedStillShowsWhoWroteIt(QuarkusMainLauncher launcher) throws IOException {
+        LaunchResult result = launcher.launch("review", "114", "--output-dir", out.toString());
+
+        String block = block(result.getOutputStream(), 114);
+        assertTrue(block.contains("  not classified: gh: GraphQL"), block);
+        assertTrue(block.contains("Author: gina (community) · AI: none declared\n"), block);
+        assertTrue(Files.readString(out.resolve("review-114.md"))
+                .contains("## Provenance (GitHub)\n\nAuthor: gina (community) · AI: none declared\n"));
+    }
+
+    /** The {@code gh api} calls, in order. */
+    private static List<String> apiCalls(List<String> calls) {
+        return calls.stream().filter(c -> c.startsWith("api ")).toList();
+    }
+
     /** A block up to and including its report line, without any log line printed after it. */
     private static String throughReport(String block) {
         return block.substring(0, block.indexOf('\n', block.indexOf("Report: ")) + 1);

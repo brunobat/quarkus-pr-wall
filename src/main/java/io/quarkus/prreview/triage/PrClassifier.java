@@ -13,7 +13,7 @@ import io.quarkus.prreview.classification.api.ClassificationCheck;
 import io.quarkus.prreview.classification.github.ci.CiSource;
 import io.quarkus.prreview.classification.github.size.SizeSource;
 import io.quarkus.prreview.classification.model.Classification;
-import io.quarkus.prreview.classification.source.model.SourceResult;
+import io.quarkus.prreview.classification.provenance.ProvenanceSource;
 import io.quarkus.prreview.classification.submission.JevSubmission;
 import io.quarkus.prreview.classification.submission.ProjectContextLoader;
 import io.quarkus.prreview.clients.gh.GhClient;
@@ -46,12 +46,14 @@ public class PrClassifier {
     private final ProjectContextLoader projectContext;
     private final SizeSource size;
     private final CiSource ci;
+    private final ProvenanceSource provenance;
 
     public PrClassifier(GhClient gh, JevClient jev, SummaryService summaries, @All List<ClassificationCheck> checks,
-            ProjectContextLoader projectContext, SizeSource size, CiSource ci) {
+            ProjectContextLoader projectContext, SizeSource size, CiSource ci, ProvenanceSource provenance) {
         this.gh = gh;
         this.size = size;
         this.ci = ci;
+        this.provenance = provenance;
         this.jev = jev;
         this.summaries = summaries;
         this.projectContext = projectContext;
@@ -63,7 +65,7 @@ public class PrClassifier {
     public PrOutcome classify(int number) {
         PrOutcome jevOnly = jev(number);
         return new PrOutcome(number, checkIds(), jevOnly.pullRequest(), jevOnly.jev(), size.gather(number),
-                ci.gather(number), SourceResult.unavailable(PrOutcome.NOT_GATHERED));
+                ci.gather(number), provenance.gather(number));
     }
 
     private PrOutcome jev(int number) {
