@@ -15,12 +15,14 @@ import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PullRequest;
 import io.quarkus.prreview.report.AnswerFormat;
 import io.quarkus.prreview.report.CiFormat;
 import io.quarkus.prreview.report.PlainText;
+import io.quarkus.prreview.report.ProvenanceFormat;
 import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.triage.model.PrOutcome;
 
@@ -49,6 +51,7 @@ public final class MarkdownReport {
         appendTitle(md, outcome.number(), outcome.pullRequest());
         appendSize(md, outcome.size());
         appendCi(md, outcome.ci());
+        appendProvenance(md, outcome.provenance());
         switch (outcome.jev()) {
             case JevResult.Answered answered -> appendClassified(md, answered.classification(), answered.summary());
             case JevResult.NotAnswered notAnswered -> appendNotClassified(md, notAnswered);
@@ -79,6 +82,20 @@ public final class MarkdownReport {
         switch (ci) {
             case SourceResult.Unavailable<CiChecks> unavailable -> md.append(CiFormat.UNAVAILABLE).append("\n");
             case SourceResult.Available<CiChecks> available -> appendCiTable(md, available.facts());
+        }
+        md.append("\n");
+    }
+
+    /** The author line and when GitHub was read; every value from GitHub is escaped as plain text. */
+    private static void appendProvenance(StringBuilder md, SourceResult<Provenance> provenance) {
+        md.append("## Provenance (GitHub)\n\n");
+        switch (provenance) {
+            case SourceResult.Unavailable<Provenance> unavailable -> md.append(ProvenanceFormat.UNAVAILABLE)
+                    .append("\n");
+            case SourceResult.Available<Provenance> available -> md
+                    .append(ProvenanceFormat.line(available.facts(), MarkdownReport::text)).append("\n\n")
+                    .append("Read at ").append(ProvenanceFormat.readAt(available.facts()))
+                    .append("; GitHub's associations and memberships are as of then.\n");
         }
         md.append("\n");
     }

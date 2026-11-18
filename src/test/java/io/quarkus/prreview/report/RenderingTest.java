@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,10 @@ import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.provenance.model.AiLabel;
+import io.quarkus.prreview.classification.provenance.model.Person;
+import io.quarkus.prreview.classification.provenance.model.Provenance;
+import io.quarkus.prreview.classification.provenance.model.Who;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PrContext;
@@ -95,6 +100,7 @@ class RenderingTest {
                 Summary (Claude): Runtime behaviour changes; no tests were changed.
                 Size: unavailable
                 CI: unavailable
+                Author: unavailable
                 Report: reports/review-57720.md
                 """, block);
     }
@@ -203,6 +209,7 @@ class RenderingTest {
         assertFalse(report.lines().anyMatch(l -> l.startsWith("## Injected") || l.startsWith("# Heading")), report);
         // Only the renderer's own sections are headings.
         assertEquals(List.of("# PR #57720: Fix | pipes ## Injected | a | b |", "## Size (GitHub)", "## CI checks (GitHub)",
+                "## Provenance (GitHub)",
                 "## Classification", "### reach", "### assert",
                 "## Summary", "## Changed files", "## Run"),
                 report.lines().filter(l -> l.startsWith("#")).toList());
@@ -252,6 +259,7 @@ class RenderingTest {
                   not classified: jev: {"error": "max_tokens_exceeded"}
                 Size: unavailable
                 CI: unavailable
+                Author: unavailable
                 Report: reports/review-57720.md
                 """, TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)));
         assertEquals("""
@@ -259,6 +267,7 @@ class RenderingTest {
                   not classified: jev: {"error": "max_tokens_exceeded"}
                 Size: unavailable
                 CI: unavailable
+                Author: unavailable
                 Report: not written: FileSystemException: /x: Not a directory
                 """, TerminalRenderer.render(outcome, new ReportWriter.Failed(
                 "FileSystemException: /x: Not a directory")));
@@ -270,7 +279,7 @@ class RenderingTest {
                 probs("no-test-changes", 0.83)), CLAUDE), new ReportWriter.Failed("AccessDeniedException: x"));
 
         assertTrue(block.endsWith("Summary (Claude): Runtime behaviour changes; no tests were changed.\n"
-                + "Size: unavailable\n" + "CI: unavailable\n" + "Report: not written: AccessDeniedException: x\n"), block);
+                + "Size: unavailable\n" + "CI: unavailable\n" + "Author: unavailable\n" + "Report: not written: AccessDeniedException: x\n"), block);
     }
 
     @Test
@@ -290,6 +299,10 @@ class RenderingTest {
                 unavailable
 
                 ## CI checks (GitHub)
+
+                unavailable
+
+                ## Provenance (GitHub)
 
                 unavailable
 
@@ -324,6 +337,10 @@ class RenderingTest {
 
                 unavailable
 
+                ## Provenance (GitHub)
+
+                unavailable
+
                 ## Not classified
 
                 Reason: gh: no pull requests found
@@ -342,12 +359,13 @@ class RenderingTest {
         PrOutcome classified = PrOutcome.answered(sample(0.88, "no-test-changes", probs("no-test-changes", 0.83)),
                 CLAUDE);
         classified = new PrOutcome(classified.number(), classified.checks(), classified.pullRequest(), classified.jev(),
-                new SourceResult.Available<>(size), classified.ci());
+                new SourceResult.Available<>(size), classified.ci(), classified.provenance());
 
         assertTrue(TerminalRenderer.render(classified, new ReportWriter.Written(REPORT)).endsWith("""
                 Summary (Claude): Runtime behaviour changes; no tests were changed.
                 Size: 61 files changed, +933 -197
                 CI: unavailable
+                Author: unavailable
                 Report: reports/review-57720.md
                 """));
         assertTrue(MarkdownReport.render(classified).contains("""
@@ -363,18 +381,23 @@ class RenderingTest {
 
                 unavailable
 
+                ## Provenance (GitHub)
+
+                unavailable
+
                 ## Classification
                 """), MarkdownReport.render(classified));
 
         PrOutcome titleLess = PrOutcome.notAnswered(404, List.of("test-adequacy"), null, "gh: no pull requests found",
                 "no pull requests found", null, null, null);
         titleLess = new PrOutcome(404, titleLess.checks(), null, titleLess.jev(), new SourceResult.Available<>(size),
-                titleLess.ci());
+                titleLess.ci(), titleLess.provenance());
         assertEquals("""
                 PR #404 - test adequacy
                   not classified: gh: no pull requests found
                 Size: 61 files changed, +933 -197
                 CI: unavailable
+                Author: unavailable
                 Report: reports/review-57720.md
                 """, TerminalRenderer.render(titleLess, new ReportWriter.Written(REPORT)));
         assertTrue(MarkdownReport.render(titleLess).startsWith("""
@@ -386,9 +409,88 @@ class RenderingTest {
                 """), MarkdownReport.render(titleLess));
     }
 
+    static final Instant READ_AT = Instant.parse("2026-11-18T10:15:00.123456Z");
+
+    static PrOutcome withProvenance(PrOutcome outcome, Provenance provenance) {
+        return new PrOutcome(outcome.number(), outcome.checks(), outcome.pullRequest(), outcome.jev(), outcome.size(),
+                outcome.ci(), new SourceResult.Available<>(provenance));
+    }
+
+    @Test
+    void provenanceIsOneAuthorLineWithTheReadTime() {
+        Provenance provenance = new Provenance(Person.of("app/copilot-swe-agent", Who.BOT),
+                List.of(Person.of("alice", Who.COMMUNITY), Person.other("bob", "lookup limit")),
+                new AiLabel(AiLabel.Kind.AGENT, "app/copilot-swe-agent"), READ_AT);
+        PrOutcome outcome = withProvenance(PrOutcome.answered(sample(0.88, "no-test-changes",
+                probs("no-test-changes", 0.83)), CLAUDE), provenance);
+
+        assertTrue(TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)).endsWith("""
+                CI: unavailable
+                Author: app/copilot-swe-agent (bot) · AI: agent (app/copilot-swe-agent) · Commits: alice (community), \
+                bob (other: lookup limit)
+                Report: reports/review-57720.md
+                """), TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)));
+        assertTrue(MarkdownReport.render(outcome).contains("""
+                ## CI checks (GitHub)
+
+                unavailable
+
+                ## Provenance (GitHub)
+
+                Author: app/copilot-swe-agent (bot) · AI: agent (app/copilot-swe-agent) · Commits: alice (community), \
+                bob (other: lookup limit)
+
+                Read at 2026-11-18T10:15:00Z; GitHub's associations and memberships are as of then.
+
+                ## Classification
+                """), MarkdownReport.render(outcome));
+    }
+
+    @Test
+    void aPrWithOnlyItsAuthorHasNoCommitsPart() {
+        Provenance provenance = new Provenance(Person.of("brunobat", Who.TEAM), List.of(), AiLabel.NONE, READ_AT);
+        PrOutcome outcome = withProvenance(notAnswered(null, "gh: x", "x"), provenance);
+
+        assertTrue(TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT))
+                .contains("\nAuthor: brunobat (team) · AI: none declared\nReport: "));
+        assertTrue(MarkdownReport.render(outcome).contains("""
+                ## Provenance (GitHub)
+
+                Author: brunobat (team) · AI: none declared
+
+                Read at 2026-11-18T10:15:00Z; GitHub's associations and memberships are as of then.
+
+                ## Not classified
+                """), MarkdownReport.render(outcome));
+    }
+
+    @Test
+    void textInTheAuthorLineCannotChangeEitherOutput() {
+        String hostile = "x|y <!-- `z`\n## Injected \u001b[2J[l](https://e.vil) www.e.vil @u";
+        Provenance provenance = new Provenance(Person.other(hostile, hostile), List.of(Person.of(hostile, Who.TEAM)),
+                new AiLabel(AiLabel.Kind.DECLARED, hostile), READ_AT);
+        PrOutcome outcome = withProvenance(notAnswered(null, "gh: x", "x"), provenance);
+
+        String terminal = TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT));
+        String line = terminal.lines().filter(l -> l.startsWith("Author: ")).findFirst().orElseThrow();
+        assertFalse(terminal.contains("\u001b"), terminal);
+        assertFalse(terminal.contains("\n## Injected"), terminal);
+        assertTrue(line.contains("x|y <!-- `z` ## Injected [2J[l](https://e.vil)"), line);
+
+        String md = MarkdownReport.render(outcome);
+        String mdLine = md.lines().filter(l -> l.startsWith("Author: ")).findFirst().orElseThrow();
+        assertFalse(md.contains("\n## Injected"), md);
+        assertFalse(mdLine.matches(".*[^\\\\]<.*"), mdLine);
+        assertFalse(md.contains("\u001b"), md);
+        assertFalse(mdLine.contains("](https://"), mdLine);
+        assertFalse(mdLine.contains("www.e"), mdLine);
+        assertTrue(mdLine.startsWith("Author: x\\|y \\<!-- \\`z\\` ## Injected"), mdLine);
+    }
+
     static PrOutcome withCi(SourceResult<CiChecks> ci) {
         PrOutcome outcome = PrOutcome.notAnswered(57715, List.of("test-adequacy"), null, "gh: x", "x", null, null, null);
-        return new PrOutcome(outcome.number(), outcome.checks(), null, outcome.jev(), outcome.size(), ci);
+        return new PrOutcome(outcome.number(), outcome.checks(), null, outcome.jev(), outcome.size(), ci,
+                outcome.provenance());
     }
 
     static CiChecks ci(List<CiCheck> checks) {
@@ -409,9 +511,9 @@ class RenderingTest {
         cases.forEach((ci, expected) -> {
             PrOutcome outcome = withCi(ci);
             assertTrue(TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)).contains(
-                    "Size: unavailable\n" + expected[0] + "Report: "), expected[0]);
+                    "Size: unavailable\n" + expected[0] + "Author: unavailable\nReport: "), expected[0]);
             assertTrue(MarkdownReport.render(outcome).contains("## CI checks (GitHub)\n\n" + expected[1]
-                    + "\n## Not classified"), MarkdownReport.render(outcome));
+                    + "\n## Provenance (GitHub)"), MarkdownReport.render(outcome));
         });
     }
 
@@ -438,6 +540,7 @@ class RenderingTest {
                   Native Tests (Quarkus CI)        IN_PROGRESS               details unavailable
                   Odd [x] | y                      CANCELLED                 details unavailable
                   CI Merge Gate (status)           FAILURE                   details unavailable
+                Author: unavailable
                 Report: reports/review-57720.md
                 """, TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)));
         assertTrue(MarkdownReport.render(outcome).contains("""
@@ -452,7 +555,7 @@ class RenderingTest {
                 | [Odd \\[x\\] \\| y](https://github.com/q/q/runs/3) | `CANCELLED` |  |  | details unavailable |
                 | CI Merge Gate (status) | `FAILURE` |  |  | details unavailable |
 
-                ## Not classified
+                ## Provenance (GitHub)
                 """), MarkdownReport.render(outcome));
     }
 
@@ -485,6 +588,7 @@ class RenderingTest {
                 Timeout waiting for response - java.lang.RuntimeException
                   JVM Tests - JDK 21 (Quarkus CI)  FAILURE                                                 \
                 Failed to execute goal surefire on project x: See [date].dump
+                Author: unavailable
                 Report:"""), TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)));
         String md = MarkdownReport.render(outcome);
         assertTrue(md.contains("""

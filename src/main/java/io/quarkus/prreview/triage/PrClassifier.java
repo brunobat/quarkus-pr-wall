@@ -13,6 +13,7 @@ import io.quarkus.prreview.classification.api.ClassificationCheck;
 import io.quarkus.prreview.classification.github.ci.CiSource;
 import io.quarkus.prreview.classification.github.size.SizeSource;
 import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.classification.submission.JevSubmission;
 import io.quarkus.prreview.classification.submission.ProjectContextLoader;
 import io.quarkus.prreview.clients.gh.GhClient;
@@ -62,7 +63,7 @@ public class PrClassifier {
     public PrOutcome classify(int number) {
         PrOutcome jevOnly = jev(number);
         return new PrOutcome(number, checkIds(), jevOnly.pullRequest(), jevOnly.jev(), size.gather(number),
-                ci.gather(number));
+                ci.gather(number), SourceResult.unavailable(PrOutcome.NOT_GATHERED));
     }
 
     private PrOutcome jev(int number) {

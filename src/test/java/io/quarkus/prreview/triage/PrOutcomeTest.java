@@ -137,6 +137,7 @@ class PrOutcomeTest {
             assertNotNull(outcome.jev(), "jev for #" + pr);
             assertNotNull(outcome.size(), "size for #" + pr);
             assertNotNull(outcome.ci(), "ci for #" + pr);
+            assertNotNull(outcome.provenance(), "provenance for #" + pr);
         }
     }
 }

@@ -11,10 +11,12 @@ import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.report.AnswerFormat;
 import io.quarkus.prreview.report.CiFormat;
 import io.quarkus.prreview.report.PlainText;
+import io.quarkus.prreview.report.ProvenanceFormat;
 import io.quarkus.prreview.report.ReportWriter;
 import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.triage.model.PrOutcome;
@@ -44,7 +46,7 @@ public final class TerminalRenderer {
     /** The whole block: the header, then each classification source's part in a fixed order, then the report line. */
     public static String render(PrOutcome outcome, ReportWriter.Result report) {
         return header(outcome.number(), outcome.checks()) + jev(outcome.jev()) + size(outcome.size()) + ci(outcome.ci())
-                + switch (report) {
+                + provenance(outcome.provenance()) + switch (report) {
                     case ReportWriter.Written written -> "Report: " + written.path() + "\n";
                     case ReportWriter.Failed failed ->
                         "Report: not written: " + PlainText.oneLine(failed.error()) + "\n";
@@ -64,6 +66,14 @@ public final class TerminalRenderer {
             case SourceResult.Available<PrSize> available -> available.facts().changedFiles() + " files changed, +"
                     + available.facts().additions() + " -" + available.facts().deletions();
             case SourceResult.Unavailable<PrSize> unavailable -> "unavailable";
+        } + "\n";
+    }
+
+    private static String provenance(SourceResult<Provenance> provenance) {
+        return switch (provenance) {
+            case SourceResult.Unavailable<Provenance> unavailable -> "Author: " + ProvenanceFormat.UNAVAILABLE;
+            case SourceResult.Available<Provenance> available ->
+                ProvenanceFormat.line(available.facts(), PlainText::oneLine);
         } + "\n";
     }
 
