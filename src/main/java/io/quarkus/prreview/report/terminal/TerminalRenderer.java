@@ -14,6 +14,7 @@ import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.report.AnswerFormat;
 import io.quarkus.prreview.report.CiFormat;
+import io.quarkus.prreview.report.PlainText;
 import io.quarkus.prreview.report.ReportWriter;
 import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.triage.model.PrOutcome;
@@ -45,14 +46,16 @@ public final class TerminalRenderer {
         return header(outcome.number(), outcome.checks()) + jev(outcome.jev()) + size(outcome.size()) + ci(outcome.ci())
                 + switch (report) {
                     case ReportWriter.Written written -> "Report: " + written.path() + "\n";
-                    case ReportWriter.Failed failed -> "Report: not written: " + oneLine(failed.error()) + "\n";
+                    case ReportWriter.Failed failed ->
+                        "Report: not written: " + PlainText.oneLine(failed.error()) + "\n";
                 };
     }
 
     private static String jev(JevResult jev) {
         return switch (jev) {
             case JevResult.Answered answered -> classified(answered.classification(), answered.summary());
-            case JevResult.NotAnswered notAnswered -> "  not classified: " + oneLine(notAnswered.reason()) + "\n";
+            case JevResult.NotAnswered notAnswered ->
+                "  not classified: " + PlainText.oneLine(notAnswered.reason()) + "\n";
         };
     }
 
@@ -81,9 +84,10 @@ public final class TerminalRenderer {
         rows.add(CiFormat.COLUMNS);
         for (FailedCheck failed : ci.notPassed()) {
             for (FailureRow row : failed.rows()) {
-                rows.add(new String[] { oneLine(failed.check().name() + CiFormat.suffix(failed.check())),
-                        oneLine(failed.check().value()), row.test() == null ? "" : oneLine(row.test()),
-                        CiFormat.flaky(row), cut(oneLine(row.whatFailed())) });
+                rows.add(new String[] { PlainText.oneLine(failed.check().name() + CiFormat.suffix(failed.check())),
+                        PlainText.oneLine(failed.check().value()),
+                        row.test() == null ? "" : PlainText.oneLine(row.test()),
+                        CiFormat.flaky(row), cut(PlainText.oneLine(row.whatFailed())) });
             }
         }
         int[] widths = new int[CiFormat.COLUMNS.length - 1];
@@ -119,15 +123,11 @@ public final class TerminalRenderer {
             }
         }
         return "  " + String.join("  ", answers) + "\n"
-                + "Summary (" + summary.shortSource() + "): " + oneLine(summary.text()) + "\n";
+                + "Summary (" + summary.shortSource() + "): " + PlainText.oneLine(summary.text()) + "\n";
     }
 
     private static String header(int number, List<String> checkIds) {
         return "PR #" + number + " - " + String.join(", ", checkIds.stream().map(id -> id.replace('-', ' ')).toList())
                 + "\n";
-    }
-
-    private static String oneLine(String text) {
-        return text.strip().replaceAll("\\s+", " ");
     }
 }

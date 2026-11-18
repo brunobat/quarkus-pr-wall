@@ -20,6 +20,7 @@ import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PullRequest;
 import io.quarkus.prreview.report.AnswerFormat;
 import io.quarkus.prreview.report.CiFormat;
+import io.quarkus.prreview.report.PlainText;
 import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.triage.model.PrOutcome;
 
@@ -116,7 +117,7 @@ public final class MarkdownReport {
      * third, which escaping does not.
      */
     private static String text(String text) {
-        String line = oneLine(text);
+        String line = PlainText.oneLine(text);
         StringBuilder out = new StringBuilder(line.length());
         for (int i = 0; i < line.length(); i++) {
             char c = line.charAt(i);
@@ -246,7 +247,7 @@ public final class MarkdownReport {
      * {@code <}, and code spans, which it shows literally, are left as they are.
      */
     static String inline(String text) {
-        String line = oneLine(text);
+        String line = PlainText.oneLine(text);
         StringBuilder out = new StringBuilder(line.length());
         int i = 0;
         while (i < line.length()) {
@@ -304,10 +305,6 @@ public final class MarkdownReport {
         return -1;
     }
 
-    private static String oneLine(String text) {
-        return text == null ? "" : text.strip().replaceAll("\\s+", " ");
-    }
-
     /** One-line text inside a table cell, see {@link #escapePipes(String)}. */
     static String cell(String text) {
         return escapePipes(inline(text));
@@ -326,7 +323,7 @@ public final class MarkdownReport {
      * close it. Not HTML-escaped: GitHub shows code spans literally, so an entity there would be displayed as typed.
      */
     static String code(String text) {
-        String value = oneLine(text);
+        String value = PlainText.oneLine(text);
         int longest = 0;
         for (int i = 0; i < value.length(); i++) {
             if (value.charAt(i) == '`') {

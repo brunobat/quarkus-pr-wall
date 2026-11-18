@@ -531,6 +531,21 @@ class RenderingTest {
     }
 
     @Test
+    void controlCharactersInBotTextReachNeitherOutput() {
+        String error = "\u001b[2Kgone\u0007 \u009b31m\u202Eevil\u0000 ok";
+        PrOutcome outcome = withRows(List.of(new FailureRow("a.B\u001b]8;;x", false, error, null, null)));
+
+        String terminal = TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT));
+        String md = MarkdownReport.render(outcome);
+
+        for (String out : List.of(terminal, md)) {
+            assertFalse(out.chars().anyMatch(c -> c != '\n' && (Character.isISOControl(c) || c == 0x202E)), out);
+        }
+        assertTrue(terminal.contains("[2Kgone 31mevil ok"), terminal);
+        assertTrue(md.contains("\\[2Kgone 31mevil ok"), md);
+    }
+
+    @Test
     void aLongFailureIsOneLineOfAtMost120CharactersInTheTerminal() {
         String error = "x".repeat(150) + "\n" + "y".repeat(150);
         PrOutcome outcome = withRows(List.of(new FailureRow("a.B.c", false, error, null, null)));
