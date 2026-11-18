@@ -22,6 +22,9 @@ public interface ReviewConfig {
     /** Limits on what is sent to {@code jev}. */
     Jev jev();
 
+    /** Who wrote a PR: limits on the lookups made to label its people. */
+    Provenance provenance();
+
     /** Directory where the {@code review-<pr>.md} reports are written, relative to the working directory. */
     @WithDefault("reports")
     Path outputDir();
@@ -39,6 +42,23 @@ public interface ReviewConfig {
         /** How long one {@code gh} invocation may run before that PR is noted as not classified. */
         @WithDefault("${GH_TIMEOUT:60s}")
         Duration timeout();
+
+        /**
+         * How long {@code gh api --cache} keeps a per-person answer (org membership, commits before a base), so a person
+         * seen in an earlier PR or run costs no request. A PR's own author association is never cached.
+         */
+        @WithDefault("${GH_CACHE_TTL:1h}")
+        Duration cacheTtl();
+    }
+
+    interface Provenance {
+
+        /**
+         * The most commit authors looked up on GitHub for one PR, besides its author; the rest are labelled
+         * {@code other (lookup limit)}. Bounds the calls a PR with many authors can cost.
+         */
+        @WithDefault("${PROVENANCE_MAX_PEOPLE:10}")
+        int maxPeople();
     }
 
     interface Jev {

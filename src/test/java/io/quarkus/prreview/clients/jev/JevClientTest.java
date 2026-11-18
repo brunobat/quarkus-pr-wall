@@ -193,6 +193,11 @@ class JevClientTest {
             }
 
             @Override
+            public Provenance provenance() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
             public Path outputDir() {
                 throw new UnsupportedOperationException();
             }

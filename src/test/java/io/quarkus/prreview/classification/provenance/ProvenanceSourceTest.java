@@ -3,6 +3,8 @@ package io.quarkus.prreview.classification.provenance;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -16,6 +18,7 @@ import io.quarkus.prreview.classification.provenance.model.AiLabel;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.classification.provenance.model.Who;
+import io.quarkus.prreview.classification.provenance.who.LoginMemo;
 import io.quarkus.prreview.classification.provenance.who.WhoRules;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
@@ -26,7 +29,7 @@ import io.quarkus.prreview.clients.gh.model.GhCommit;
 class ProvenanceSourceTest {
 
     final GhClient gh = mock(GhClient.class);
-    final ProvenanceSource source = new ProvenanceSource(gh, new WhoRules(gh));
+    final ProvenanceSource source = new ProvenanceSource(gh, new WhoRules(gh), new LoginMemo(), 10);
 
     @Test
     void labelsThePrAuthorAndStampsTheReadTime() {
@@ -105,5 +108,48 @@ class ProvenanceSourceTest {
         when(gh.association(7)).thenReturn("MEMBER");
 
         assertEquals(List.of(), ((SourceResult.Available<Provenance>) source.gather(7)).facts().commitAuthors());
+    }
+
+    @Test
+    void aCommitAuthorAlreadyLabelledInThisRunIsNotLookedUpAgain() {
+        LoginMemo memo = new LoginMemo();
+        ProvenanceSource withMemo = new ProvenanceSource(gh, new WhoRules(gh), memo, 10);
+        for (int pr : new int[] { 7, 8 }) {
+            when(gh.authorship(pr)).thenReturn(new GhAuthorship("pr-author", "", false, "", "abc",
+                    List.of(commit("1", author("alice")))));
+            when(gh.association(pr)).thenReturn("CONTRIBUTOR");
+        }
+        when(gh.isMember("alice")).thenReturn(true);
+
+        Provenance first = ((SourceResult.Available<Provenance>) withMemo.gather(7)).facts();
+        Provenance second = ((SourceResult.Available<Provenance>) withMemo.gather(8)).facts();
+
+        assertEquals(List.of(Person.of("alice", Who.TEAM)), first.commitAuthors());
+        assertEquals(first.commitAuthors(), second.commitAuthors());
+        verify(gh, times(1)).isMember("alice");
+
+        memo.clear();
+        withMemo.gather(8);
+        verify(gh, times(2)).isMember("alice");
+    }
+
+    @Test
+    void commitAuthorsPastTheLimitAreNotLookedUp() {
+        List<GhCommit> commits = new java.util.ArrayList<>();
+        for (int i = 1; i <= 4; i++) {
+            commits.add(commit(String.valueOf(i), author("person" + i)));
+        }
+        commits.add(1, commit("bot", author("dependabot[bot]")));
+        when(gh.authorship(7)).thenReturn(new GhAuthorship("pr-author", "", false, "", "abc", commits));
+        when(gh.association(7)).thenReturn("CONTRIBUTOR");
+        when(gh.isMember(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+
+        Provenance provenance = ((SourceResult.Available<Provenance>) new ProvenanceSource(gh, new WhoRules(gh),
+                new LoginMemo(), 3).gather(7)).facts();
+
+        assertEquals(List.of(Person.of("person1", Who.TEAM), Person.of("dependabot[bot]", Who.BOT),
+                Person.of("person2", Who.TEAM), Person.of("person3", Who.TEAM),
+                Person.other("person4", "lookup limit")), provenance.commitAuthors());
+        verify(gh, never()).isMember("person4");
     }
 }

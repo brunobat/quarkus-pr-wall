@@ -8,18 +8,21 @@ import java.util.Locale;
 import java.util.Map;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
 import io.quarkus.prreview.classification.provenance.model.AiLabel;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
+import io.quarkus.prreview.classification.provenance.who.LoginMemo;
 import io.quarkus.prreview.classification.provenance.who.WhoRules;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
+import io.quarkus.prreview.config.ReviewConfig;
 
 /**
  * The authorship-provenance classification source: who wrote a PR, from GitHub's facts only, or why that could not be
@@ -33,10 +36,19 @@ public class ProvenanceSource {
 
     private final GhClient gh;
     private final WhoRules who;
+    private final LoginMemo memo;
+    private final int maxPeople;
 
-    public ProvenanceSource(GhClient gh, WhoRules who) {
+    @Inject
+    public ProvenanceSource(GhClient gh, WhoRules who, LoginMemo memo, ReviewConfig config) {
+        this(gh, who, memo, config.provenance().maxPeople());
+    }
+
+    ProvenanceSource(GhClient gh, WhoRules who, LoginMemo memo, int maxPeople) {
         this.gh = gh;
         this.who = who;
+        this.memo = memo;
+        this.maxPeople = maxPeople;
     }
 
     public SourceResult<Provenance> gather(int pr) {
@@ -50,8 +62,23 @@ public class ProvenanceSource {
         Instant readAt = Instant.now();
         Person author = who.prAuthor(pr, authorship);
         List<Person> commitAuthors = new ArrayList<>();
+        int lookups = 0;
         for (GhCommit.Author subject : commitAuthorSubjects(authorship)) {
-            commitAuthors.add(who.commitAuthor(subject, authorship.baseSha()));
+            if (WhoRules.isBotShaped(subject)) {
+                commitAuthors.add(who.commitAuthor(subject, authorship.baseSha()));
+                continue;
+            }
+            var known = memo.get(subject.login(), authorship.baseSha());
+            if (known.isPresent()) {
+                commitAuthors.add(known.get());
+            } else if (lookups >= maxPeople) {
+                commitAuthors.add(Person.other(subject.login(), "lookup limit"));
+            } else {
+                lookups++;
+                Person person = who.commitAuthor(subject, authorship.baseSha());
+                memo.put(subject.login(), authorship.baseSha(), person);
+                commitAuthors.add(person);
+            }
         }
         return new SourceResult.Available<>(new Provenance(author, List.copyOf(commitAuthors), AiLabel.NONE, readAt));
     }

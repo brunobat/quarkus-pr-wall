@@ -125,6 +125,8 @@
                         <excludedEnvironmentVariable>GH_REPO</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>GH_BINARY</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>GH_TIMEOUT</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>GH_CACHE_TTL</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PROVENANCE_MAX_PEOPLE</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_URL</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_TIMEOUT</excludedEnvironmentVariable>
@@ -139,6 +141,8 @@
                         <excludedEnvironmentVariable>PR_REVIEW_GH_REPO</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_GH_BINARY</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_GH_TIMEOUT</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PR_REVIEW_GH_CACHE_TTL</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PR_REVIEW_PROVENANCE_MAX_PEOPLE</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_JEV_PROJECT_CONTEXT</excludedEnvironmentVariable>
                     </excludedEnvironmentVariables>

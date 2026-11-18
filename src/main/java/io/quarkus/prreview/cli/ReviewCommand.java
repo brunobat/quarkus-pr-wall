@@ -12,6 +12,7 @@ import jakarta.inject.Inject;
 
 import io.quarkus.arc.Unremovable;
 import io.quarkus.prreview.classification.github.GitHubFacts;
+import io.quarkus.prreview.classification.provenance.who.LoginMemo;
 import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.submission.ProjectContextLoader;
 import io.quarkus.prreview.clients.jev.JevClient;
@@ -36,6 +37,9 @@ public class ReviewCommand implements Callable<Integer> {
 
     @Inject
     GitHubFacts githubFacts;
+
+    @Inject
+    LoginMemo loginMemo;
 
     @Inject
     JevClient jev;
@@ -65,6 +69,7 @@ public class ReviewCommand implements Callable<Integer> {
         }
         PrintWriter out = spec.commandLine().getOut();
         int errors = 0;
+        loginMemo.clear();
         githubFacts.prefetch(List.copyOf(uniquePrs));
         for (int pr : uniquePrs) {
             if (pr != uniquePrs.getFirst()) {

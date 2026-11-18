@@ -29,6 +29,8 @@ class ReviewConfigEnvironmentTest {
                         "GH_REPO", "octo/repo",
                         "GH_BINARY", "/opt/gh",
                         "GH_TIMEOUT", "5s",
+                        "GH_CACHE_TTL", "10m",
+                        "PROVENANCE_MAX_PEOPLE", "3",
                         "JEV_MAX_SUBMISSION_CHARS", "1234"), "env", 300))
                 .build();
 
@@ -37,6 +39,8 @@ class ReviewConfigEnvironmentTest {
         assertEquals("octo/repo", mapped.gh().repo());
         assertEquals("/opt/gh", mapped.gh().binary());
         assertEquals(Duration.ofSeconds(5), mapped.gh().timeout());
+        assertEquals(Duration.ofMinutes(10), mapped.gh().cacheTtl());
+        assertEquals(3, mapped.provenance().maxPeople());
         assertEquals(1234, mapped.jev().maxSubmissionChars());
     }
 }

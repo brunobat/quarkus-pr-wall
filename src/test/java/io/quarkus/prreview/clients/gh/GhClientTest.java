@@ -183,6 +183,19 @@ class GhClientTest {
     }
 
     @Test
+    void perPersonLookupsAreCachedButTheAssociationIsNot() throws IOException {
+        client.isMember("member");
+        client.hasCommitsBefore("regular", SHA);
+        client.association(101);
+
+        List<String> log = Files.readAllLines(FakeGh.CALLS_LOG);
+        List<String> last = log.subList(log.size() - 3, log.size());
+        assertEquals(List.of("api orgs/quarkusio/members/member -i --cache 3600s",
+                "api repos/quarkusio/quarkus/commits?author=regular&sha=" + SHA + "&per_page=1 --cache 3600s",
+                "api repos/quarkusio/quarkus/pulls/101 --jq .author_association"), last);
+    }
+
+    @Test
     void commitsBeforeTheBaseAreReadFromTheCommitsList() {
         assertTrue(client.hasCommitsBefore("regular", SHA));
         assertFalse(client.hasCommitsBefore("new", SHA));
@@ -351,7 +364,17 @@ class GhClientTest {
                     public Duration timeout() {
                         return timeout;
                     }
+
+                    @Override
+                    public Duration cacheTtl() {
+                        return Duration.ofHours(1);
+                    }
                 };
+            }
+
+            @Override
+            public Provenance provenance() {
+                throw new UnsupportedOperationException();
             }
 
             @Override

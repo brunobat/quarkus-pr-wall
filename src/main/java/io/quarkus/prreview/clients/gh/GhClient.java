@@ -237,7 +237,7 @@ public class GhClient {
      */
     public boolean isMember(String login) {
         String path = "orgs/" + owner() + "/members/" + validLogin(login);
-        Result result = execute(List.of("api", path, "-i"));
+        Result result = execute(List.of("api", path, "-i", "--cache", cacheTtl()));
         String first = result.stdout().lines().findFirst().orElse("").strip();
         var status = STATUS_LINE.matcher(first);
         if (!status.matches()) {
@@ -260,7 +260,7 @@ public class GhClient {
             throw new GhException("not a commit SHA: " + baseSha);
         }
         String json = run(List.of("api", "repos/" + config.gh().repo() + "/commits?author=" + validLogin(login)
-                + "&sha=" + baseSha + "&per_page=1"));
+                + "&sha=" + baseSha + "&per_page=1", "--cache", cacheTtl()));
         Object[] commits;
         try {
             commits = mapper.readValue(json, Object[].class);
@@ -271,6 +271,11 @@ public class GhClient {
             throw new GhException("gh api commits returned no list");
         }
         return commits.length > 0;
+    }
+
+    /** The configured cache duration as {@code gh api --cache} reads it, in whole seconds. */
+    private String cacheTtl() {
+        return config.gh().cacheTtl().toSeconds() + "s";
     }
 
     /** A login that is safe to put in an {@code api} path; anything else is a lookup failure, not a crash. */
