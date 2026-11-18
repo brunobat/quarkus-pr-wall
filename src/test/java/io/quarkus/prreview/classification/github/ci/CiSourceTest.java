@@ -13,10 +13,14 @@ import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
 import io.quarkus.prreview.classification.github.ci.model.FailureRow;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
+import io.quarkus.prreview.clients.gh.model.GhComment;
 
 class CiSourceTest {
 
     static final String HEAD = "ba9690af0e8bdc5d1c0f7a6c2b6b1e7d3c9a4f21";
+    /** quarkus-bot has commented, but there is no status comment for the head commit. */
+    static final List<GhComment> WELCOME_ONLY = List.of(new GhComment("quarkus-bot", "Thanks for your pull request!",
+            "2026-10-21T12:51:43Z"));
 
     static GhCheck run(String name, String workflow, String status, String conclusion) {
         return new GhCheck(GhCheck.CHECK_RUN, name, workflow, status, conclusion, "https://github.com/o/r/runs/1",
@@ -46,7 +50,7 @@ class CiSourceTest {
         rollup.add(42, run("Odd", "Quarkus CI", "COMPLETED", "SOMETHING_NEW"));
         rollup.add(status("CI Merge Gate", "FAILURE"));
 
-        CiChecks ci = CiSource.of(new GhChecks(HEAD, rollup));
+        CiChecks ci = CiSource.of(new GhChecks(HEAD, rollup), WELCOME_ONLY);
 
         assertEquals(67, ci.checks().size());
         assertEquals(HEAD, ci.headCommit());
@@ -63,7 +67,7 @@ class CiSourceTest {
     void successSkippedAndNeutralAreNotListed() {
         CiChecks ci = CiSource.of(new GhChecks(HEAD, List.of(run("a", "W", "COMPLETED", "SUCCESS"),
                 run("b", "W", "COMPLETED", "SKIPPED"), run("Build scans", "", "COMPLETED", "NEUTRAL"),
-                status("CI Merge Gate", "SUCCESS"))));
+                status("CI Merge Gate", "SUCCESS"))), List.of());
 
         assertEquals(4, ci.checks().size());
         assertEquals(List.of(), ci.notPassed());
@@ -71,7 +75,7 @@ class CiSourceTest {
 
     @Test
     void noChecksIsAnEmptyList() {
-        CiChecks ci = CiSource.of(new GhChecks(HEAD, List.of()));
+        CiChecks ci = CiSource.of(new GhChecks(HEAD, List.of()), List.of());
 
         assertEquals(List.of(), ci.checks());
         assertEquals(List.of(), ci.notPassed());

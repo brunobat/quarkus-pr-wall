@@ -19,11 +19,11 @@ import io.quarkus.prreview.classification.github.ci.botcomment.BotStatusComment.
 import io.quarkus.prreview.clients.gh.model.GhComment;
 
 /** Trimmed copies of real quarkus-bot comments, in {@code src/test/resources/bot-comments}. */
-class BotCommentParserTest {
+public class BotCommentParserTest {
 
-    static final String COMMIT_57715 = "4d456bf0dad6b5d357ea2d0a53bdb4f4ef00aec6";
+    public static final String COMMIT_57715 = "4d456bf0dad6b5d357ea2d0a53bdb4f4ef00aec6";
 
-    static String body(String file) {
+    public static String body(String file) {
         try {
             return Files.readString(Path.of("src/test/resources/bot-comments", file));
         } catch (IOException e) {

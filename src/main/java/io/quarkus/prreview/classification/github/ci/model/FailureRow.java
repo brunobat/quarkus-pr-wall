@@ -12,6 +12,7 @@ package io.quarkus.prreview.classification.github.ci.model;
 public record FailureRow(String test, Boolean flaky, String whatFailed, String testLink, String scanLink) {
 
     public static final String DETAILS_UNAVAILABLE = "details unavailable";
+    public static final String NO_SOURCE = "no source for failure details";
 
     /** A row with no test, saying only {@code text}. */
     public static FailureRow withoutTest(String text) {

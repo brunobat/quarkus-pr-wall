@@ -10,16 +10,17 @@ import org.jboss.logging.Logger;
 import io.quarkus.prreview.classification.github.ci.model.CiCheck;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
-import io.quarkus.prreview.classification.github.ci.model.FailureRow;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
+import io.quarkus.prreview.clients.gh.model.GhComment;
 
 /**
- * The CI classification source: the checks on a PR's head commit, with those that did not pass listed, or why they
- * are unavailable. GitHub's values are kept as returned; nothing is concluded from them. Never throws for gh.
+ * The CI classification source: the checks on a PR's head commit, with those that did not pass listed with their
+ * failures from quarkus-bot's comments (read only when a check did not pass), or why the checks are
+ * unavailable. GitHub's values are kept as returned; nothing is concluded from them. Never throws for gh.
  */
 @ApplicationScoped
 public class CiSource {
@@ -36,20 +37,33 @@ public class CiSource {
     }
 
     public SourceResult<CiChecks> gather(int pr) {
+        GhChecks checks;
         try {
-            return new SourceResult.Available<>(of(gh.checks(pr)));
+            checks = gh.checks(pr);
         } catch (GhException e) {
             LOG.warnf(e, "PR #%d: checks unavailable", pr);
             return SourceResult.unavailable("gh: " + e.getMessage().strip().replaceAll("\\s+", " "));
         }
+        List<GhComment> comments = null;
+        if (checks.rollup().stream().map(CiSource::check).anyMatch(c -> !PASSED.contains(c.value()))) {
+            try {
+                comments = gh.comments(pr);
+            } catch (GhException e) {
+                LOG.warnf(e, "PR #%d: comments unavailable, so are failure details", pr);
+            }
+        }
+        return new SourceResult.Available<>(of(checks, comments));
     }
 
-    /** Every check as GitHub returned it, and the not-passed ones with a row saying no details are known. */
-    static CiChecks of(GhChecks gh) {
+    /**
+     * Every check as GitHub returned it, and the not-passed ones with their rows from quarkus-bot's comments.
+     *
+     * @param comments the PR's comments, or {@code null} when they could not be read
+     */
+    static CiChecks of(GhChecks gh, List<GhComment> comments) {
         List<CiCheck> checks = gh.rollup().stream().map(CiSource::check).toList();
         List<FailedCheck> notPassed = checks.stream().filter(c -> !PASSED.contains(c.value()))
-                .map(c -> new FailedCheck(c, List.of(FailureRow.withoutTest(FailureRow.DETAILS_UNAVAILABLE))))
-                .toList();
+                .map(c -> new FailedCheck(c, FailureDetails.rows(c, comments, gh.headRefOid()))).toList();
         return new CiChecks(gh.headRefOid(), checks, notPassed);
     }
 
