@@ -76,6 +76,14 @@ class ReviewListTest {
         assertTrue(block(stdout, 102).contains("Size: unavailable\n"), result.getOutput());
         assertTrue(block(stdout, 104).contains("Size: unavailable\n"), result.getOutput());
         assertTrue(Files.readString(out.resolve("review-104.md")).contains("## Size (GitHub)\n\nunavailable\n"));
+        // Checks come from their own gh call too. 101's failed checks don't change its classification or the
+        // exit code; 102 has no answer for its checks.
+        assertTrue(block(stdout, 101).contains("CI: 4 of 8 not passed\n"), result.getOutput());
+        assertTrue(block(stdout, 101).contains("  CI Merge Gate (status)  "), result.getOutput());
+        assertTrue(block(stdout, 102).contains("CI: unavailable\n"), result.getOutput());
+        assertTrue(block(stdout, 104).contains("CI: all 3 passed, skipped or neutral\n"), result.getOutput());
+        assertTrue(Files.readString(out.resolve("review-101.md"))
+                .contains("## CI checks (GitHub)\n\n4 of 8 not passed.\n"));
         // A blank line between blocks.
         int second = stdout.indexOf("PR #102 - test adequacy");
         assertEquals("", stdout.get(second - 1), result.getOutput());
@@ -108,6 +116,8 @@ class ReviewListTest {
                 result.getOutput());
         assertTrue(report406.contains("- Changed files: 1244\n- Lines added: 17\n- Lines deleted: 19751\n"), report406);
         assertTrue(block(result.getOutputStream(), 404).contains("Size: unavailable\n"), result.getOutput());
+        assertTrue(block(result.getOutputStream(), 406).contains("CI: unavailable\n"), result.getOutput());
+        assertTrue(report406.contains("## CI checks (GitHub)\n\nunavailable\n"), report406);
         assertEquals(0, jev.posts().size());
         assertEquals(0, claude.posts().size());
     }
@@ -212,6 +222,15 @@ class ReviewListTest {
         assertEquals(List.of("PR #101 - test adequacy", "PR #102 - test adequacy"),
                 result.getOutputStream().stream().filter(l -> l.startsWith("PR #")).toList(), result.getOutput());
         assertEquals(2, jev.posts().size());
+    }
+
+    @Test
+    void noChecksIsNoneAndUnreadableChecksAreUnavailable(QuarkusMainLauncher launcher) throws IOException {
+        LaunchResult result = launcher.launch("review", "103", "406", "--output-dir", out.toString());
+
+        assertTrue(block(result.getOutputStream(), 103).contains("CI: none\n"), result.getOutput());
+        assertTrue(block(result.getOutputStream(), 406).contains("CI: unavailable\n"), result.getOutput());
+        assertTrue(Files.readString(out.resolve("review-103.md")).contains("## CI checks (GitHub)\n\nnone\n"));
     }
 
     /** The lines of one PR's block, from its header to the next blank line. */

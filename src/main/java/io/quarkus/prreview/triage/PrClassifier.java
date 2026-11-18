@@ -10,6 +10,7 @@ import org.jboss.logging.Logger;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import io.quarkus.arc.All;
 import io.quarkus.prreview.classification.api.ClassificationCheck;
+import io.quarkus.prreview.classification.github.ci.CiSource;
 import io.quarkus.prreview.classification.github.size.SizeSource;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.submission.JevSubmission;
@@ -43,11 +44,13 @@ public class PrClassifier {
     private final List<ClassificationCheck> checks;
     private final ProjectContextLoader projectContext;
     private final SizeSource size;
+    private final CiSource ci;
 
     public PrClassifier(GhClient gh, JevClient jev, SummaryService summaries, @All List<ClassificationCheck> checks,
-            ProjectContextLoader projectContext, SizeSource size) {
+            ProjectContextLoader projectContext, SizeSource size, CiSource ci) {
         this.gh = gh;
         this.size = size;
+        this.ci = ci;
         this.jev = jev;
         this.summaries = summaries;
         this.projectContext = projectContext;
@@ -59,7 +62,7 @@ public class PrClassifier {
     public PrOutcome classify(int number) {
         PrOutcome jevOnly = jev(number);
         return new PrOutcome(number, checkIds(), jevOnly.pullRequest(), jevOnly.jev(), size.gather(number),
-                jevOnly.ci());
+                ci.gather(number));
     }
 
     private PrOutcome jev(int number) {

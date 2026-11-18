@@ -1,0 +1,5 @@
+{"headRefOid":"5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f","statusCheckRollup":[
+{"__typename":"CheckRun","completedAt":"2026-10-23T07:00:00Z","conclusion":"SUCCESS","detailsUrl":"https://github.com/quarkusio/quarkus/actions/runs/2/job/1","name":"Initial JDK 17 Build","startedAt":"2026-10-23T06:56:59Z","status":"COMPLETED","workflowName":"Quarkus CI"},
+{"__typename":"CheckRun","completedAt":"2026-10-23T09:00:00Z","conclusion":"NEUTRAL","detailsUrl":"https://github.com/quarkusio/quarkus/runs/3","name":"Build scans","startedAt":"2026-10-23T09:00:00Z","status":"COMPLETED","workflowName":""},
+{"__typename":"StatusContext","context":"CI Merge Gate","startedAt":"2026-10-23T11:57:34Z","state":"SUCCESS","targetUrl":""}
+]}
