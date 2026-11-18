@@ -11,6 +11,13 @@
 #   diff-error.txt  if present, `gh pr diff` prints it to stderr and exits 1 (`gh pr view` still answers)
 #   sleep       if present, the script first waits on a child `sleep` of that many seconds, which keeps
 #               stdout/stderr open; its pid is logged as `sleep-pid <pid>` in the call log
+# `gh pr list --search "<n1> <n2> ..." --json number,<fields>` answers from the same files, one JSON array entry per
+# searched PR, with "number" added, picking the stem from the fields as `gh pr view` does:
+#   list-<stem>.json  if present, used instead of <stem>.json (e.g. a list cut off at 100)
+#   skip-list         if present, the PR is left out of every list
+#   extra-list        if present, the PR it names is added too, though nobody searched for it
+#   list-error.txt    if present in any searched PR, `gh pr list` prints it to stderr and exits 1
+#   A PR without <stem>.json, or with <stem>-error.txt, is left out.
 # Every invocation is appended to the call log, target/fake-gh-calls.log in the project, so the build output
 # holds it and `mvn clean` clears it.
 set -euo pipefail
@@ -21,6 +28,55 @@ echo "$*" >> "$log"
 
 [[ "${1:-}" == "pr" ]] || { echo "fake gh: unsupported command: $*" >&2; exit 2; }
 sub="${2:-}"
+
+# The value after --json and --search, if any.
+fields=""
+search=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  [[ "${args[$i]}" == "--json" ]] && fields="${args[$((i + 1))]:-}"
+  [[ "${args[$i]}" == "--search" ]] && search="${args[$((i + 1))]:-}"
+done
+
+view_stem() {
+  case ",$fields," in
+    *,additions,*) echo size ;;
+    *,statusCheckRollup,*) echo checks ;;
+    *,comments,*) echo comments ;;
+    *) echo view ;;
+  esac
+}
+
+# One list entry: the PR's <stem> JSON object with "number" added, or nothing.
+list_entry() {
+  local n="$1" stem="$2" d="$here/prs/$1" file
+  [[ -d "$d" && ! -f "$d/$stem-error.txt" ]] || return 0
+  file="$d/list-$stem.json"
+  [[ -f "$file" ]] || file="$d/$stem.json"
+  [[ -f "$file" ]] || return 0
+  local body
+  body="$(cat "$file")"
+  body="${body#*\{}"
+  printf '{"number":%s,%s' "$n" "$body"
+}
+
+if [[ "$sub" == "list" ]]; then
+  stem="$(view_stem)"
+  wanted=()
+  for n in $search; do
+    [[ -f "$here/prs/$n/list-error.txt" ]] && { cat "$here/prs/$n/list-error.txt" >&2; exit 1; }
+    [[ -f "$here/prs/$n/skip-list" ]] || wanted+=("$n")
+    [[ -f "$here/prs/$n/extra-list" ]] && wanted+=("$(tr -d '[:space:]' < "$here/prs/$n/extra-list")")
+  done
+  entries=()
+  for n in "${wanted[@]}"; do
+    entry="$(list_entry "$n" "$stem")"
+    [[ -n "$entry" ]] && entries+=("$entry")
+  done
+  (IFS=,; echo "[${entries[*]}]")
+  exit 0
+fi
+
 pr="${3:-}"
 dir="$here/prs/$pr"
 
@@ -35,22 +91,6 @@ if [[ "$sub" == "diff" && -f "$dir/diff-error.txt" ]]; then
   cat "$dir/diff-error.txt" >&2
   exit 1
 fi
-
-# The value after --json, if any.
-fields=""
-args=("$@")
-for ((i = 0; i < ${#args[@]}; i++)); do
-  [[ "${args[$i]}" == "--json" ]] && fields="${args[$((i + 1))]:-}"
-done
-
-view_stem() {
-  case ",$fields," in
-    *,additions,*) echo size ;;
-    *,statusCheckRollup,*) echo checks ;;
-    *,comments,*) echo comments ;;
-    *) echo view ;;
-  esac
-}
 
 case "$sub" in
   view)

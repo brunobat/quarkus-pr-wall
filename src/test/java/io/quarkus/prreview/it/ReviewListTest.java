@@ -240,11 +240,11 @@ class ReviewListTest {
 
         // 101: quarkus-bot's comment for the head commit names the failing tests, one flaky.
         String pr101 = block(stdout, 101);
-        assertTrue(pr101.matches("(?s).*JVM Tests - JDK 21 \\(Quarkus CI\\) +FAILURE +io\\.quarkus\\.vertx\\.http\\.filters"
-                + "\\.GracefulShutdownFilterTest\\.test +yes +Timeout waiting for response - java\\.lang\\.RuntimeException\n.*"),
-                pr101);
-        assertTrue(pr101.matches("(?s).*JVM Integration Tests - JDK 17 \\(Quarkus CI\\) +FAILURE +Failed to execute goal .*"),
-                pr101);
+        assertTrue(pr101.matches("(?s).*JVM Tests - JDK 21 \\(Quarkus CI\\) +FAILURE +io\\.quarkus\\.vertx\\.http"
+                + "\\.filters\\.GracefulShutdownFilterTest\\.test +yes +Timeout waiting for response - "
+                + "java\\.lang\\.RuntimeException\n.*"), pr101);
+        assertTrue(pr101.matches("(?s).*JVM Integration Tests - JDK 17 \\(Quarkus CI\\) +FAILURE +Failed to execute "
+                + "goal .*"), pr101);
         assertFalse(pr101.contains("CompressionEnabledTestCase"), "flaky in a job that passed: " + pr101);
         String report101 = Files.readString(out.resolve("review-101.md"));
         assertTrue(report101.contains("[`io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test`]("
@@ -257,6 +257,82 @@ class ReviewListTest {
         assertTrue(block(stdout, 107).contains("no source for failure details"), result.getOutput());
         assertTrue(block(stdout, 108).contains("CI: 1 of 2 not passed\n"), result.getOutput());
         assertTrue(block(stdout, 108).contains("details unavailable"), result.getOutput());
+    }
+
+    @Test
+    void factsAreReadInBulkWithOneListCallPerFact(QuarkusMainLauncher launcher) throws IOException {
+        long before = ghCalls();
+        LaunchResult result = launcher.launch("review", "101", "103", "106", "107", "--output-dir", out.toString());
+
+        List<String> calls = callsSince(before);
+        assertEquals(3, calls.stream().filter(c -> c.startsWith("pr list ")).count(), calls.toString());
+        assertTrue(calls.contains("pr list --state all --search 101 103 106 107 --json number,additions,deletions,"
+                + "changedFiles --limit 4 -R quarkusio/quarkus"), calls.toString());
+        // Comments only for the PRs with a check that did not pass.
+        assertTrue(calls.contains("pr list --state all --search 101 106 107 --json number,comments --limit 3 "
+                + "-R quarkusio/quarkus"), calls.toString());
+        assertEquals(List.of(), factViews(calls), "no per-PR fact call");
+        List<String> stdout = result.getOutputStream();
+        assertTrue(block(stdout, 101).contains("Size: 2 files changed, +12 -3\n"), result.getOutput());
+        assertTrue(block(stdout, 101).contains("CI: 5 of 9 not passed\n"), result.getOutput());
+        assertTrue(block(stdout, 101).contains("GracefulShutdownFilterTest"), result.getOutput());
+        assertTrue(block(stdout, 103).contains("CI: none\n"), result.getOutput());
+        assertTrue(block(stdout, 107).contains("no source for failure details"), result.getOutput());
+    }
+
+    @Test
+    void aPrMissingFromTheBulkResultsOrInAFailedBulkCallIsReadOnItsOwn(QuarkusMainLauncher launcher)
+            throws IOException {
+        long before = ghCalls();
+        LaunchResult result = launcher.launch("review", "107", "109", "--output-dir", out.toString());
+
+        assertEquals(List.of("pr view 109 --json additions,deletions,changedFiles -R quarkusio/quarkus",
+                "pr view 109 --json headRefOid,statusCheckRollup -R quarkusio/quarkus",
+                "pr view 109 --json comments -R quarkusio/quarkus"), factViews(callsSince(before)));
+        // The same output as for 107, whose facts came in bulk: only the number and title differ.
+        assertEquals(throughReport(block(result.getOutputStream(), 107)).replace("107", "109"),
+                throughReport(block(result.getOutputStream(), 109)));
+
+        before = ghCalls();
+        result = launcher.launch("review", "101", "111", "--output-dir", out.toString());
+
+        assertEquals(6, factViews(callsSince(before)).size(), callsSince(before).toString());
+        assertTrue(block(result.getOutputStream(), 101).contains("CI: 5 of 9 not passed\n"), result.getOutput());
+        assertTrue(block(result.getOutputStream(), 111).contains("no source for failure details"),
+                result.getOutput());
+    }
+
+    @Test
+    void oneHundredCommentsAreReadAgainAndUnrequestedPrsAreDropped(QuarkusMainLauncher launcher)
+            throws IOException {
+        long before = ghCalls();
+        LaunchResult result = launcher.launch("review", "110", "--output-dir", out.toString());
+
+        assertEquals(List.of("pr view 110 --json comments -R quarkusio/quarkus"), factViews(callsSince(before)));
+        // The full list has quarkus-bot's welcome comment; the cut-off one would have said "no source".
+        String block = block(result.getOutputStream(), 110);
+        assertTrue(block.contains("details unavailable"), block);
+        assertTrue(block.contains("Size: 1 files changed, +1 -1\n"), block);
+        // The search also returned PR 101, which nobody asked for.
+        assertFalse(result.getOutput().contains("#101"), result.getOutput());
+        assertFalse(Files.exists(out.resolve("review-101.md")));
+    }
+
+    /** A block up to and including its report line, without any log line printed after it. */
+    private static String throughReport(String block) {
+        return block.substring(0, block.indexOf('\n', block.indexOf("Report: ")) + 1);
+    }
+
+    /** The per-PR {@code gh pr view} calls for a GitHub fact, in order. */
+    private static List<String> factViews(List<String> calls) {
+        return calls.stream().filter(c -> c.startsWith("pr view ") && (c.contains(" additions,")
+                || c.contains(" headRefOid,") || c.contains(" comments "))).toList();
+    }
+
+    private static List<String> callsSince(long before) throws IOException {
+        try (var lines = Files.lines(CALLS_LOG)) {
+            return lines.skip(before).filter(l -> !l.startsWith("sleep-pid ")).toList();
+        }
     }
 
     /** The lines of one PR's block, from its header to the next blank line. */
