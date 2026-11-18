@@ -16,9 +16,11 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
+import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.clients.gh.model.GhSize;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.it.support.FakeGh;
@@ -125,6 +127,50 @@ class GhClientTest {
     void commentsThatCannotBeReadAreAGhFailure() {
         GhException e = assertThrows(GhException.class, () -> client.comments(404));
         assertTrue(e.getMessage().contains("no pull requests found"), e.getMessage());
+    }
+
+    @Test
+    void fetchesWhoWroteThePr() {
+        GhAuthorship authorship = client.authorship(101);
+
+        assertEquals("alice", authorship.login());
+        assertEquals("Alice", authorship.name());
+        assertEquals(false, authorship.isBot());
+        assertEquals("Fixes the frobnicator.", authorship.body());
+        assertEquals(40, authorship.baseSha().length());
+        assertEquals(1, authorship.commits().size());
+        GhCommit commit = authorship.commits().getFirst();
+        assertEquals("Fix the frobnicator", commit.headline());
+        assertEquals("", commit.body());
+        assertEquals(List.of(new GhCommit.Author("alice", "Alice")), commit.authors());
+    }
+
+    @Test
+    void aDeletedAuthorAndAnUnmatchedCommitAuthorHaveNoLogin() {
+        GhAuthorship authorship = client.authorship(102);
+
+        assertNull(authorship.login());
+        assertEquals(false, authorship.isBot());
+        assertNull(authorship.commits().getFirst().authors().getFirst().login());
+    }
+
+    @Test
+    void missingCommitsAreAFailure() {
+        GhException e = assertThrows(GhException.class, () -> client.authorship(105));
+        assertTrue(e.getMessage().contains("did not report baseRefOid and commits"), e.getMessage());
+    }
+
+    @Test
+    void readsTheAuthorAssociation() {
+        assertEquals("MEMBER", client.association(101));
+        assertEquals("CONTRIBUTOR", client.association(103));
+    }
+
+    @Test
+    void anAssociationThatCannotBeReadIsAGhFailure() {
+        GhException e = assertThrows(GhException.class, () -> client.association(104));
+        assertTrue(e.getMessage().contains("HTTP 502"), e.getMessage());
+        assertThrows(GhException.class, () -> client.association(404));
     }
 
     @Test

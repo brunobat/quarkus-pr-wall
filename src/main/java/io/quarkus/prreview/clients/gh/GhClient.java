@@ -17,12 +17,16 @@ import java.util.regex.Pattern;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
+import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
+import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.clients.gh.model.GhSize;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.pr.model.PullRequest;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -47,6 +51,9 @@ public class GhClient {
     static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
     /** A {@code gh api --cache} duration, as Go writes one: e.g. {@code 3600s} or {@code 1h}. */
     private static final Pattern CACHE_TTL = Pattern.compile("([0-9]+(ns|us|ms|s|m|h))+");
+
+    /** The fields that say who wrote a PR: its author, description, base commit and commits. */
+    static final String AUTHORSHIP_FIELDS = "author,body,baseRefOid,commits";
 
     private final ReviewConfig config;
     private final JsonMapper mapper;
@@ -148,6 +155,77 @@ public class GhClient {
     }
 
     private record Author(String login) {
+    }
+
+    /**
+     * Fetches who wrote the PR on its own call: its author, description, base commit and commits. A missing author is
+     * kept as {@code null} (a deleted account); missing commits or base are a failure.
+     */
+    public GhAuthorship authorship(int pr) {
+        String json = run(List.of("pr", "view", Integer.toString(pr), "--json", AUTHORSHIP_FIELDS));
+        AuthorshipView view;
+        try {
+            view = mapper.readValue(json, AuthorshipView.class);
+        } catch (JacksonException e) {
+            throw new GhException("unexpected authorship output from gh pr view " + pr + ": " + e.getOriginalMessage(),
+                    e);
+        }
+        GhAuthorship authorship = toAuthorship(view);
+        if (authorship == null) {
+            throw new GhException("gh pr view " + pr + " did not report baseRefOid and commits");
+        }
+        return authorship;
+    }
+
+    /** The view as our model, or {@code null} when it lacks the base commit or the commits. */
+    private static GhAuthorship toAuthorship(AuthorshipView view) {
+        if (view == null || view.baseRefOid() == null || view.commits() == null) {
+            return null;
+        }
+        List<GhCommit> commits = view.commits().stream().filter(c -> c != null)
+                .map(c -> new GhCommit(c.oid() == null ? "" : c.oid(), orEmpty(c.messageHeadline()),
+                        orEmpty(c.messageBody()), c.authors() == null ? List.of()
+                                : c.authors().stream().filter(a -> a != null)
+                                        .map(a -> new GhCommit.Author(blankToNull(a.login()), a.name())).toList()))
+                .toList();
+        AuthorView author = view.author();
+        return new GhAuthorship(author == null ? null : blankToNull(author.login()), author == null ? null : author.name(),
+                author != null && Boolean.TRUE.equals(author.isBot()), orEmpty(view.body()), view.baseRefOid(),
+                commits);
+    }
+
+    /** gh writes an account it could not match as an empty login. */
+    private static String blankToNull(String login) {
+        return login == null || login.isBlank() ? null : login;
+    }
+
+    private static String orEmpty(String text) {
+        return text == null ? "" : text;
+    }
+
+    private record AuthorshipView(AuthorView author, String body, String baseRefOid, List<CommitView> commits) {
+    }
+
+    private record AuthorView(String login, String name, @JsonProperty("is_bot") Boolean isBot) {
+    }
+
+    private record CommitView(String oid, String messageHeadline, String messageBody, List<CommitAuthorView> authors) {
+    }
+
+    private record CommitAuthorView(String login, String name) {
+    }
+
+    /**
+     * The PR author's association with the repository as GitHub reports it now, e.g. {@code MEMBER} or
+     * {@code FIRST_TIME_CONTRIBUTOR}. Never cached: it changes as PRs are merged.
+     */
+    public String association(int pr) {
+        String value = run(List.of("api", "repos/" + config.gh().repo() + "/pulls/" + pr, "--jq",
+                ".author_association")).strip();
+        if (value.isEmpty() || value.equals("null")) {
+            throw new GhException("GitHub did not report the author association of PR " + pr);
+        }
+        return value;
     }
 
     /**
