@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import io.quarkus.prreview.clients.gh.model.GhChecks;
+import io.quarkus.prreview.clients.gh.model.GhComment;
 import io.quarkus.prreview.clients.gh.model.GhSize;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.pr.model.PullRequest;
@@ -99,6 +100,32 @@ public class GhClient {
             throw new GhException("gh pr view " + pr + " did not report statusCheckRollup");
         }
         return checks;
+    }
+
+    /** Fetches the PR's conversation comments on their own call, in the order gh returns them (oldest first). */
+    public List<GhComment> comments(int pr) {
+        String json = run(List.of("pr", "view", Integer.toString(pr), "--json", "comments"));
+        CommentsView view;
+        try {
+            view = mapper.readValue(json, CommentsView.class);
+        } catch (JacksonException e) {
+            throw new GhException("unexpected comments output from gh pr view " + pr + ": " + e.getOriginalMessage(),
+                    e);
+        }
+        if (view.comments() == null) {
+            throw new GhException("gh pr view " + pr + " did not report comments");
+        }
+        return view.comments().stream().map(c -> new GhComment(c.author() == null ? null : c.author().login(),
+                c.body() == null ? "" : c.body(), c.createdAt())).toList();
+    }
+
+    private record CommentsView(List<CommentView> comments) {
+    }
+
+    private record CommentView(Author author, String body, String createdAt) {
+    }
+
+    private record Author(String login) {
     }
 
     /** Builds the full command line; refuses anything but the allowed read-only subcommands. */

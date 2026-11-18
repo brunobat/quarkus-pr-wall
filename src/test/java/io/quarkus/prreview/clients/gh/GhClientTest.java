@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
+import io.quarkus.prreview.clients.gh.model.GhComment;
 import io.quarkus.prreview.clients.gh.model.GhSize;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.it.support.FakeGh;
@@ -105,6 +106,22 @@ class GhClientTest {
     void aMissingRollupIsAFailure() {
         GhException e = assertThrows(GhException.class, () -> client.checks(105));
         assertTrue(e.getMessage().contains("did not report statusCheckRollup"), e.getMessage());
+    }
+
+    @Test
+    void fetchesCommentsOldestFirstWithTheirAuthors() {
+        List<GhComment> comments = client.comments(105);
+
+        assertEquals(List.of("quarkus-bot", "a-human"), comments.stream().map(GhComment::authorLogin).toList());
+        assertTrue(comments.getFirst().body().startsWith("# Status for workflow `Quarkus CI`"),
+                comments.getFirst().body());
+        assertEquals("2026-10-23T12:00:00Z", comments.getFirst().createdAt());
+    }
+
+    @Test
+    void commentsThatCannotBeReadAreAGhFailure() {
+        GhException e = assertThrows(GhException.class, () -> client.comments(404));
+        assertTrue(e.getMessage().contains("no pull requests found"), e.getMessage());
     }
 
     @Test
