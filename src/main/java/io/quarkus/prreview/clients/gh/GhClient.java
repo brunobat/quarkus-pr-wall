@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
+import io.quarkus.prreview.clients.gh.model.GhSize;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.pr.model.PullRequest;
 import tools.jackson.core.JacksonException;
@@ -58,6 +59,27 @@ public class GhClient {
     }
 
     private record View(int number, String title, String url, String state) {
+    }
+
+    /**
+     * Fetches the PR's size counts on their own, so they are known even when the diff is refused (GitHub's 406 for
+     * more than 300 files) and a failure here loses nothing else. A missing or null count is a failure, never 0.
+     */
+    public GhSize size(int pr) {
+        String json = run(List.of("pr", "view", Integer.toString(pr), "--json", "additions,deletions,changedFiles"));
+        SizeView view;
+        try {
+            view = mapper.readValue(json, SizeView.class);
+        } catch (JacksonException e) {
+            throw new GhException("unexpected size output from gh pr view " + pr + ": " + e.getOriginalMessage(), e);
+        }
+        if (view.additions() == null || view.deletions() == null || view.changedFiles() == null) {
+            throw new GhException("gh pr view " + pr + " did not report additions, deletions and changedFiles");
+        }
+        return new GhSize(view.additions(), view.deletions(), view.changedFiles());
+    }
+
+    private record SizeView(Integer additions, Integer deletions, Integer changedFiles) {
     }
 
     /** Builds the full command line; refuses anything but the allowed read-only subcommands. */

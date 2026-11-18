@@ -13,6 +13,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.prreview.clients.gh.model.GhSize;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.it.support.FakeGh;
 import io.quarkus.prreview.pr.model.PullRequest;
@@ -52,6 +53,28 @@ class GhClientTest {
         // gh pr view succeeded; only the diff failed, so the title is kept.
         assertEquals("Reformat everything", e.pullRequest().title());
         assertEquals("https://github.com/quarkusio/quarkus/pull/406", e.pullRequest().url());
+    }
+
+    @Test
+    void fetchesSizeCounts() {
+        assertEquals(new GhSize(12, 3, 2), client.size(101));
+    }
+
+    @Test
+    void sizeCountsAreKnownWhenTheDiffIsRefused() {
+        assertEquals(new GhSize(17, 19751, 1244), client.size(406));
+    }
+
+    @Test
+    void aMissingCountIsAFailureNotZero() {
+        GhException e = assertThrows(GhException.class, () -> client.size(102));
+        assertTrue(e.getMessage().contains("did not report additions"), e.getMessage());
+    }
+
+    @Test
+    void sizeOfAnUnknownPrIsAGhFailure() {
+        GhException e = assertThrows(GhException.class, () -> client.size(404));
+        assertTrue(e.getMessage().contains("no pull requests found"), e.getMessage());
     }
 
     @Test
