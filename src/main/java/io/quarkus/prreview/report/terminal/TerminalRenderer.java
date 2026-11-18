@@ -34,6 +34,9 @@ import io.quarkus.prreview.triage.model.PrOutcome;
  */
 public final class TerminalRenderer {
 
+    /** The most characters of a failure's text shown on its one line. */
+    static final int WHAT_FAILED_WIDTH = 120;
+
     private TerminalRenderer() {
     }
 
@@ -80,7 +83,7 @@ public final class TerminalRenderer {
             for (FailureRow row : failed.rows()) {
                 rows.add(new String[] { oneLine(failed.check().name() + CiFormat.suffix(failed.check())),
                         oneLine(failed.check().value()), row.test() == null ? "" : oneLine(row.test()),
-                        CiFormat.flaky(row), oneLine(row.whatFailed()) });
+                        CiFormat.flaky(row), cut(oneLine(row.whatFailed())) });
             }
         }
         int[] widths = new int[CiFormat.COLUMNS.length - 1];
@@ -98,6 +101,11 @@ public final class TerminalRenderer {
             table.append(line.append(row[widths.length]).toString().stripTrailing()).append('\n');
         }
         return table.toString();
+    }
+
+    /** At most {@link #WHAT_FAILED_WIDTH} characters, ending in {@code ...} when cut. */
+    private static String cut(String text) {
+        return text.length() <= WHAT_FAILED_WIDTH ? text : text.substring(0, WHAT_FAILED_WIDTH - 3) + "...";
     }
 
     private static String classified(Classification classification, Summary summary) {

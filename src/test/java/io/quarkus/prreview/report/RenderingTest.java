@@ -455,4 +455,75 @@ class RenderingTest {
                 ## Not classified
                 """), MarkdownReport.render(outcome));
     }
+
+    static PrOutcome withRows(List<FailureRow> rows) {
+        CiCheck check = new CiCheck(CiCheck.Kind.CHECK_RUN, "JVM Tests - JDK 21", "Quarkus CI", "FAILURE",
+                "https://github.com/q/q/actions/runs/1/job/2");
+        return withCi(new SourceResult.Available<>(new CiChecks("ba9690af", List.of(check),
+                List.of(new FailedCheck(check, rows)))));
+    }
+
+    @Test
+    void failingTestsShowTheirNameFlakyAndErrorWithLinksOnlyInMarkdown() {
+        PrOutcome outcome = withRows(List.of(
+                new FailureRow("io.q.MaxFrameSizeTest.testMaxFrameSize", false, "java.util.concurrent.CompletionException",
+                        "https://develocity.quarkus.io/scans/tests?tests.test=testMaxFrameSize",
+                        "https://develocity.quarkus.io/s/hzvs2"),
+                new FailureRow("io.q.GracefulShutdownFilterTest.test", true,
+                        "Timeout waiting for response - java.lang.RuntimeException",
+                        "https://develocity.quarkus.io/scans/tests?tests.test=test", null),
+                new FailureRow(null, null, "Failed to execute goal surefire on project x: See [date].dump", null,
+                        null)));
+
+        assertTrue(TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)).contains("""
+                CI: 1 of 1 not passed
+                  Check                            Result   Test                                    Flaky  What failed
+                  JVM Tests - JDK 21 (Quarkus CI)  FAILURE  io.q.MaxFrameSizeTest.testMaxFrameSize  no     \
+                java.util.concurrent.CompletionException
+                  JVM Tests - JDK 21 (Quarkus CI)  FAILURE  io.q.GracefulShutdownFilterTest.test    yes    \
+                Timeout waiting for response - java.lang.RuntimeException
+                  JVM Tests - JDK 21 (Quarkus CI)  FAILURE                                                 \
+                Failed to execute goal surefire on project x: See [date].dump
+                Report:"""), TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)));
+        String md = MarkdownReport.render(outcome);
+        assertTrue(md.contains("""
+                | [JVM Tests - JDK 21](https://github.com/q/q/actions/runs/1/job/2) (Quarkus CI) | `FAILURE` | \
+                [`io.q.MaxFrameSizeTest.testMaxFrameSize`](https://develocity.quarkus.io/scans/tests?tests.test=testMaxFrameSize) \
+                | no | java.util.concurrent.CompletionException · [scan](https://develocity.quarkus.io/s/hzvs2) |
+                | [JVM Tests - JDK 21](https://github.com/q/q/actions/runs/1/job/2) (Quarkus CI) | `FAILURE` | \
+                [`io.q.GracefulShutdownFilterTest.test`](https://develocity.quarkus.io/scans/tests?tests.test=test) \
+                | yes | Timeout waiting for response - java.lang.RuntimeException |
+                | [JVM Tests - JDK 21](https://github.com/q/q/actions/runs/1/job/2) (Quarkus CI) | `FAILURE` |  |  | \
+                Failed to execute goal surefire on project x: See \\[date\\].dump |
+                """), md);
+    }
+
+    @Test
+    void textFromABotCommentCannotChangeTheTableOrAddLinks() {
+        PrOutcome outcome = withRows(List.of(new FailureRow("a.B | c\n## x", true,
+                "<script>x</script> | [click](https://evil.example)\n# heading", "javascript:alert(1)",
+                "https://ok.example/s (x)")));
+
+        String md = MarkdownReport.render(outcome);
+        String row = md.lines().filter(l -> l.startsWith("| [JVM Tests")).findFirst().orElseThrow();
+        assertEquals("| [JVM Tests - JDK 21](https://github.com/q/q/actions/runs/1/job/2) (Quarkus CI) | `FAILURE` | "
+                + "`a.B \\| c ## x` | yes | &lt;script>x&lt;/script> \\| \\[click\\](https://evil.example) # heading |",
+                row);
+        assertEquals(6, row.replace("\\|", "").chars().filter(ch -> ch == '|').count(), row);
+        assertFalse(md.contains("javascript:"), md);
+        assertFalse(md.contains("ok.example"), md);
+        assertFalse(md.lines().anyMatch(l -> l.startsWith("# heading") || l.startsWith("## x")), md);
+    }
+
+    @Test
+    void aLongFailureIsOneLineOfAtMost120CharactersInTheTerminal() {
+        String error = "x".repeat(150) + "\n" + "y".repeat(150);
+        PrOutcome outcome = withRows(List.of(new FailureRow("a.B.c", false, error, null, null)));
+
+        String line = TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)).lines()
+                .filter(l -> l.contains("a.B.c")).findFirst().orElseThrow();
+        String whatFailed = line.substring(line.indexOf("x"));
+        assertEquals("x".repeat(117) + "...", whatFailed);
+        assertFalse(line.contains("https://"), line);
+    }
 }

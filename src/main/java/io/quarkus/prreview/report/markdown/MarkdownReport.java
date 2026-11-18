@@ -92,11 +92,12 @@ public final class MarkdownReport {
             CiCheck check = failed.check();
             String suffix = CiFormat.suffix(check);
             for (FailureRow row : failed.rows()) {
-                md.append("| ").append(link(check.name(), check.link())).append(suffix.isEmpty() ? "" : " " + cell(suffix))
+                md.append("| ").append(link(check.name(), check.link()))
+                        .append(suffix.isEmpty() ? "" : " " + text(suffix))
                         .append(" | ").append(escapePipes(code(check.value())))
                         .append(" | ").append(row.test() == null ? "" : linkedCode(row.test(), row.testLink()))
                         .append(" | ").append(CiFormat.flaky(row))
-                        .append(" | ").append(cell(row.whatFailed()))
+                        .append(" | ").append(text(row.whatFailed()))
                         .append(row.scanLink() != null && isLinkable(row.scanLink())
                                 ? " · [scan](" + row.scanLink() + ")" : "")
                         .append(" |\n");
@@ -104,9 +105,14 @@ public final class MarkdownReport {
         }
     }
 
+    /** Text from GitHub or a bot comment as a table cell that can't form a link: see {@link #cell(String)}. */
+    private static String text(String text) {
+        return cell(text).replace("[", "\\[").replace("]", "\\]");
+    }
+
     /** {@code text} as a table cell, linked to {@code url} when it is an {@code https://} URL. */
     private static String link(String text, String url) {
-        String label = cell(text).replace("[", "\\[").replace("]", "\\]");
+        String label = text(text);
         return isLinkable(url) ? "[" + label + "](" + url + ")" : label;
     }
 
