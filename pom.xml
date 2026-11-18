@@ -127,6 +127,8 @@
                         <excludedEnvironmentVariable>GH_TIMEOUT</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>GH_CACHE_TTL</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PROVENANCE_MAX_PEOPLE</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PROVENANCE_AI_SIGNALS</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PROVENANCE_AUTOMATION_ACCOUNTS</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_URL</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_TIMEOUT</excludedEnvironmentVariable>
@@ -143,6 +145,8 @@
                         <excludedEnvironmentVariable>PR_REVIEW_GH_TIMEOUT</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_GH_CACHE_TTL</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_PROVENANCE_MAX_PEOPLE</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PR_REVIEW_PROVENANCE_AI_SIGNALS</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PR_REVIEW_PROVENANCE_AUTOMATION_ACCOUNTS</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_JEV_PROJECT_CONTEXT</excludedEnvironmentVariable>
                     </excludedEnvironmentVariables>

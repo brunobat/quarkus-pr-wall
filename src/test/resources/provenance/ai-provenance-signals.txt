@@ -1,0 +1,3 @@
+# Minimal AI-declaration markers for tests. The real list lives in resource-files/ and is not committed.
+co-authored-by: claude
+generated with claude code

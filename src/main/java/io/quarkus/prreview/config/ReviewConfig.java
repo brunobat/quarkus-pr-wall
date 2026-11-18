@@ -59,6 +59,20 @@ public interface ReviewConfig {
          */
         @WithDefault("${PROVENANCE_MAX_PEOPLE:10}")
         int maxPeople();
+
+        /**
+         * The AI-declaration markers (e.g. {@code co-authored-by: claude}) looked for in the PR body and commit
+         * messages: a file path, or {@code classpath:<resource>}. A missing file warns and counts as empty.
+         */
+        @WithDefault("${PROVENANCE_AI_SIGNALS:resource-files/ai-provenance-signals.txt}")
+        String aiSignals();
+
+        /**
+         * The bot logins that are routine automation (e.g. {@code dependabot}), not coding agents: a file path, or
+         * {@code classpath:<resource>}. A missing file warns and counts as empty, so every bot is then an agent.
+         */
+        @WithDefault("${PROVENANCE_AUTOMATION_ACCOUNTS:resource-files/automation-accounts.txt}")
+        String automationAccounts();
     }
 
     interface Jev {

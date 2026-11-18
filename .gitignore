@@ -45,4 +45,5 @@ nb-configuration.xml
 .certs/
 /qrspi/
 /reports/
+/resource-files/
 /sbxenv.yaml

@@ -24,6 +24,11 @@ quarkus:
         model-name: ${ANTHROPIC_MODEL:claude-opus-5-5}
 
 "%test":
+  pr-review:
+    provenance:
+      # Minimal lists, so tests never depend on a developer's resource-files/.
+      ai-signals: classpath:provenance/ai-provenance-signals.txt
+      automation-accounts: classpath:provenance/automation-accounts.txt
   quarkus:
     langchain4j:
       typesafe:

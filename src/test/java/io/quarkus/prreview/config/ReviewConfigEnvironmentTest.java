@@ -31,6 +31,7 @@ class ReviewConfigEnvironmentTest {
                         "GH_TIMEOUT", "5s",
                         "GH_CACHE_TTL", "10m",
                         "PROVENANCE_MAX_PEOPLE", "3",
+                        "PROVENANCE_AI_SIGNALS", "/etc/signals.txt",
                         "JEV_MAX_SUBMISSION_CHARS", "1234"), "env", 300))
                 .build();
 
@@ -41,6 +42,9 @@ class ReviewConfigEnvironmentTest {
         assertEquals(Duration.ofSeconds(5), mapped.gh().timeout());
         assertEquals(Duration.ofMinutes(10), mapped.gh().cacheTtl());
         assertEquals(3, mapped.provenance().maxPeople());
+        assertEquals("/etc/signals.txt", mapped.provenance().aiSignals());
+        // Without the variable, the default points into resource-files/.
+        assertEquals("resource-files/automation-accounts.txt", mapped.provenance().automationAccounts());
         assertEquals(1234, mapped.jev().maxSubmissionChars());
     }
 }

@@ -1,0 +1,3 @@
+# Minimal routine-automation accounts for tests. The real list lives in resource-files/ and is not committed.
+dependabot
+quarkus-bot
