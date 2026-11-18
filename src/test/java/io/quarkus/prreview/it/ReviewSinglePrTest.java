@@ -128,6 +128,29 @@ class ReviewSinglePrTest {
     }
 
     @Test
+    void whoWroteAPrIsLookedUpWhileJevIsAsked(QuarkusMainLauncher launcher) {
+        // 118 is 101's twin whose author-association lookup takes 3s; jev also takes 3s. Done one after the other
+        // they would add 6s to the run; overlapped they add about 3s. The first launch is a warm-up, so that start-up
+        // costs are not counted in the baseline.
+        launcher.launch("review", "101", "--output-dir", out.toString());
+        long start = System.nanoTime();
+        LaunchResult baseline = launcher.launch("review", "101", "--output-dir", out.toString());
+        Duration fast = Duration.ofNanos(System.nanoTime() - start);
+        assertEquals(0, baseline.exitCode(), baseline.getErrorOutput());
+
+        jev.answerAfter(Duration.ofSeconds(3));
+        start = System.nanoTime();
+        LaunchResult slow = launcher.launch("review", "118", "--output-dir", out.toString());
+        Duration elapsed = Duration.ofNanos(System.nanoTime() - start);
+
+        assertEquals(0, slow.exitCode(), slow.getErrorOutput());
+        assertTrue(slow.getOutput().contains("Author: alice (team) · AI: none declared"), slow.getOutput());
+        Duration added = elapsed.minus(fast);
+        assertTrue(added.compareTo(Duration.ofMillis(2_500)) >= 0, "jev's delay was not waited for: " + added);
+        assertTrue(added.compareTo(Duration.ofMillis(4_500)) < 0, "the lookups did not overlap jev: " + added);
+    }
+
+    @Test
     void reportsGoToReportsInTheCurrentFolderByDefault(QuarkusMainLauncher launcher) throws IOException {
         Path report = Path.of("reports", "review-101.md");
         Path report406 = Path.of("reports", "review-406.md");

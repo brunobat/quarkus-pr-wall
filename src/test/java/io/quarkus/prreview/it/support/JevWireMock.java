@@ -54,6 +54,13 @@ public final class JevWireMock implements AutoCloseable {
                         .withBody(body)));
     }
 
+    /** Until {@link #reset()}, every submission is answered only after {@code delay}. */
+    public void answerAfter(java.time.Duration delay) {
+        server.stubFor(post(urlEqualTo(PATH)).atPriority(2).willReturn(aResponse()
+                .withHeader("Content-Type", "application/json").withBody(ANSWERS)
+                .withFixedDelay((int) delay.toMillis())));
+    }
+
     private void answer() {
         server.stubFor(post(urlEqualTo(PATH)).atPriority(5)
                 .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(ANSWERS)));

@@ -2,6 +2,8 @@ package io.quarkus.prreview.triage;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -14,6 +16,8 @@ import io.quarkus.prreview.classification.github.ci.CiSource;
 import io.quarkus.prreview.classification.github.size.SizeSource;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.provenance.ProvenanceSource;
+import io.quarkus.prreview.classification.provenance.model.Provenance;
+import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.classification.submission.JevSubmission;
 import io.quarkus.prreview.classification.submission.ProjectContextLoader;
 import io.quarkus.prreview.clients.gh.GhClient;
@@ -61,11 +65,35 @@ public class PrClassifier {
         this.checks = checks.stream().sorted(Comparator.comparing(ClassificationCheck::id)).toList();
     }
 
-    /** {@code jev}'s result, then each GitHub source's, whatever {@code jev}'s result was. */
+    /**
+     * {@code jev}'s result, then each GitHub source's, whatever {@code jev}'s result was. Who wrote the PR is looked up
+     * on its own virtual thread while {@code jev} is asked, so the PR waits for the slower of the two, not both.
+     */
     public PrOutcome classify(int number) {
+        FutureTask<SourceResult<Provenance>> whoWrote = new FutureTask<>(() -> provenance.gather(number));
+        Thread.ofVirtual().name("provenance-" + number).start(whoWrote);
         PrOutcome jevOnly = jev(number);
         return new PrOutcome(number, checkIds(), jevOnly.pullRequest(), jevOnly.jev(), size.gather(number),
-                ci.gather(number), provenance.gather(number));
+                ci.gather(number), join(number, whoWrote));
+    }
+
+    /**
+     * The provenance task's result. The source never throws for gh, and each of its gh calls has its own timeout, so
+     * the wait is bounded; anything unexpected becomes an unavailable result instead of failing the PR.
+     */
+    private static SourceResult<Provenance> join(int number, FutureTask<SourceResult<Provenance>> task) {
+        try {
+            return task.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            task.cancel(true);
+            return SourceResult.unavailable("interrupted");
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause() == null ? e : e.getCause();
+            LOG.warnf(cause, "PR #%d: provenance failed", number);
+            String message = cause.getMessage() == null ? cause.getClass().getName() : cause.getMessage();
+            return SourceResult.unavailable(oneLine(message));
+        }
     }
 
     private PrOutcome jev(int number) {
