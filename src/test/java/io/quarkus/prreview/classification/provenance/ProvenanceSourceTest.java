@@ -18,6 +18,8 @@ import io.quarkus.prreview.classification.provenance.model.AiLabel;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.classification.provenance.model.Who;
+import io.quarkus.prreview.classification.provenance.ai.AiRules;
+import io.quarkus.prreview.classification.provenance.signals.SignalList;
 import io.quarkus.prreview.classification.provenance.who.LoginMemo;
 import io.quarkus.prreview.classification.provenance.who.WhoRules;
 import io.quarkus.prreview.classification.source.model.SourceResult;
@@ -28,8 +30,11 @@ import io.quarkus.prreview.clients.gh.model.GhCommit;
 
 class ProvenanceSourceTest {
 
+    static final AiRules AI = new AiRules(new SignalList("test", List.of("co-authored-by: claude")),
+            new SignalList("test", List.of("dependabot")));
+
     final GhClient gh = mock(GhClient.class);
-    final ProvenanceSource source = new ProvenanceSource(gh, new WhoRules(gh), new LoginMemo(), 10);
+    final ProvenanceSource source = new ProvenanceSource(gh, new WhoRules(gh), new LoginMemo(), AI, 10);
 
     @Test
     void labelsThePrAuthorAndStampsTheReadTime() {
@@ -113,7 +118,7 @@ class ProvenanceSourceTest {
     @Test
     void aCommitAuthorAlreadyLabelledInThisRunIsNotLookedUpAgain() {
         LoginMemo memo = new LoginMemo();
-        ProvenanceSource withMemo = new ProvenanceSource(gh, new WhoRules(gh), memo, 10);
+        ProvenanceSource withMemo = new ProvenanceSource(gh, new WhoRules(gh), memo, AI, 10);
         for (int pr : new int[] { 7, 8 }) {
             when(gh.authorship(pr)).thenReturn(new GhAuthorship("pr-author", "", false, "", "abc",
                     List.of(commit("1", author("alice")))));
@@ -145,7 +150,7 @@ class ProvenanceSourceTest {
         when(gh.isMember(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
 
         Provenance provenance = ((SourceResult.Available<Provenance>) new ProvenanceSource(gh, new WhoRules(gh),
-                new LoginMemo(), 3).gather(7)).facts();
+                new LoginMemo(), AI, 3).gather(7)).facts();
 
         assertEquals(List.of(Person.of("person1", Who.TEAM), Person.of("dependabot[bot]", Who.BOT),
                 Person.of("person2", Who.TEAM), Person.of("person3", Who.TEAM),

@@ -12,7 +12,7 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
-import io.quarkus.prreview.classification.provenance.model.AiLabel;
+import io.quarkus.prreview.classification.provenance.ai.AiRules;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.classification.provenance.who.LoginMemo;
@@ -37,17 +37,19 @@ public class ProvenanceSource {
     private final GhClient gh;
     private final WhoRules who;
     private final LoginMemo memo;
+    private final AiRules ai;
     private final int maxPeople;
 
     @Inject
-    public ProvenanceSource(GhClient gh, WhoRules who, LoginMemo memo, ReviewConfig config) {
-        this(gh, who, memo, config.provenance().maxPeople());
+    public ProvenanceSource(GhClient gh, WhoRules who, LoginMemo memo, AiRules ai, ReviewConfig config) {
+        this(gh, who, memo, ai, config.provenance().maxPeople());
     }
 
-    ProvenanceSource(GhClient gh, WhoRules who, LoginMemo memo, int maxPeople) {
+    ProvenanceSource(GhClient gh, WhoRules who, LoginMemo memo, AiRules ai, int maxPeople) {
         this.gh = gh;
         this.who = who;
         this.memo = memo;
+        this.ai = ai;
         this.maxPeople = maxPeople;
     }
 
@@ -80,7 +82,9 @@ public class ProvenanceSource {
                 commitAuthors.add(person);
             }
         }
-        return new SourceResult.Available<>(new Provenance(author, List.copyOf(commitAuthors), AiLabel.NONE, readAt));
+        List<Person> labelled = List.copyOf(commitAuthors);
+        return new SourceResult.Available<>(new Provenance(author, labelled, ai.label(authorship, author, labelled),
+                readAt));
     }
 
     /**
