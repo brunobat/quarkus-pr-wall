@@ -508,12 +508,26 @@ class RenderingTest {
         String md = MarkdownReport.render(outcome);
         String row = md.lines().filter(l -> l.startsWith("| [JVM Tests")).findFirst().orElseThrow();
         assertEquals("| [JVM Tests - JDK 21](https://github.com/q/q/actions/runs/1/job/2) (Quarkus CI) | `FAILURE` | "
-                + "`a.B \\| c ## x` | yes | &lt;script>x&lt;/script> \\| \\[click\\](https://evil.example) # heading |",
+                + "`a.B \\| c ## x` | yes | \\<script\\>x\\</script\\> \\| \\[click\\](https\\://evil.example) # heading |",
                 row);
         assertEquals(6, row.replace("\\|", "").chars().filter(ch -> ch == '|').count(), row);
         assertFalse(md.contains("javascript:"), md);
         assertFalse(md.contains("ok.example"), md);
         assertFalse(md.lines().anyMatch(l -> l.startsWith("# heading") || l.startsWith("## x")), md);
+    }
+
+    @Test
+    void escapesInBotTextCannotBeUndoneAndNothingInItIsLinked() {
+        String error = "\\[Approve\\](https://evil.example/x) \\[a\\](`)<b>x</b> ` see https://evil.example/y, "
+                + "WWW.evil.example and ops@evil.example *bold* _it_ ~~gone~~ &amp; \\";
+        PrOutcome outcome = withRows(List.of(new FailureRow("a.B", false, error, null, null)));
+
+        String row = MarkdownReport.render(outcome).lines().filter(l -> l.startsWith("| [JVM Tests")).findFirst()
+                .orElseThrow();
+        String whatFailed = row.substring(row.indexOf("| no | ") + "| no | ".length(), row.length() - " |".length());
+        assertEquals("\\\\\\[Approve\\\\\\](https\\://evil.example/x) \\\\\\[a\\\\\\](\\`)\\<b\\>x\\</b\\> \\` "
+                + "see https\\://evil.example/y, WWW\\.evil.example and ops@&#8203;evil.example \\*bold\\* \\_it\\_ "
+                + "\\~\\~gone\\~\\~ \\&amp; \\\\", whatFailed);
     }
 
     @Test

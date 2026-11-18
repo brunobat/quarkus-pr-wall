@@ -35,6 +35,9 @@ public final class MarkdownReport {
 
     /** A {@code |} with the backslashes right before it. */
     private static final Pattern PIPE = Pattern.compile("(\\\\*)\\|");
+    /** What {@link #text(String)} backslash-escapes: everything markdown or HTML could act on inside a table cell. */
+    private static final String MARKDOWN_CHARS = "\\`*_[]<>&|~";
+    private static final Pattern WWW = Pattern.compile("(?i)(www)\\.");
 
     private MarkdownReport() {
     }
@@ -105,9 +108,24 @@ public final class MarkdownReport {
         }
     }
 
-    /** Text from GitHub or a bot comment as a table cell that can't form a link: see {@link #cell(String)}. */
+    /**
+     * Text from GitHub or a bot comment as plain text in a table cell, on one line. Every character that markdown or
+     * HTML acts on is backslash-escaped, the backslash itself included, so the text can't escape an escape, open a
+     * code span, form a link or open HTML. GitHub also links bare URLs, {@code www.} addresses and email addresses in
+     * plain text: {@code \://} and {@code www\.} stop the first two, and a zero-width space after {@code @} stops the
+     * third, which escaping does not.
+     */
     private static String text(String text) {
-        return cell(text).replace("[", "\\[").replace("]", "\\]");
+        String line = oneLine(text);
+        StringBuilder out = new StringBuilder(line.length());
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (MARKDOWN_CHARS.indexOf(c) >= 0) {
+                out.append('\\');
+            }
+            out.append(c);
+        }
+        return WWW.matcher(out.toString().replace("://", "\\://").replace("@", "@&#8203;")).replaceAll("$1\\\\.");
     }
 
     /** {@code text} as a table cell, linked to {@code url} when it is an {@code https://} URL. */
