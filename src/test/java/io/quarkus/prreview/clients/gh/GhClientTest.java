@@ -10,8 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
@@ -167,6 +170,50 @@ class GhClientTest {
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr", "comment", "1")));
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("api", "repos/x/y/pulls/1")));
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr")));
+    }
+
+    @Test
+    void aBulkCallSearchesAllStatesForTheBatchAndAsksForTheNumber() {
+        assertEquals(List.of("pr", "list", "--state", "all", "--search", "57715 56934", "--json",
+                "number,additions,deletions,changedFiles", "--limit", "2"),
+                GhClient.listArgs(List.of(57715, 56934), "additions,deletions,changedFiles"));
+        assertThrows(IllegalArgumentException.class, () -> GhClient.listArgs(List.of(), "comments"));
+    }
+
+    @Test
+    void batchesKeepTheSearchWithin256Characters() {
+        List<Integer> prs = IntStream.range(0, 100).map(i -> 50000 + i).boxed().toList();
+
+        List<List<Integer>> batches = GhClient.batches(prs);
+
+        // "50000 50001 ..." is 6 characters per PR but the first: 43 PRs make 257, 42 make 251.
+        assertEquals(List.of(42, 42, 16), batches.stream().map(List::size).toList());
+        assertEquals(prs, batches.stream().flatMap(List::stream).toList());
+        batches.forEach(b -> assertTrue(String.join(" ", b.stream().map(String::valueOf).toList()).length() <= 256));
+        assertEquals(List.of(List.of(1)), GhClient.batches(List.of(1)));
+        assertEquals(List.of(), GhClient.batches(List.of()));
+    }
+
+    @Test
+    void bulkResultsAreKeyedByNumberWithoutUnrequestedOrIncompletePrs(@TempDir Path dir) throws IOException {
+        Path gh = dir.resolve("gh");
+        Files.writeString(gh, """
+                #!/bin/sh
+                cat <<'JSON'
+                [{"number":1,"additions":5,"deletions":2,"changedFiles":1},
+                 {"number":7,"additions":1,"deletions":1,"changedFiles":1},
+                 {"number":2,"additions":null,"deletions":2,"changedFiles":1},
+                 {"number":3,"headRefOid":"abc","statusCheckRollup":[],"comments":[{"author":{"login":"x"},\
+                "body":"hi","createdAt":"2026-01-01T00:00:00Z"}]}]
+                JSON
+                """);
+        gh.toFile().setExecutable(true);
+        GhClient bulk = new GhClient(config(gh.toString(), Duration.ofSeconds(10)), JsonMapper.builder().build());
+
+        assertEquals(Map.of(1, new GhSize(5, 2, 1)), bulk.sizes(List.of(1, 2, 3)));
+        assertEquals(Map.of(3, new GhChecks("abc", List.of())), bulk.checks(List.of(1, 2, 3)));
+        assertEquals(Map.of(3, List.of(new GhComment("x", "hi", "2026-01-01T00:00:00Z"))),
+                bulk.comments(List.of(1, 2, 3)));
     }
 
     static ReviewConfig config(String binary, Duration timeout) {

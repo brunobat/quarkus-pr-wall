@@ -36,6 +36,11 @@ public class CiSource {
         this.gh = gh;
     }
 
+    /** Whether a check in {@code checks} did not pass, so that the PR's comments are needed for its rows. */
+    public static boolean anyNotPassed(GhChecks checks) {
+        return checks.rollup().stream().map(CiSource::check).anyMatch(c -> !PASSED.contains(c.value()));
+    }
+
     public SourceResult<CiChecks> gather(int pr) {
         GhChecks checks;
         try {
@@ -45,7 +50,7 @@ public class CiSource {
             return SourceResult.unavailable("gh: " + e.getMessage().strip().replaceAll("\\s+", " "));
         }
         List<GhComment> comments = null;
-        if (checks.rollup().stream().map(CiSource::check).anyMatch(c -> !PASSED.contains(c.value()))) {
+        if (anyNotPassed(checks)) {
             try {
                 comments = gh.comments(pr);
             } catch (GhException e) {
