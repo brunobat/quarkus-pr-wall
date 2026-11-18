@@ -63,6 +63,26 @@ class ReviewSinglePrTest {
     }
 
     @Test
+    void gitHubFactsNeverReachJevOrClaude(QuarkusMainLauncher launcher) {
+        // 112 is 101's twin (same metadata and diff) with no size, checks or comments: every fact is unavailable.
+        LaunchResult rich = launcher.launch("review", "101", "--output-dir", out.toString());
+        assertTrue(rich.getOutput().contains("CI: 5 of 9 not passed"), rich.getOutput());
+        List<String> jevRich = jev.posts().stream().map(LoggedRequest::getBodyAsString).toList();
+        List<String> claudeRich = claude.posts().stream().map(LoggedRequest::getBodyAsString).toList();
+        jev.reset();
+        claude.reset();
+
+        LaunchResult bare = launcher.launch("review", "112", "--output-dir", out.toString());
+        assertTrue(bare.getOutput().contains("Size: unavailable"), bare.getOutput());
+        assertTrue(bare.getOutput().contains("CI: unavailable"), bare.getOutput());
+
+        assertEquals(1, jevRich.size());
+        assertEquals(1, claudeRich.size());
+        assertEquals(jevRich, jev.posts().stream().map(LoggedRequest::getBodyAsString).toList());
+        assertEquals(claudeRich, claude.posts().stream().map(LoggedRequest::getBodyAsString).toList());
+    }
+
+    @Test
     void classifiesOnePrWithOneJevCallAndOneClaudeCall(QuarkusMainLauncher launcher) throws IOException {
         LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
 
