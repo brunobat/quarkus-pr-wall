@@ -68,9 +68,9 @@ public final class DiffFiles {
             } else if (line.startsWith("rename to ")) {
                 newPath = unquote(line.substring("rename to ".length()));
             } else if (line.startsWith("--- ") && !line.equals("--- /dev/null")) {
-                oldPath = oldPath != null ? oldPath : stripPrefix(unquote(line.substring(4)), "a/");
+                oldPath = oldPath != null ? oldPath : stripPrefix(unquote(beforeTab(line.substring(4))), "a/");
             } else if (line.startsWith("+++ ") && !line.equals("+++ /dev/null")) {
-                newPath = newPath != null ? newPath : stripPrefix(unquote(line.substring(4)), "b/");
+                newPath = newPath != null ? newPath : stripPrefix(unquote(beforeTab(line.substring(4))), "b/");
             } else if (line.startsWith("Binary files ") || line.equals("GIT binary patch")) {
                 binary = true;
             }
@@ -131,6 +131,15 @@ public final class DiffFiles {
             }
         }
         return -1;
+    }
+
+    /**
+     * The path of a {@code ---} or {@code +++} line without git's terminator: git ends an unquoted path that contains
+     * a space with a TAB. A TAB in a file name makes git quote the path, so it is never part of the name here.
+     */
+    static String beforeTab(String path) {
+        int tab = path.indexOf('\t');
+        return tab < 0 ? path : path.substring(0, tab);
     }
 
     /**

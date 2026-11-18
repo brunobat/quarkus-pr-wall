@@ -101,6 +101,21 @@ class DiffFilesTest {
     }
 
     @Test
+    void gitsTabAfterAPathWithASpaceIsNotPartOfThePath() {
+        String diff = """
+                diff --git a/docs/my file.txt b/docs/my file.txt
+                index 1111111..2222222 100644
+                --- a/docs/my file.txt\t
+                +++ b/docs/my file.txt\t
+                @@ -1 +1 @@
+                -a
+                +b
+                """;
+
+        assertEquals(List.of(new ChangedFile("docs/my file.txt", Kind.MODIFIED, null, false)), DiffFiles.parse(diff));
+    }
+
+    @Test
     void quotedPathsAreUnquoted() {
         String diff = """
                 diff --git "a/docs/say \\"hi\\".txt" "b/docs/say \\"hi\\".txt"
