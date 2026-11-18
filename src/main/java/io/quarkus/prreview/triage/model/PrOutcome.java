@@ -2,29 +2,46 @@ package io.quarkus.prreview.triage.model;
 
 import java.util.List;
 
+import io.quarkus.prreview.classification.github.ci.model.CiChecks;
+import io.quarkus.prreview.classification.github.size.model.PrSize;
+import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.JevResult;
+import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.pr.model.PullRequest;
 import io.quarkus.prreview.report.summary.model.Summary;
 
-/** How one PR ended: classified by {@code jev}, or not classified because of a noted error. */
-public sealed interface PrOutcome permits PrOutcome.Classified, PrOutcome.NotClassified {
+/**
+ * How one PR ended: one result from each classification source. {@code jev}'s result says whether the PR was
+ * classified; GitHub's size and CI results are there for every PR, classified or not.
+ *
+ * @param number the PR number
+ * @param checks the ids of {@code jev}'s checks, for the header
+ * @param pullRequest the PR as fetched (with an empty diff when only {@code gh pr diff} failed), or {@code null} when
+ *        nothing was fetched
+ * @param jev {@code jev}'s result
+ * @param size GitHub's size facts
+ * @param ci GitHub's CI facts
+ */
+public record PrOutcome(int number, List<String> checks, PullRequest pullRequest, JevResult jev,
+        SourceResult<PrSize> size, SourceResult<CiChecks> ci) {
 
-    record Classified(Classification classification, Summary summary) implements PrOutcome {
+    /** The reason given by a GitHub source that was not asked. */
+    public static final String NOT_GATHERED = "not gathered";
+
+    /** A PR {@code jev} classified; the GitHub sources are not gathered. */
+    public static PrOutcome classified(Classification classification, Summary summary) {
+        PullRequest pr = classification.pr().pullRequest();
+        return new PrOutcome(pr.number(), classification.checks().stream().map(CheckResult::checkId).toList(), pr,
+                new JevResult.Classified(classification, summary), SourceResult.unavailable(NOT_GATHERED),
+                SourceResult.unavailable(NOT_GATHERED));
     }
 
-    /**
-     * A PR that could not be classified, with the run details known when it failed.
-     *
-     * @param checks the ids of the checks that would have classified it, for the header
-     * @param pullRequest the PR as fetched (with an empty diff when only {@code gh pr diff} failed), or {@code null}
-     *        when nothing was fetched
-     * @param reason the one-line reason shown after {@code not classified:}, e.g. {@code gh: <message>}
-     * @param message the full error message, e.g. {@code jev}'s response body
-     * @param jevModel the {@code jev} model, or {@code null} when {@code jev} was not reached
-     * @param submissionChars the measured submission size, or {@code null} when not measured
-     * @param limit the submission limit, or {@code null} when no submission was measured
-     */
-    record NotClassified(int number, List<String> checks, PullRequest pullRequest, String reason, String message, String jevModel,
-            Integer submissionChars, Integer limit) implements PrOutcome {
+    /** A PR {@code jev} did not classify; the GitHub sources are not gathered. */
+    public static PrOutcome notClassified(int number, List<String> checks, PullRequest pullRequest, String reason,
+            String message, String jevModel, Integer submissionChars, Integer limit) {
+        return new PrOutcome(number, checks, pullRequest,
+                new JevResult.NotClassified(reason, message, jevModel, submissionChars, limit),
+                SourceResult.unavailable(NOT_GATHERED), SourceResult.unavailable(NOT_GATHERED));
     }
 }

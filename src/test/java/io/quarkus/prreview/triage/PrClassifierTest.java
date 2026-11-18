@@ -1,6 +1,7 @@
 package io.quarkus.prreview.triage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -21,6 +22,7 @@ import dev.langchain4j.model.decision.response.YesNoAnswer;
 import dev.langchain4j.model.output.TokenUsage;
 import dev.langchain4j.service.Result;
 import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.it.support.FakeGh;
@@ -57,9 +59,12 @@ class PrClassifierTest {
 
         when(summarizer.summarize(any())).thenReturn(Result.<String>builder().content("A summary.").build());
 
-        PrOutcome.Classified outcome = (PrOutcome.Classified) classifier.classify(101);
-        Classification classification = outcome.classification();
-        assertEquals("A summary.", outcome.summary().text());
+        PrOutcome outcome = classifier.classify(101);
+        JevResult.Classified jev = (JevResult.Classified) outcome.jev();
+        Classification classification = jev.classification();
+        assertEquals("A summary.", jev.summary().text());
+        assertNotNull(outcome.size());
+        assertNotNull(outcome.ci());
 
         ArgumentCaptor<DecisionRequest> sent = ArgumentCaptor.forClass(DecisionRequest.class);
         verify(model, times(1)).decide(sent.capture());

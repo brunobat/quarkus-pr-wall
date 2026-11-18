@@ -27,7 +27,7 @@ import io.quarkus.prreview.triage.model.PrOutcome;
 
 /**
  * Classifies one PR: fetch it, let every check ask its questions, send them to {@code jev} in one submission, keep
- * the answers unchanged and describe them. A failure for this PR becomes a {@link PrOutcome.NotClassified} with a
+ * the answers unchanged and describe them. A failure for this PR becomes an outcome whose {@code jev} result is not classified, with a
  * one-line reason (spec "Per-PR failures and exit codes"); it is never thrown, so the run goes on.
  */
 @ApplicationScoped
@@ -58,12 +58,12 @@ public class PrClassifier {
         } catch (GhException e) {
             LOG.warnf(e, "PR #%d: gh failed", number);
             // The PR's title is kept when only its diff failed.
-            return new PrOutcome.NotClassified(number, checkIds(), e.pullRequest(), "gh: " + oneLine(e.getMessage()),
+            return PrOutcome.notClassified(number, checkIds(), e.pullRequest(), "gh: " + oneLine(e.getMessage()),
                     e.getMessage(), null, null, null);
         }
         if (pr.diff().isBlank()) {
             LOG.warnf("PR #%d: gh returned an empty diff", number);
-            return new PrOutcome.NotClassified(number, checkIds(), pr, "empty diff", "gh pr diff returned no changes",
+            return PrOutcome.notClassified(number, checkIds(), pr, "empty diff", "gh pr diff returned no changes",
                     null, null, null);
         }
 
@@ -74,7 +74,7 @@ public class PrClassifier {
             decision = jev.decide(submission.toDecisionRequest());
         } catch (SubmissionTooLargeException e) {
             LOG.warnf("PR #%d: %s", number, e.getMessage());
-            return new PrOutcome.NotClassified(number, checkIds(), pr,
+            return PrOutcome.notClassified(number, checkIds(), pr,
                     "submission %d chars exceeds limit %d".formatted(e.submissionChars(), e.limit()), e.getMessage(),
                     jev.modelName(), e.submissionChars(), e.limit());
         } catch (JevException e) {
@@ -95,16 +95,16 @@ public class PrClassifier {
             return jevFailure(number, pr, message, response.modelName() == null ? jev.modelName()
                     : response.modelName(), decision.submissionChars(), decision.limit());
         }
-        return new PrOutcome.Classified(classification, summaries.summarize(classification));
+        return PrOutcome.classified(classification, summaries.summarize(classification));
     }
 
     private List<String> checkIds() {
         return checks.stream().map(ClassificationCheck::id).toList();
     }
 
-    private PrOutcome.NotClassified jevFailure(int number, PullRequest pr, String message, String model,
+    private PrOutcome jevFailure(int number, PullRequest pr, String message, String model,
             int submissionChars, int limit) {
-        return new PrOutcome.NotClassified(number, checkIds(), pr, "jev: " + oneLine(message), message, model,
+        return PrOutcome.notClassified(number, checkIds(), pr, "jev: " + oneLine(message), message, model,
                 submissionChars, limit);
     }
 

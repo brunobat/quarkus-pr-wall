@@ -11,6 +11,7 @@ import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
 
 import io.quarkus.arc.Unremovable;
+import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.submission.ProjectContextLoader;
 import io.quarkus.prreview.clients.jev.JevClient;
 import io.quarkus.prreview.config.ReviewConfig;
@@ -69,7 +70,7 @@ public class ReviewCommand implements Callable<Integer> {
             // Each block is printed as soon as its PR is done.
             out.print(TerminalRenderer.render(outcome, report));
             out.flush();
-            if (!(outcome instanceof PrOutcome.Classified) || !(report instanceof ReportWriter.Written)) {
+            if (!(outcome.jev() instanceof JevResult.Classified) || !(report instanceof ReportWriter.Written)) {
                 errors++;
             }
         }

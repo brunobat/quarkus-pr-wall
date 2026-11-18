@@ -1,6 +1,7 @@
 package io.quarkus.prreview.triage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,6 +22,7 @@ import dev.langchain4j.model.decision.DecisionModel;
 import dev.langchain4j.model.decision.request.DecisionRequest;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import dev.langchain4j.model.decision.response.YesNoAnswer;
+import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.it.support.FakeGh;
 import io.quarkus.prreview.triage.model.PrOutcome;
@@ -44,23 +46,25 @@ class PrOutcomeTest {
 
     @Test
     void aPrGhCannotFindIsAGhFailure() {
-        PrOutcome.NotClassified outcome = (PrOutcome.NotClassified) classifier.classify(404);
+        PrOutcome outcome = classifier.classify(404);
+        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
 
         assertEquals(404, outcome.number());
-        assertEquals("gh: no pull requests found for branch \"404\"", outcome.reason());
+        assertEquals("gh: no pull requests found for branch \"404\"", jev.reason());
         assertNull(outcome.pullRequest());
-        assertNull(outcome.jevModel());
-        assertNull(outcome.submissionChars());
+        assertNull(jev.jevModel());
+        assertNull(jev.submissionChars());
         verifyNoInteractions(model, summarizer);
     }
 
     @Test
     void aDiffTooLargeForGitHubIsAGhFailure() {
-        PrOutcome.NotClassified outcome = (PrOutcome.NotClassified) classifier.classify(406);
+        PrOutcome outcome = classifier.classify(406);
+        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
 
-        assertTrue(outcome.reason().startsWith("gh: "), outcome.reason());
-        assertTrue(outcome.reason().contains("too_large"), outcome.reason());
-        assertEquals(-1, outcome.reason().indexOf('\n'), "one line");
+        assertTrue(jev.reason().startsWith("gh: "), jev.reason());
+        assertTrue(jev.reason().contains("too_large"), jev.reason());
+        assertEquals(-1, jev.reason().indexOf('\n'), "one line");
         // Only the diff failed: the PR's title was fetched and is kept.
         assertEquals("Reformat everything", outcome.pullRequest().title());
         verifyNoInteractions(model, summarizer);
@@ -68,9 +72,10 @@ class PrOutcomeTest {
 
     @Test
     void anEmptyDiffIsNotSentToJev() {
-        PrOutcome.NotClassified outcome = (PrOutcome.NotClassified) classifier.classify(103);
+        PrOutcome outcome = classifier.classify(103);
+        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
 
-        assertEquals("empty diff", outcome.reason());
+        assertEquals("empty diff", jev.reason());
         assertEquals("Touch nothing", outcome.pullRequest().title());
         verifyNoInteractions(model, summarizer);
     }
@@ -80,15 +85,16 @@ class PrOutcomeTest {
         when(model.decide(any(DecisionRequest.class))).thenThrow(new InvalidRequestException(
                 "{\"error\": {\"type\": \"max_tokens_exceeded\",\n \"message\": \"too long\"}}"));
 
-        PrOutcome.NotClassified outcome = (PrOutcome.NotClassified) classifier.classify(101);
+        PrOutcome outcome = classifier.classify(101);
+        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
 
         assertEquals("jev: {\"error\": {\"type\": \"max_tokens_exceeded\", \"message\": \"too long\"}}",
-                outcome.reason());
-        assertTrue(outcome.message().contains("\n"), "the full message is kept");
+                jev.reason());
+        assertTrue(jev.message().contains("\n"), "the full message is kept");
         assertEquals("Fix the frobnicator", outcome.pullRequest().title());
-        assertEquals("jev-latest", outcome.jevModel());
-        assertTrue(outcome.submissionChars() > 0);
-        assertEquals(60000, outcome.limit());
+        assertEquals("jev-latest", jev.jevModel());
+        assertTrue(jev.submissionChars() > 0);
+        assertEquals(60000, jev.limit());
         verifyNoInteractions(summarizer);
     }
 
@@ -98,7 +104,7 @@ class PrOutcomeTest {
                 .thenThrow(new InvalidDecisionResponseException("probability 1.5 is out of range"));
 
         assertEquals("jev: probability 1.5 is out of range",
-                ((PrOutcome.NotClassified) classifier.classify(101)).reason());
+                ((JevResult.NotClassified) classifier.classify(101).jev()).reason());
         verifyNoInteractions(summarizer);
     }
 
@@ -107,7 +113,7 @@ class PrOutcomeTest {
         when(model.decide(any(DecisionRequest.class)))
                 .thenThrow(new RuntimeException("request timed out", new HttpTimeoutException("request timed out")));
 
-        assertEquals("jev: request timed out", ((PrOutcome.NotClassified) classifier.classify(101)).reason());
+        assertEquals("jev: request timed out", ((JevResult.NotClassified) classifier.classify(101).jev()).reason());
         verifyNoInteractions(summarizer);
     }
 
@@ -116,10 +122,21 @@ class PrOutcomeTest {
         when(model.decide(any(DecisionRequest.class))).thenReturn(DecisionResponse.builder().modelName("jev-test")
                 .answer("test-adequacy.behaviour", YesNoAnswer.of(0.5)).build());
 
-        PrOutcome.NotClassified outcome = (PrOutcome.NotClassified) classifier.classify(101);
+        PrOutcome outcome = classifier.classify(101);
+        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
 
-        assertTrue(outcome.reason().startsWith("jev: "), outcome.reason());
-        assertEquals("jev-test", outcome.jevModel());
+        assertTrue(jev.reason().startsWith("jev: "), jev.reason());
+        assertEquals("jev-test", jev.jevModel());
         verify(summarizer, never()).summarize(any());
+    }
+
+    @Test
+    void everyOutcomeHasAResultFromEverySource() {
+        for (int pr : new int[] { 404, 406, 103 }) {
+            PrOutcome outcome = classifier.classify(pr);
+            assertNotNull(outcome.jev(), "jev for #" + pr);
+            assertNotNull(outcome.size(), "size for #" + pr);
+            assertNotNull(outcome.ci(), "ci for #" + pr);
+        }
     }
 }

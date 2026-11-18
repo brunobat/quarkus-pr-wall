@@ -5,6 +5,7 @@ import java.util.List;
 
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.report.AnswerFormat;
 import io.quarkus.prreview.report.ReportWriter;
@@ -31,9 +32,9 @@ public final class TerminalRenderer {
     }
 
     public static String render(PrOutcome outcome, ReportWriter.Result report) {
-        String body = switch (outcome) {
-            case PrOutcome.Classified classified -> classified(classified.classification(), classified.summary());
-            case PrOutcome.NotClassified notClassified -> header(notClassified.number(), notClassified.checks())
+        String body = switch (outcome.jev()) {
+            case JevResult.Classified classified -> classified(classified.classification(), classified.summary());
+            case JevResult.NotClassified notClassified -> header(outcome.number(), outcome.checks())
                     + "  not classified: " + oneLine(notClassified.reason()) + "\n";
         };
         return body + switch (report) {

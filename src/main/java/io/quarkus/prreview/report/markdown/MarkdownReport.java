@@ -8,6 +8,7 @@ import dev.langchain4j.model.output.TokenUsage;
 
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PullRequest;
@@ -32,9 +33,9 @@ public final class MarkdownReport {
     }
 
     public static String render(PrOutcome outcome) {
-        return switch (outcome) {
-            case PrOutcome.Classified classified -> render(classified.classification(), classified.summary());
-            case PrOutcome.NotClassified notClassified -> render(notClassified);
+        return switch (outcome.jev()) {
+            case JevResult.Classified classified -> render(classified.classification(), classified.summary());
+            case JevResult.NotClassified notClassified -> render(outcome, notClassified);
         };
     }
 
@@ -75,9 +76,9 @@ public final class MarkdownReport {
         return md.toString();
     }
 
-    private static String render(PrOutcome.NotClassified outcome) {
+    private static String render(PrOutcome pr, JevResult.NotClassified outcome) {
         StringBuilder md = new StringBuilder();
-        appendTitle(md, outcome.number(), outcome.pullRequest());
+        appendTitle(md, pr.number(), pr.pullRequest());
         md.append("## Not classified\n\n");
         md.append("Reason: ").append(inline(outcome.reason())).append("\n\n");
         md.append("Message: ").append(inline(outcome.message())).append("\n");

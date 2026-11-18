@@ -11,6 +11,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.model.decision.DecisionModel;
+import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.it.support.FakeGh;
 import io.quarkus.prreview.triage.model.PrOutcome;
@@ -43,12 +44,13 @@ class PrOutcomeOverLimitTest {
 
     @Test
     void aSubmissionOverTheLimitIsNotSent() {
-        PrOutcome.NotClassified outcome = (PrOutcome.NotClassified) classifier.classify(101);
+        PrOutcome outcome = classifier.classify(101);
+        JevResult.NotClassified jev = (JevResult.NotClassified) outcome.jev();
 
-        assertTrue(outcome.submissionChars() > 1000, outcome.toString());
-        assertEquals("submission " + outcome.submissionChars() + " chars exceeds limit 1000", outcome.reason());
-        assertEquals(1000, outcome.limit());
-        assertEquals("jev-latest", outcome.jevModel());
+        assertTrue(jev.submissionChars() > 1000, outcome.toString());
+        assertEquals("submission " + jev.submissionChars() + " chars exceeds limit 1000", jev.reason());
+        assertEquals(1000, jev.limit());
+        assertEquals("jev-latest", jev.jevModel());
         assertEquals("Fix the frobnicator", outcome.pullRequest().title());
         verifyNoInteractions(model, summarizer);
     }
