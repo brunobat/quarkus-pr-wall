@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -26,8 +27,9 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Read-only access to GitHub through the {@code gh} CLI. Only {@code gh pr view}, {@code gh pr diff} and
- * {@code gh pr list} can run; any other subcommand is refused before a process starts.
+ * Read-only access to GitHub through the {@code gh} CLI. Only {@code gh pr view}, {@code gh pr diff},
+ * {@code gh pr list} and GET requests through {@code gh api} to a fixed set of paths can run; anything else is refused
+ * before a process starts.
  */
 @ApplicationScoped
 public class GhClient {
@@ -38,6 +40,13 @@ public class GhClient {
     /** Read-only subcommands only: {@code pr list} reads facts for many PRs per request. */
     private static final Set<List<String>> ALLOWED_SUBCOMMANDS = Set.of(List.of("pr", "view"), List.of("pr", "diff"),
             List.of("pr", "list"));
+
+    /** A GitHub login as it may appear in an {@code api} path: letters, digits and dashes, optionally {@code [bot]}. */
+    static final Pattern LOGIN = Pattern.compile("[A-Za-z0-9-]+(\\[bot\\])?");
+    /** A full commit SHA. */
+    static final Pattern SHA = Pattern.compile("[0-9a-f]{40}");
+    /** A {@code gh api --cache} duration, as Go writes one: e.g. {@code 3600s} or {@code 1h}. */
+    private static final Pattern CACHE_TTL = Pattern.compile("([0-9]+(ns|us|ms|s|m|h))+");
 
     private final ReviewConfig config;
     private final JsonMapper mapper;
@@ -243,6 +252,9 @@ public class GhClient {
 
     /** Builds the full command line; refuses anything but the allowed read-only subcommands. */
     List<String> command(List<String> args) {
+        if (!args.isEmpty() && "api".equals(args.getFirst())) {
+            return apiCommand(args);
+        }
         if (args.size() < 2 || !ALLOWED_SUBCOMMANDS.contains(args.subList(0, 2))) {
             throw new IllegalArgumentException("gh subcommand not allowed: " + args);
         }
@@ -252,6 +264,51 @@ public class GhClient {
         command.add("-R");
         command.add(config.gh().repo());
         return command;
+    }
+
+    /**
+     * A GET request through {@code gh api}. {@code gh api} has no {@code -R}: the path names the configured repository
+     * or its owner itself, and must be one of the pull request, commits-by-author or org-membership paths. The only
+     * flags are {@code -i}, {@code --cache <duration>} and {@code --jq <expr>}, so nothing can change the method or
+     * send a body ({@code -X}, {@code -f}, {@code -F}, {@code --input}), and {@code graphql} is never a valid path.
+     */
+    private List<String> apiCommand(List<String> args) {
+        if (args.size() < 2 || !allowedApiPath(args.get(1))) {
+            throw new IllegalArgumentException("gh api path not allowed: " + args);
+        }
+        for (int i = 2; i < args.size(); i++) {
+            String flag = args.get(i);
+            if (flag.equals("-i")) {
+                continue;
+            }
+            if ((flag.equals("--cache") || flag.equals("--jq")) && i + 1 < args.size()) {
+                String value = args.get(++i);
+                if (flag.equals("--cache") ? CACHE_TTL.matcher(value).matches() : !value.startsWith("-")) {
+                    continue;
+                }
+            }
+            throw new IllegalArgumentException("gh api flag not allowed: " + args);
+        }
+        List<String> command = new ArrayList<>();
+        command.add(config.gh().binary());
+        command.addAll(args);
+        return command;
+    }
+
+    private boolean allowedApiPath(String path) {
+        String repo = Pattern.quote(config.gh().repo());
+        String owner = Pattern.quote(owner());
+        String login = LOGIN.pattern();
+        return path.matches("repos/" + repo + "/pulls/[1-9][0-9]*")
+                || path.matches(
+                        "repos/" + repo + "/commits\\?author=" + login + "&sha=" + SHA.pattern() + "&per_page=1")
+                || path.matches("orgs/" + owner + "/members/" + login);
+    }
+
+    /** The owner part of the configured {@code owner/repo}: the org whose membership is looked up. */
+    String owner() {
+        String repo = config.gh().repo();
+        return repo.substring(0, Math.max(repo.indexOf('/'), 0));
     }
 
     /**

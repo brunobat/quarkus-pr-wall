@@ -168,8 +168,52 @@ class GhClientTest {
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr", "edit", "1")));
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("issue", "list")));
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr", "comment", "1")));
-        assertThrows(IllegalArgumentException.class, () -> client.command(List.of("api", "repos/x/y/pulls/1")));
+        assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr", "api")));
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr")));
+    }
+
+    private static final String SHA = "3cde8c894156969db35001fe9f26051c3c81fd22";
+
+    @Test
+    void apiGetsToTheThreeReadOnlyPathsRunWithoutRepoFlag() {
+        assertEquals(List.of(FAKE_GH, "api", "repos/quarkusio/quarkus/pulls/58115", "--jq", ".author_association"),
+                client.command(List.of("api", "repos/quarkusio/quarkus/pulls/58115", "--jq", ".author_association")));
+        assertEquals(List.of(FAKE_GH, "api", "orgs/quarkusio/members/brunobat", "-i", "--cache", "3600s"),
+                client.command(List.of("api", "orgs/quarkusio/members/brunobat", "-i", "--cache", "3600s")));
+        String commits = "repos/quarkusio/quarkus/commits?author=some-one&sha=" + SHA + "&per_page=1";
+        assertEquals(List.of(FAKE_GH, "api", commits, "--cache", "1h"),
+                client.command(List.of("api", commits, "--cache", "1h")));
+        assertEquals(List.of(FAKE_GH, "api", "orgs/quarkusio/members/dependabot[bot]"),
+                client.command(List.of("api", "orgs/quarkusio/members/dependabot[bot]")));
+    }
+
+    @Test
+    void apiFlagsThatCouldWriteOrSendABodyAreRefused() {
+        String pulls = "repos/quarkusio/quarkus/pulls/1";
+        for (List<String> flags : List.of(List.of("-X", "GET"), List.of("-XPOST"), List.of("--method", "GET"),
+                List.of("-f", "a=b"), List.of("--raw-field", "a=b"), List.of("-F", "a=b"), List.of("--field", "a=b"),
+                List.of("--input", "file"), List.of("-H", "Accept: x"), List.of("--paginate"), List.of("--cache"),
+                List.of("--cache", "forever"), List.of("--jq"), List.of("--jq", "-X"), List.of("-R", "x/y"))) {
+            List<String> args = new java.util.ArrayList<>(List.of("api", pulls));
+            args.addAll(flags);
+            assertThrows(IllegalArgumentException.class, () -> client.command(args), args.toString());
+        }
+    }
+
+    @Test
+    void apiPathsOutsideTheAllowedOnesAreRefused() {
+        for (String path : List.of("graphql", "user", "search/issues?q=x", "repos/quarkusio/quarkus/contents/README.md",
+                "repos/x/y/pulls/1", "repos/quarkusio/quarkus/pulls/1/merge", "repos/quarkusio/quarkus/pulls/0",
+                "repos/quarkusio/quarkus/pulls", "repos/quarkusio/quarkus/issues/1", "orgs/other/members/a",
+                "orgs/quarkusio/members/a/b", "orgs/quarkusio/members/a?x=1", "orgs/quarkusio/members/",
+                "repos/quarkusio/quarkus/commits?author=a/b&sha=" + SHA + "&per_page=1",
+                "repos/quarkusio/quarkus/commits?author=a?b&sha=" + SHA + "&per_page=1",
+                "repos/quarkusio/quarkus/commits?author=a&sha=main&per_page=1",
+                "repos/quarkusio/quarkus/commits?author=a&sha=" + SHA + "&per_page=100",
+                "repos/quarkusio/quarkusXio/pulls/1", "/repos/quarkusio/quarkus/pulls/1")) {
+            assertThrows(IllegalArgumentException.class, () -> client.command(List.of("api", path)), path);
+        }
+        assertThrows(IllegalArgumentException.class, () -> client.command(List.of("api")));
     }
 
     @Test

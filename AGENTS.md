@@ -11,8 +11,8 @@ README's top section lists the planned classifications and decisions.
 
 ### GitHub is read-only
 
-- NEVER change anything on GitHub: no comments, labels, reviews, approvals, merges or issue edits.
-- The only `gh` commands the code may run are `gh pr view`, `gh pr diff` and `gh pr list`. Don't add others.
+- NEVER change anything on GitHub: no comments, labels, reviews, approvals, merges, pull requests or issue edits.
+- The only gh commands the code may run are `gh pr view *`, `gh pr diff *`, `gh pr list *`, and gh api GET requests (no `-X/--method` other than GET, no `-f/-F` fields, no `--input` body) to `repos/{owner}/{repo}/pulls/*`, `repos/{owner}/{repo}/contents/*`, `repos/{owner}/{repo}/commits*` and `orgs/{org}/members/*`. Don't add others. NEVER change anything on GitHub.
 
 ### Classify, don't decide
 
