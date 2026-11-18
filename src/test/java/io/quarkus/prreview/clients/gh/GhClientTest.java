@@ -158,7 +158,12 @@ class GhClientTest {
     void onlyReadOnlySubcommandsAreAllowed() {
         assertEquals(List.of(FAKE_GH, "pr", "view", "1", "-R", "quarkusio/quarkus"),
                 client.command(List.of("pr", "view", "1")));
+        assertEquals(List.of(FAKE_GH, "pr", "list", "--search", "1 2", "-R", "quarkusio/quarkus"),
+                client.command(List.of("pr", "list", "--search", "1 2")));
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr", "merge", "1")));
+        assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr", "create")));
+        assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr", "edit", "1")));
+        assertThrows(IllegalArgumentException.class, () -> client.command(List.of("issue", "list")));
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr", "comment", "1")));
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("api", "repos/x/y/pulls/1")));
         assertThrows(IllegalArgumentException.class, () -> client.command(List.of("pr")));

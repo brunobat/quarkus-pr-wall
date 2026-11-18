@@ -28,7 +28,9 @@ import tools.jackson.databind.json.JsonMapper;
 @ApplicationScoped
 public class GhClient {
 
-    private static final Set<List<String>> ALLOWED_SUBCOMMANDS = Set.of(List.of("pr", "view"), List.of("pr", "diff"));
+    /** Read-only subcommands only: {@code pr list} reads facts for many PRs per request. */
+    private static final Set<List<String>> ALLOWED_SUBCOMMANDS = Set.of(List.of("pr", "view"), List.of("pr", "diff"),
+            List.of("pr", "list"));
 
     private final ReviewConfig config;
     private final JsonMapper mapper;

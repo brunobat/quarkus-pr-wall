@@ -12,7 +12,7 @@ README's top section lists the planned classifications and decisions.
 ### GitHub is read-only
 
 - NEVER change anything on GitHub: no comments, labels, reviews, approvals, merges or issue edits.
-- The only `gh` commands the code may run are `gh pr view` and `gh pr diff`. Don't add others.
+- The only `gh` commands the code may run are `gh pr view`, `gh pr diff` and `gh pr list`. Don't add others.
 
 ### Classify, don't decide
 
