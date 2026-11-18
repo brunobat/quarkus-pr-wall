@@ -31,15 +31,18 @@ public final class TerminalRenderer {
     private TerminalRenderer() {
     }
 
+    /** The whole block: the header, then each classification source's part in a fixed order, then the report line. */
     public static String render(PrOutcome outcome, ReportWriter.Result report) {
-        String body = switch (outcome.jev()) {
-            case JevResult.Classified classified -> classified(classified.classification(), classified.summary());
-            case JevResult.NotClassified notClassified -> header(outcome.number(), outcome.checks())
-                    + "  not classified: " + oneLine(notClassified.reason()) + "\n";
-        };
-        return body + switch (report) {
+        return header(outcome.number(), outcome.checks()) + jev(outcome.jev()) + switch (report) {
             case ReportWriter.Written written -> "Report: " + written.path() + "\n";
             case ReportWriter.Failed failed -> "Report: not written: " + oneLine(failed.error()) + "\n";
+        };
+    }
+
+    private static String jev(JevResult jev) {
+        return switch (jev) {
+            case JevResult.Classified classified -> classified(classified.classification(), classified.summary());
+            case JevResult.NotClassified notClassified -> "  not classified: " + oneLine(notClassified.reason()) + "\n";
         };
     }
 
@@ -53,9 +56,7 @@ public final class TerminalRenderer {
                 });
             }
         }
-        return header(classification.pr().pullRequest().number(),
-                classification.checks().stream().map(CheckResult::checkId).toList())
-                + "  " + String.join("  ", answers) + "\n"
+        return "  " + String.join("  ", answers) + "\n"
                 + "Summary (" + summary.shortSource() + "): " + oneLine(summary.text()) + "\n";
     }
 

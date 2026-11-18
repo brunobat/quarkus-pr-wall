@@ -32,17 +32,24 @@ public final class MarkdownReport {
     private MarkdownReport() {
     }
 
+    /** The whole report: the title, then each classification source's part in a fixed order. */
     public static String render(PrOutcome outcome) {
-        return switch (outcome.jev()) {
-            case JevResult.Classified classified -> render(classified.classification(), classified.summary());
-            case JevResult.NotClassified notClassified -> render(outcome, notClassified);
-        };
+        StringBuilder md = new StringBuilder();
+        appendTitle(md, outcome.number(), outcome.pullRequest());
+        switch (outcome.jev()) {
+            case JevResult.Classified classified -> appendClassified(md, classified.classification(),
+                    classified.summary());
+            case JevResult.NotClassified notClassified -> appendNotClassified(md, notClassified);
+        }
+        return md.toString();
     }
 
+    /** The report for a classified PR whose GitHub facts were not gathered. */
     public static String render(Classification classification, Summary summary) {
-        StringBuilder md = new StringBuilder();
-        appendTitle(md, classification.pr().pullRequest().number(), classification.pr().pullRequest());
+        return render(PrOutcome.classified(classification, summary));
+    }
 
+    private static void appendClassified(StringBuilder md, Classification classification, Summary summary) {
         md.append("## Classification\n");
         for (CheckResult check : classification.checks()) {
             appendYesNo(md, check);
@@ -73,12 +80,9 @@ public final class MarkdownReport {
         md.append("- Claude submission: ").append(summary.claudeChars() == null ? "not sent"
                 : summary.claudeChars() + " characters (system and user messages)").append("\n");
         md.append("- Claude tokens: ").append(tokens(summary.claudeTokens())).append("\n");
-        return md.toString();
     }
 
-    private static String render(PrOutcome pr, JevResult.NotClassified outcome) {
-        StringBuilder md = new StringBuilder();
-        appendTitle(md, pr.number(), pr.pullRequest());
+    private static void appendNotClassified(StringBuilder md, JevResult.NotClassified outcome) {
         md.append("## Not classified\n\n");
         md.append("Reason: ").append(inline(outcome.reason())).append("\n\n");
         md.append("Message: ").append(inline(outcome.message())).append("\n");
@@ -90,7 +94,6 @@ public final class MarkdownReport {
             md.append("- Submission size: ").append(outcome.submissionChars()).append(" characters (limit ")
                     .append(outcome.limit()).append(")\n");
         }
-        return md.toString();
     }
 
     /** {@code # PR #<n>: <title>} and the link line, or just {@code # PR #<n>} when the PR was not fetched. */
