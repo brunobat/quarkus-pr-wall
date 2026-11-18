@@ -1,11 +1,18 @@
 package io.quarkus.prreview.classification.provenance.signals;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -37,6 +44,37 @@ class SignalListTest {
                 SignalList.load("classpath:provenance/automation-accounts.txt", "X").entries());
         assertEquals(List.of("dependabot", "quarkus-bot"),
                 SignalList.load("classpath:/provenance/automation-accounts.txt", "X").entries());
+    }
+
+    @Test
+    void aMissingListLogsOneWarningNamingItsSetting(@TempDir Path dir) {
+        List<LogRecord> records = new ArrayList<>();
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                records.add(record);
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        Logger logger = Logger.getLogger(SignalList.class.getName());
+        logger.addHandler(handler);
+        try {
+            SignalList.load(dir.resolve("missing.txt").toString(), "PROVENANCE_AI_SIGNALS");
+        } finally {
+            logger.removeHandler(handler);
+        }
+
+        assertEquals(1, records.size(), records.toString());
+        assertEquals(Level.WARNING, records.getFirst().getLevel());
+        String message = new SimpleFormatter().formatMessage(records.getFirst());
+        assertTrue(message.startsWith("PROVENANCE_AI_SIGNALS: cannot read "), message);
     }
 
     @Test
