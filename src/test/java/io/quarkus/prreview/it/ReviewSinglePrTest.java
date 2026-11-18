@@ -116,6 +116,8 @@ class ReviewSinglePrTest {
             assertEquals(0, result.exitCode(), result.getErrorOutput());
             assertTrue(result.getOutputStream().contains("Report: " + report), result.getOutput());
             assertTrue(Files.readString(report).startsWith("# PR #101: Fix the frobnicator"));
+            assertTrue(result.getOutputStream().contains("Size: 2 files changed, +12 \u22123"), result.getOutput());
+            assertTrue(Files.readString(report).contains("## Size (GitHub)\n\n- Changed files: 2\n"));
         } finally {
             // Leave the working folder as it was.
             if (previous != null) {

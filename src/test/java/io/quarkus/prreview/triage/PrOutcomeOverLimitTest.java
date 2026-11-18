@@ -11,7 +11,9 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.model.decision.DecisionModel;
+import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.JevResult;
+import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.it.support.FakeGh;
 import io.quarkus.prreview.triage.model.PrOutcome;
@@ -52,6 +54,7 @@ class PrOutcomeOverLimitTest {
         assertEquals(1000, jev.limit());
         assertEquals("jev-latest", jev.jevModel());
         assertEquals("Fix the frobnicator", outcome.pullRequest().title());
+        assertEquals(new SourceResult.Available<>(new PrSize(2, 12, 3)), outcome.size());
         verifyNoInteractions(model, summarizer);
     }
 }
