@@ -7,6 +7,7 @@ import io.quarkus.prreview.classification.provenance.model.Who;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
+import io.quarkus.prreview.clients.gh.model.GhCommit;
 
 /**
  * Who each person of a PR is to the repository. The first matching rule wins and later lookups are not made. A
@@ -52,6 +53,24 @@ public class WhoRules {
             case "MANNEQUIN" -> Person.other(login, "placeholder account");
             default -> Person.other(login, "unknown association " + association);
         };
+    }
+
+    /**
+     * A commit's git author: a bot by the shape of its login or name ({@code app/...} or {@code ...[bot]}), since
+     * GitHub reports no bot flag for commit authors.
+     */
+    public Person commitAuthor(GhCommit.Author author) {
+        if (isBotShaped(author)) {
+            return Person.of(author.login(), Who.BOT);
+        }
+        return Person.other(author.login(), "not looked up");
+    }
+
+    /** Whether a commit author's login or name has a bot account's shape. */
+    public static boolean isBotShaped(GhCommit.Author author) {
+        String login = author.login() == null ? "" : author.login();
+        String name = author.name() == null ? "" : author.name();
+        return login.startsWith("app/") || login.endsWith("[bot]") || name.endsWith("[bot]");
     }
 
     static String oneLine(String text) {
