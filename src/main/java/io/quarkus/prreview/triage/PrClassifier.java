@@ -10,6 +10,7 @@ import org.jboss.logging.Logger;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import io.quarkus.arc.All;
 import io.quarkus.prreview.classification.api.ClassificationCheck;
+import io.quarkus.prreview.classification.github.size.SizeSource;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.submission.JevSubmission;
 import io.quarkus.prreview.classification.submission.ProjectContextLoader;
@@ -27,8 +28,9 @@ import io.quarkus.prreview.triage.model.PrOutcome;
 
 /**
  * Classifies one PR: fetch it, let every check ask its questions, send them to {@code jev} in one submission, keep
- * the answers unchanged and describe them. A failure for this PR becomes an outcome whose {@code jev} result is not answered, with a
- * one-line reason (spec "Per-PR failures and exit codes"); it is never thrown, so the run goes on.
+ * the answers unchanged and describe them, then gather GitHub's facts. A failure for this PR becomes an outcome whose
+ * {@code jev} result is not answered, with a one-line reason (spec "Per-PR failures and exit codes"); it is never
+ * thrown, so the run goes on.
  */
 @ApplicationScoped
 public class PrClassifier {
@@ -40,10 +42,12 @@ public class PrClassifier {
     private final SummaryService summaries;
     private final List<ClassificationCheck> checks;
     private final ProjectContextLoader projectContext;
+    private final SizeSource size;
 
     public PrClassifier(GhClient gh, JevClient jev, SummaryService summaries, @All List<ClassificationCheck> checks,
-            ProjectContextLoader projectContext) {
+            ProjectContextLoader projectContext, SizeSource size) {
         this.gh = gh;
+        this.size = size;
         this.jev = jev;
         this.summaries = summaries;
         this.projectContext = projectContext;
@@ -51,7 +55,14 @@ public class PrClassifier {
         this.checks = checks.stream().sorted(Comparator.comparing(ClassificationCheck::id)).toList();
     }
 
+    /** {@code jev}'s result, then each GitHub source's, whatever {@code jev}'s result was. */
     public PrOutcome classify(int number) {
+        PrOutcome jevOnly = jev(number);
+        return new PrOutcome(number, checkIds(), jevOnly.pullRequest(), jevOnly.jev(), size.gather(number),
+                jevOnly.ci());
+    }
+
+    private PrOutcome jev(int number) {
         PullRequest pr;
         try {
             pr = gh.fetch(number);

@@ -13,10 +13,12 @@ import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.model.output.TokenUsage;
 import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
+import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PrContext;
 import io.quarkus.prreview.pr.model.PullRequest;
@@ -87,6 +89,7 @@ class RenderingTest {
                 PR #57720 - test adequacy
                   behaviour 0.88  tests-changed 0.12  reach: no-test-changes 0.83  assert: no-test-changes 0.77
                 Summary (Claude): Runtime behaviour changes; no tests were changed.
+                Size: unavailable
                 Report: reports/review-57720.md
                 """, block);
     }
@@ -194,7 +197,7 @@ class RenderingTest {
         assertTrue(report.contains("**Claude (model|x):** Line one. # Heading | x |\n"), report);
         assertFalse(report.lines().anyMatch(l -> l.startsWith("## Injected") || l.startsWith("# Heading")), report);
         // Only the renderer's own sections are headings.
-        assertEquals(List.of("# PR #57720: Fix | pipes ## Injected | a | b |", "## Classification", "### reach", "### assert",
+        assertEquals(List.of("# PR #57720: Fix | pipes ## Injected | a | b |", "## Size (GitHub)", "## Classification", "### reach", "### assert",
                 "## Summary", "## Changed files", "## Run"),
                 report.lines().filter(l -> l.startsWith("#")).toList());
         // Every table row has exactly its columns: a '|' from text is escaped.
@@ -213,7 +216,8 @@ class RenderingTest {
             // Every line of the report starts with the renderer's own text.
             report.lines().filter(l -> !l.isEmpty()).forEach(l -> assertTrue(
                     l.startsWith("#") || l.startsWith("Link: ") || l.startsWith("|") || l.startsWith("Question: ")
-                            || l.startsWith("jev's choice: ") || l.startsWith("**") || l.startsWith("- "),
+                            || l.startsWith("jev's choice: ") || l.startsWith("**") || l.startsWith("- ")
+                            || l.equals("unavailable"),
                     l));
             assertEquals(1, report.lines().filter(l -> l.equals("## Run")).count(), report);
             assertTrue(report.contains("\n**Claude (m):** " + text + " ## Run more\n"), report);
@@ -240,11 +244,13 @@ class RenderingTest {
         assertEquals("""
                 PR #57715 - test adequacy
                   not classified: jev: {"error": "max_tokens_exceeded"}
+                Size: unavailable
                 Report: reports/review-57720.md
                 """, TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)));
         assertEquals("""
                 PR #57715 - test adequacy
                   not classified: jev: {"error": "max_tokens_exceeded"}
+                Size: unavailable
                 Report: not written: FileSystemException: /x: Not a directory
                 """, TerminalRenderer.render(outcome, new ReportWriter.Failed(
                 "FileSystemException: /x: Not a directory")));
@@ -256,7 +262,7 @@ class RenderingTest {
                 probs("no-test-changes", 0.83)), CLAUDE), new ReportWriter.Failed("AccessDeniedException: x"));
 
         assertTrue(block.endsWith("Summary (Claude): Runtime behaviour changes; no tests were changed.\n"
-                + "Report: not written: AccessDeniedException: x\n"), block);
+                + "Size: unavailable\n" + "Report: not written: AccessDeniedException: x\n"), block);
     }
 
     @Test
@@ -270,6 +276,10 @@ class RenderingTest {
                 # PR #57715: Big | change
 
                 Link: https://github.com/quarkusio/quarkus/pull/57715 · State: OPEN
+
+                ## Size (GitHub)
+
+                unavailable
 
                 ## Not classified
 
@@ -294,6 +304,10 @@ class RenderingTest {
         assertEquals("""
                 # PR #404
 
+                ## Size (GitHub)
+
+                unavailable
+
                 ## Not classified
 
                 Reason: gh: no pull requests found
@@ -304,5 +318,49 @@ class RenderingTest {
 
                 - jev model: not reached
                 """, MarkdownReport.render(outcome));
+    }
+
+    @Test
+    void sizeIsShownForClassifiedAndNotClassifiedPrs() {
+        PrSize size = new PrSize(61, 933, 197);
+        PrOutcome classified = PrOutcome.answered(sample(0.88, "no-test-changes", probs("no-test-changes", 0.83)),
+                CLAUDE);
+        classified = new PrOutcome(classified.number(), classified.checks(), classified.pullRequest(), classified.jev(),
+                new SourceResult.Available<>(size), classified.ci());
+
+        assertTrue(TerminalRenderer.render(classified, new ReportWriter.Written(REPORT)).endsWith("""
+                Summary (Claude): Runtime behaviour changes; no tests were changed.
+                Size: 61 files changed, +933 \u2212197
+                Report: reports/review-57720.md
+                """));
+        assertTrue(MarkdownReport.render(classified).contains("""
+                State: OPEN
+
+                ## Size (GitHub)
+
+                - Changed files: 61
+                - Lines added: 933
+                - Lines deleted: 197
+
+                ## Classification
+                """), MarkdownReport.render(classified));
+
+        PrOutcome titleLess = PrOutcome.notAnswered(404, List.of("test-adequacy"), null, "gh: no pull requests found",
+                "no pull requests found", null, null, null);
+        titleLess = new PrOutcome(404, titleLess.checks(), null, titleLess.jev(), new SourceResult.Available<>(size),
+                titleLess.ci());
+        assertEquals("""
+                PR #404 - test adequacy
+                  not classified: gh: no pull requests found
+                Size: 61 files changed, +933 \u2212197
+                Report: reports/review-57720.md
+                """, TerminalRenderer.render(titleLess, new ReportWriter.Written(REPORT)));
+        assertTrue(MarkdownReport.render(titleLess).startsWith("""
+                # PR #404
+
+                ## Size (GitHub)
+
+                - Changed files: 61
+                """), MarkdownReport.render(titleLess));
     }
 }

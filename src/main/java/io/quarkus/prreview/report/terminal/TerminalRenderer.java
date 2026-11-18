@@ -3,10 +3,12 @@ package io.quarkus.prreview.report.terminal;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.report.AnswerFormat;
 import io.quarkus.prreview.report.ReportWriter;
 import io.quarkus.prreview.report.summary.model.Summary;
@@ -33,10 +35,11 @@ public final class TerminalRenderer {
 
     /** The whole block: the header, then each classification source's part in a fixed order, then the report line. */
     public static String render(PrOutcome outcome, ReportWriter.Result report) {
-        return header(outcome.number(), outcome.checks()) + jev(outcome.jev()) + switch (report) {
-            case ReportWriter.Written written -> "Report: " + written.path() + "\n";
-            case ReportWriter.Failed failed -> "Report: not written: " + oneLine(failed.error()) + "\n";
-        };
+        return header(outcome.number(), outcome.checks()) + jev(outcome.jev()) + size(outcome.size())
+                + switch (report) {
+                    case ReportWriter.Written written -> "Report: " + written.path() + "\n";
+                    case ReportWriter.Failed failed -> "Report: not written: " + oneLine(failed.error()) + "\n";
+                };
     }
 
     private static String jev(JevResult jev) {
@@ -44,6 +47,14 @@ public final class TerminalRenderer {
             case JevResult.Answered answered -> classified(answered.classification(), answered.summary());
             case JevResult.NotAnswered notAnswered -> "  not classified: " + oneLine(notAnswered.reason()) + "\n";
         };
+    }
+
+    private static String size(SourceResult<PrSize> size) {
+        return "Size: " + switch (size) {
+            case SourceResult.Available<PrSize> available -> available.facts().changedFiles() + " files changed, +"
+                    + available.facts().additions() + " \u2212" + available.facts().deletions();
+            case SourceResult.Unavailable<PrSize> unavailable -> "unavailable";
+        } + "\n";
     }
 
     private static String classified(Classification classification, Summary summary) {

@@ -6,10 +6,12 @@ import java.util.regex.Pattern;
 
 import dev.langchain4j.model.output.TokenUsage;
 
+import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PullRequest;
 import io.quarkus.prreview.report.AnswerFormat;
@@ -36,6 +38,7 @@ public final class MarkdownReport {
     public static String render(PrOutcome outcome) {
         StringBuilder md = new StringBuilder();
         appendTitle(md, outcome.number(), outcome.pullRequest());
+        appendSize(md, outcome.size());
         switch (outcome.jev()) {
             case JevResult.Answered answered -> appendClassified(md, answered.classification(), answered.summary());
             case JevResult.NotAnswered notAnswered -> appendNotClassified(md, notAnswered);
@@ -46,6 +49,18 @@ public final class MarkdownReport {
     /** The report for a classified PR whose GitHub facts were not gathered. */
     public static String render(Classification classification, Summary summary) {
         return render(PrOutcome.answered(classification, summary));
+    }
+
+    private static void appendSize(StringBuilder md, SourceResult<PrSize> size) {
+        md.append("## Size (GitHub)\n\n");
+        switch (size) {
+            case SourceResult.Available<PrSize> available -> md
+                    .append("- Changed files: ").append(available.facts().changedFiles()).append("\n")
+                    .append("- Lines added: ").append(available.facts().additions()).append("\n")
+                    .append("- Lines deleted: ").append(available.facts().deletions()).append("\n");
+            case SourceResult.Unavailable<PrSize> unavailable -> md.append("unavailable\n");
+        }
+        md.append("\n");
     }
 
     private static void appendClassified(StringBuilder md, Classification classification, Summary summary) {
