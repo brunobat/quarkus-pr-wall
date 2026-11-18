@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Stand-in for the gh CLI in tests. Answers `gh pr view <n> ...` and `gh pr diff <n> ...` from
-# prs/<n>/ next to this script:
-#   view.json   output of `gh pr view`
+# prs/<n>/ next to this script. `gh pr view` picks its file from the `--json` field list:
+#   view.json      fields without additions, statusCheckRollup or comments (the metadata call)
+#   size.json      fields containing additions
+#   checks.json    fields containing statusCheckRollup
+#   comments.json  fields containing comments
+#   <stem>-error.txt  if present, `gh pr view` prints it to stderr and exits 1 instead of answering from <stem>.json;
+#                  a missing <stem>.json also exits 1
 #   diff.patch  output of `gh pr diff`
 #   diff-error.txt  if present, `gh pr diff` prints it to stderr and exits 1 (`gh pr view` still answers)
 #   sleep       if present, the script first waits on a child `sleep` of that many seconds, which keeps
@@ -31,8 +36,32 @@ if [[ "$sub" == "diff" && -f "$dir/diff-error.txt" ]]; then
   exit 1
 fi
 
+# The value after --json, if any.
+fields=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  [[ "${args[$i]}" == "--json" ]] && fields="${args[$((i + 1))]:-}"
+done
+
+view_stem() {
+  case ",$fields," in
+    *,additions,*) echo size ;;
+    *,statusCheckRollup,*) echo checks ;;
+    *,comments,*) echo comments ;;
+    *) echo view ;;
+  esac
+}
+
 case "$sub" in
-  view) cat "$dir/view.json" ;;
+  view)
+    stem="$(view_stem)"
+    if [[ -f "$dir/$stem-error.txt" ]]; then
+      cat "$dir/$stem-error.txt" >&2
+      exit 1
+    fi
+    [[ -f "$dir/$stem.json" ]] || { echo "fake gh: no $stem.json for PR $pr" >&2; exit 1; }
+    cat "$dir/$stem.json"
+    ;;
   diff) cat "$dir/diff.patch" ;;
   *) echo "fake gh: unsupported subcommand: $sub" >&2; exit 2 ;;
 esac
