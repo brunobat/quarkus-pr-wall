@@ -166,7 +166,7 @@ Size: 12 files changed, +310 -95
 CI: 2 of 67 not passed
   Check                                        Result   Test                                                          Flaky  What failed
   JVM Tests - JDK 21 (Quarkus CI)              FAILURE  io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test  yes    Timeout waiting for response - java.lang.RuntimeException
-  JVM Integration Tests - JDK 17 (Quarkus CI)  FAILURE                                                                        Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.4:test (default-test) on project quarkus-integ...
+  JVM Integration Tests - JDK 17 (Quarkus CI)  FAILURE                                                                        Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.4:test (default-test) on project quarkus-inte…
 Report: reports/review-57715.md
 ```
 

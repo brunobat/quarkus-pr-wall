@@ -103,9 +103,9 @@ public final class TerminalRenderer {
         return table.toString();
     }
 
-    /** At most {@link #WHAT_FAILED_WIDTH} characters, ending in {@code ...} when cut. */
+    /** At most {@link #WHAT_FAILED_WIDTH} characters, ending in {@code …} when cut. */
     private static String cut(String text) {
-        return text.length() <= WHAT_FAILED_WIDTH ? text : text.substring(0, WHAT_FAILED_WIDTH - 3) + "...";
+        return text.length() <= WHAT_FAILED_WIDTH ? text : text.substring(0, WHAT_FAILED_WIDTH - 1) + "…";
     }
 
     private static String classified(Classification classification, Summary summary) {

@@ -538,7 +538,7 @@ class RenderingTest {
         String line = TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)).lines()
                 .filter(l -> l.contains("a.B.c")).findFirst().orElseThrow();
         String whatFailed = line.substring(line.indexOf("x"));
-        assertEquals("x".repeat(117) + "...", whatFailed);
+        assertEquals("x".repeat(119) + "\u2026", whatFailed);
         assertFalse(line.contains("https://"), line);
     }
 }
