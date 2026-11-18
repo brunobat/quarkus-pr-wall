@@ -345,6 +345,27 @@ class GhClientTest {
                 bulk.comments(List.of(1, 2, 3)));
     }
 
+    @Test
+    void bulkAuthorshipsAreKeyedByNumberWithoutUnrequestedOrIncompletePrs(@TempDir Path dir) throws IOException {
+        Path gh = dir.resolve("gh");
+        Files.writeString(gh, """
+                #!/bin/sh
+                cat <<'JSON'
+                [{"number":1,"author":{"login":"alice","is_bot":false,"name":"Alice"},"body":"b","baseRefOid":"abc",\
+                "commits":[{"oid":"c1","messageHeadline":"h","messageBody":"","authors":[{"login":"alice","name":"A"}]}]},
+                 {"number":2,"author":{"login":"bob","is_bot":false},"body":"","baseRefOid":"abc"},
+                 {"number":7,"author":null,"body":"","baseRefOid":"abc","commits":[]},
+                 {"author":{"login":"x"},"baseRefOid":"abc","commits":[]}]
+                JSON
+                """);
+        gh.toFile().setExecutable(true);
+        GhClient bulk = new GhClient(config(gh.toString(), Duration.ofSeconds(10)), JsonMapper.builder().build());
+
+        assertEquals(Map.of(1, new GhAuthorship("alice", "Alice", false, "b", "abc",
+                List.of(new GhCommit("c1", "h", "", List.of(new GhCommit.Author("alice", "A")))))),
+                bulk.authorships(List.of(1, 2, 3)));
+    }
+
     static ReviewConfig config(String binary, Duration timeout) {
         return new ReviewConfig() {
             @Override

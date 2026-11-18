@@ -12,6 +12,7 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
+import io.quarkus.prreview.classification.github.GitHubFacts;
 import io.quarkus.prreview.classification.provenance.ai.AiRules;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
@@ -26,7 +27,8 @@ import io.quarkus.prreview.config.ReviewConfig;
 
 /**
  * The authorship-provenance classification source: who wrote a PR, from GitHub's facts only, or why that could not be
- * read. A lookup that fails for one person labels only that person; the source is unavailable only when the PR's
+ * read. Who wrote the PR comes from the run's bulk read when it has it, else from its own call. A lookup that fails
+ * for one person labels only that person; the source is unavailable only when the PR's
  * authorship itself could not be read. Never throws for gh.
  */
 @ApplicationScoped
@@ -35,18 +37,21 @@ public class ProvenanceSource {
     private static final Logger LOG = Logger.getLogger(ProvenanceSource.class);
 
     private final GhClient gh;
+    private final GitHubFacts facts;
     private final WhoRules who;
     private final LoginMemo memo;
     private final AiRules ai;
     private final int maxPeople;
 
     @Inject
-    public ProvenanceSource(GhClient gh, WhoRules who, LoginMemo memo, AiRules ai, ReviewConfig config) {
-        this(gh, who, memo, ai, config.provenance().maxPeople());
+    public ProvenanceSource(GhClient gh, GitHubFacts facts, WhoRules who, LoginMemo memo, AiRules ai,
+            ReviewConfig config) {
+        this(gh, facts, who, memo, ai, config.provenance().maxPeople());
     }
 
-    ProvenanceSource(GhClient gh, WhoRules who, LoginMemo memo, AiRules ai, int maxPeople) {
+    ProvenanceSource(GhClient gh, GitHubFacts facts, WhoRules who, LoginMemo memo, AiRules ai, int maxPeople) {
         this.gh = gh;
+        this.facts = facts;
         this.who = who;
         this.memo = memo;
         this.ai = ai;
@@ -56,7 +61,7 @@ public class ProvenanceSource {
     public SourceResult<Provenance> gather(int pr) {
         GhAuthorship authorship;
         try {
-            authorship = gh.authorship(pr);
+            authorship = facts.authorship(pr).orElseGet(() -> gh.authorship(pr));
         } catch (GhException e) {
             LOG.warnf(e, "PR #%d: provenance unavailable", pr);
             return SourceResult.unavailable("gh: " + e.getMessage().strip().replaceAll("\\s+", " "));

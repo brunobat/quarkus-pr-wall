@@ -341,6 +341,27 @@ public class GhClient {
     private record CommentsItem(Integer number, List<CommentView> comments) {
     }
 
+    /**
+     * Who wrote each requested PR found by one {@code gh pr list} search, keyed by number; absent and extra PRs as for
+     * {@link #sizes(List)}, and a PR without its base or commits is absent too. gh cuts each commit list at 100 here.
+     */
+    public Map<Integer, GhAuthorship> authorships(List<Integer> prs) {
+        Map<Integer, GhAuthorship> authorships = new LinkedHashMap<>();
+        for (AuthorshipItem item : list(prs, AUTHORSHIP_FIELDS, AuthorshipItem[].class)) {
+            GhAuthorship authorship = toAuthorship(
+                    new AuthorshipView(item.author(), item.body(), item.baseRefOid(), item.commits()));
+            if (item.number() != null && authorship != null) {
+                authorships.put(item.number(), authorship);
+            }
+        }
+        authorships.keySet().retainAll(prs);
+        return authorships;
+    }
+
+    private record AuthorshipItem(Integer number, AuthorView author, String body, String baseRefOid,
+            List<CommitView> commits) {
+    }
+
     /** {@code prs} split, in order, into lists whose numbers joined with spaces fit {@link #MAX_SEARCH_CHARS}. */
     public static List<List<Integer>> batches(List<Integer> prs) {
         List<List<Integer>> batches = new ArrayList<>();

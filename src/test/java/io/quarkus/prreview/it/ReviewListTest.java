@@ -265,7 +265,9 @@ class ReviewListTest {
         LaunchResult result = launcher.launch("review", "101", "103", "106", "107", "--output-dir", out.toString());
 
         List<String> calls = callsSince(before);
-        assertEquals(3, calls.stream().filter(c -> c.startsWith("pr list ")).count(), calls.toString());
+        assertEquals(4, calls.stream().filter(c -> c.startsWith("pr list ")).count(), calls.toString());
+        assertTrue(calls.contains("pr list --state all --search 101 103 106 107 --json number,author,body,baseRefOid,"
+                + "commits --limit 4 -R quarkusio/quarkus"), calls.toString());
         assertTrue(calls.contains("pr list --state all --search 101 103 106 107 --json number,additions,deletions,"
                 + "changedFiles --limit 4 -R quarkusio/quarkus"), calls.toString());
         // Comments only for the PRs with a check that did not pass.

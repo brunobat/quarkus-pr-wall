@@ -1,6 +1,7 @@
 package io.quarkus.prreview.classification.github;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
@@ -18,9 +19,11 @@ import io.quarkus.prreview.classification.github.ci.CiSource;
 import io.quarkus.prreview.classification.github.size.SizeSource;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
+import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
+import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.clients.gh.model.GhSize;
 
 class GitHubFactsTest {
@@ -138,6 +141,26 @@ class GitHubFactsTest {
 
         verify(gh).comments(List.of(1));
         assertEquals(COMMENTS, facts.comments(1).orElseThrow());
+    }
+
+    static GhAuthorship authorship(int commits) {
+        return new GhAuthorship("alice", "Alice", false, "", "abc", Collections.nCopies(commits,
+                new GhCommit("1", "h", "", List.of(new GhCommit.Author("alice", "Alice")))));
+    }
+
+    @Test
+    void whoWroteAPrComesFromTheBulkReadUnlessItIsMissingFailedOrMayBeCutOff() {
+        when(gh.authorships(List.of(1, 2, 3))).thenReturn(Map.of(1, authorship(99), 2, authorship(100)));
+
+        facts.prefetch(List.of(1, 2, 3));
+
+        assertEquals(authorship(99), facts.authorship(1).orElseThrow());
+        assertTrue(facts.authorship(2).isEmpty(), "exactly 100 commits may have been cut off");
+        assertTrue(facts.authorship(3).isEmpty(), "missing from the results");
+
+        when(gh.authorships(List.of(1))).thenThrow(new GhException("HTTP 502"));
+        facts.prefetch(List.of(1));
+        assertTrue(facts.authorship(1).isEmpty(), "the bulk call failed");
     }
 
     void stubPerPr(int pr) {
