@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
+import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhSize;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.pr.model.PullRequest;
@@ -80,6 +81,24 @@ public class GhClient {
     }
 
     private record SizeView(Integer additions, Integer deletions, Integer changedFiles) {
+    }
+
+    /**
+     * Fetches the PR's head commit and its check rollup on their own call. No checks is an empty list; a missing or
+     * null rollup is a failure, so "none" and "could not be read" stay apart.
+     */
+    public GhChecks checks(int pr) {
+        String json = run(List.of("pr", "view", Integer.toString(pr), "--json", "headRefOid,statusCheckRollup"));
+        GhChecks checks;
+        try {
+            checks = mapper.readValue(json, GhChecks.class);
+        } catch (JacksonException e) {
+            throw new GhException("unexpected checks output from gh pr view " + pr + ": " + e.getOriginalMessage(), e);
+        }
+        if (checks.rollup() == null) {
+            throw new GhException("gh pr view " + pr + " did not report statusCheckRollup");
+        }
+        return checks;
     }
 
     /** Builds the full command line; refuses anything but the allowed read-only subcommands. */

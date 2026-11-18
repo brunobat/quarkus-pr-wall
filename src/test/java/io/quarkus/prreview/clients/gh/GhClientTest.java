@@ -13,6 +13,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.prreview.clients.gh.model.GhCheck;
+import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhSize;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.it.support.FakeGh;
@@ -75,6 +77,34 @@ class GhClientTest {
     void sizeOfAnUnknownPrIsAGhFailure() {
         GhException e = assertThrows(GhException.class, () -> client.size(404));
         assertTrue(e.getMessage().contains("no pull requests found"), e.getMessage());
+    }
+
+    @Test
+    void fetchesTheHeadCommitAndEveryKindOfCheck() {
+        GhChecks checks = client.checks(101);
+
+        assertEquals("ba9690af0e8bdc5d1c0f7a6c2b6b1e7d3c9a4f21", checks.headRefOid());
+        assertEquals(8, checks.rollup().size());
+        GhCheck failed = checks.rollup().get(1);
+        assertEquals(new GhCheck(GhCheck.CHECK_RUN, "JVM Integration Tests - JDK 17", "Quarkus CI", "COMPLETED",
+                "FAILURE", "https://github.com/quarkusio/quarkus/actions/runs/39914638446/job/120285311801", null, null,
+                null), failed);
+        GhCheck running = checks.rollup().get(3);
+        assertEquals("IN_PROGRESS", running.status());
+        assertEquals("", running.conclusion());
+        assertEquals(new GhCheck(GhCheck.STATUS_CONTEXT, null, null, null, null, null, "CI Merge Gate", "FAILURE", ""),
+                checks.rollup().getLast());
+    }
+
+    @Test
+    void noChecksIsAnEmptyListNotAFailure() {
+        assertEquals(List.of(), client.checks(103).rollup());
+    }
+
+    @Test
+    void aMissingRollupIsAFailure() {
+        GhException e = assertThrows(GhException.class, () -> client.checks(105));
+        assertTrue(e.getMessage().contains("did not report statusCheckRollup"), e.getMessage());
     }
 
     @Test
