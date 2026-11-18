@@ -179,6 +179,7 @@ class ProvenanceSourceTest {
         assertEquals(List.of(Person.of("newbie", Who.COMMUNITY)), commitAuthors(source, 8));
         verify(gh, times(1)).hasCommitsBefore("newbie", "abc");
         verify(gh, times(1)).hasCommitsBefore("newbie", "def");
+        verify(gh, times(1)).isMember("newbie");
     }
 
     @Test

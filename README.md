@@ -246,8 +246,9 @@ nothing is concluded from them, and they are **never sent to `jev` or Claude**.
   an org member; with another token a private member reads `community` or `first-time`. A PR author costs one
   `gh api` call, made while `jev` is asked; each other commit author up to two, cached by `gh` for
   `GH_CACHE_TTL`. A commit author is looked up once per run, whichever PRs they appear in, with two exceptions: a
-  `first-time` author is checked again for a PR on another base commit, since their first PR may have been merged
-  in between, and a lookup that failed is tried again in the next PR.
+  `first-time` author's commit history is read again for a PR on another base commit, since their first PR may have
+  been merged in between, and a lookup that failed is tried again in the next PR. Labels follow the order PRs are
+  given: someone found `community` stays `community` for the rest of the run.
 
   The two lists are plain text files kept **outside the repository**, one entry per line, `#` comments and blank
   lines ignored, case-insensitive. By default they are read from `resource-files/` in the current directory, which

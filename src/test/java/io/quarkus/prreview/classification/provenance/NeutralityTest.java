@@ -26,8 +26,9 @@ import io.quarkus.test.junit.main.QuarkusMainLauncher;
 import io.quarkus.test.junit.main.QuarkusMainTest;
 
 /**
- * Who wrote a PR is reported, never judged. 116 and 117 are twins of 101 (same metadata and diff): 116 has a
- * first-time author and a {@code Co-Authored-By: Claude} trailer, 117 a team author and no trailer. What reaches
+ * Who wrote a PR is reported, never judged. 116, 117 and 120 are twins of 101 (same metadata and diff): 116 has a
+ * first-time author and a {@code Co-Authored-By: Claude} trailer, 117 a team author and no trailer, 120 the same
+ * first-time author as 116 and no trailer. What reaches
  * {@code jev} and Claude, the classification and the exit code must not differ; only the provenance line does.
  */
 @QuarkusMainTest
@@ -106,6 +107,21 @@ class NeutralityTest {
                 declared.provenance());
         assertEquals("Author: teammate (team) · AI: none declared", team.provenance());
         assertNotEquals(declared.provenance(), team.provenance());
+    }
+
+    @Test
+    void declaringAiAloneChangesNothingButTheAuthorLine(QuarkusMainLauncher launcher) throws IOException {
+        // 120 is 116 without the trailer: the same first-time author, so only the AI declaration differs.
+        Run declared = run(launcher, 116);
+        Run undeclared = run(launcher, 120);
+
+        assertEquals(0, declared.exitCode());
+        assertEquals(declared.exitCode(), undeclared.exitCode());
+        assertEquals(declared.jevBodies(), undeclared.jevBodies());
+        assertEquals(declared.claudeBodies(), undeclared.claudeBodies());
+        assertEquals(declared.report(), undeclared.report());
+        assertEquals("Author: newcomer (first-time) · AI: none declared", undeclared.provenance());
+        assertNotEquals(declared.provenance(), undeclared.provenance());
     }
 
     @Test

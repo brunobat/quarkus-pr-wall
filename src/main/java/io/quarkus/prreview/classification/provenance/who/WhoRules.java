@@ -80,6 +80,14 @@ public class WhoRules {
         return member ? Person.of(login, Who.TEAM) : byCommitsBefore(login, baseSha);
     }
 
+    /**
+     * A commit author already known not to be a member of the org: community or first-time by the PR's base, with no
+     * second membership call.
+     */
+    public Person nonMemberCommitAuthor(GhCommit.Author author, String baseSha) {
+        return byCommitsBefore(author.login(), baseSha);
+    }
+
     /** Community when the person has a commit reachable from the PR's base, first-time when not. */
     private Person byCommitsBefore(String login, String baseSha) {
         try {

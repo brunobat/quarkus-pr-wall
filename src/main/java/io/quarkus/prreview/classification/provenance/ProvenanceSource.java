@@ -82,7 +82,9 @@ public class ProvenanceSource {
                 commitAuthors.add(Person.other(subject.login(), "lookup limit"));
             } else {
                 lookups++;
-                Person person = who.commitAuthor(subject, authorship.baseSha());
+                Person person = memo.knownNonMember(subject.login())
+                        ? who.nonMemberCommitAuthor(subject, authorship.baseSha())
+                        : who.commitAuthor(subject, authorship.baseSha());
                 memo.put(subject.login(), authorship.baseSha(), person);
                 commitAuthors.add(person);
             }
