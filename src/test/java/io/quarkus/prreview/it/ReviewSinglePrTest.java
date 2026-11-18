@@ -128,10 +128,13 @@ class ReviewSinglePrTest {
     @Test
     void reportsGoToReportsInTheCurrentFolderByDefault(QuarkusMainLauncher launcher) throws IOException {
         Path report = Path.of("reports", "review-101.md");
+        Path report406 = Path.of("reports", "review-406.md");
         boolean dirExisted = Files.isDirectory(report.getParent());
         byte[] previous = Files.exists(report) ? Files.readAllBytes(report) : null;
+        byte[] previous406 = Files.exists(report406) ? Files.readAllBytes(report406) : null;
         try {
-            LaunchResult result = launcher.launch("review", "101");
+            // A classified PR and one whose diff GitHub refuses, with no options at all.
+            LaunchResult result = launcher.launch("review", "101", "406");
 
             assertEquals(0, result.exitCode(), result.getErrorOutput());
             assertTrue(result.getOutputStream().contains("Report: " + report), result.getOutput());
@@ -140,16 +143,42 @@ class ReviewSinglePrTest {
             assertTrue(Files.readString(report).contains("## Size (GitHub)\n\n- Changed files: 2\n"));
             assertTrue(result.getOutputStream().contains("CI: 5 of 9 not passed"), result.getOutput());
             assertTrue(Files.readString(report).contains("## CI checks (GitHub)\n\n5 of 9 not passed.\n"));
+            assertTrue(result.getOutputStream().contains("Size: 1244 files changed, +17 -19751"), result.getOutput());
+            assertTrue(result.getOutputStream().contains("CI: unavailable"), result.getOutput());
+            assertGitHubSections(report406);
+
+            // The same PR over jev's submission limit still shows GitHub's facts.
+            System.setProperty("pr-review.jev.max-submission-chars", "1000");
+            try {
+                result = launcher.launch("review", "101");
+            } finally {
+                System.clearProperty("pr-review.jev.max-submission-chars");
+            }
+            assertTrue(result.getOutput().contains("exceeds limit 1000"), result.getOutput());
+            assertTrue(result.getOutputStream().contains("Size: 2 files changed, +12 -3"), result.getOutput());
+            assertTrue(result.getOutputStream().contains("CI: 5 of 9 not passed"), result.getOutput());
+            assertGitHubSections(report);
         } finally {
             // Leave the working folder as it was.
-            if (previous != null) {
-                Files.write(report, previous);
-            } else {
-                Files.deleteIfExists(report);
-                if (!dirExisted) {
-                    Files.deleteIfExists(report.getParent());
-                }
+            restore(report, previous);
+            restore(report406, previous406);
+            if (!dirExisted) {
+                Files.deleteIfExists(report.getParent());
             }
+        }
+    }
+
+    private static void assertGitHubSections(Path report) throws IOException {
+        String markdown = Files.readString(report);
+        assertTrue(markdown.contains("\n## Size (GitHub)\n"), markdown);
+        assertTrue(markdown.contains("\n## CI checks (GitHub)\n"), markdown);
+    }
+
+    private static void restore(Path file, byte[] previous) throws IOException {
+        if (previous != null) {
+            Files.write(file, previous);
+        } else {
+            Files.deleteIfExists(file);
         }
     }
 
