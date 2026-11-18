@@ -140,6 +140,65 @@ class ProvenanceSourceTest {
         verify(gh, times(2)).isMember("alice");
     }
 
+    /** Two PRs whose commits are by {@code login}, on different bases, as open PRs almost always are. */
+    ProvenanceSource twoPrsOnDifferentBases(String login) {
+        when(gh.authorship(7)).thenReturn(new GhAuthorship("pr-author", "", false, "", "abc",
+                List.of(commit("1", author(login)))));
+        when(gh.authorship(8)).thenReturn(new GhAuthorship("pr-author", "", false, "", "def",
+                List.of(commit("2", author(login)))));
+        when(gh.association(7)).thenReturn("CONTRIBUTOR");
+        when(gh.association(8)).thenReturn("CONTRIBUTOR");
+        return new ProvenanceSource(gh, new GitHubFacts(gh), new WhoRules(gh), new LoginMemo(), AI, 10);
+    }
+
+    List<Person> commitAuthors(ProvenanceSource source, int pr) {
+        return ((SourceResult.Available<Provenance>) source.gather(pr)).facts().commitAuthors();
+    }
+
+    @Test
+    void aTeamOrCommunityPersonIsLookedUpOncePerRunWhateverEachPrsBase() {
+        ProvenanceSource source = twoPrsOnDifferentBases("alice");
+        when(gh.isMember("alice")).thenReturn(false);
+        when(gh.hasCommitsBefore("alice", "abc")).thenReturn(true);
+
+        assertEquals(List.of(Person.of("alice", Who.COMMUNITY)), commitAuthors(source, 7));
+        assertEquals(List.of(Person.of("alice", Who.COMMUNITY)), commitAuthors(source, 8));
+        verify(gh, times(1)).isMember("alice");
+        verify(gh, times(1)).hasCommitsBefore("alice", "abc");
+        verify(gh, never()).hasCommitsBefore("alice", "def");
+    }
+
+    @Test
+    void aFirstTimePersonIsCheckedAgainForAnotherBaseWhereTheirWorkMayHaveLanded() {
+        ProvenanceSource source = twoPrsOnDifferentBases("newbie");
+        when(gh.isMember("newbie")).thenReturn(false);
+        when(gh.hasCommitsBefore("newbie", "abc")).thenReturn(false);
+        when(gh.hasCommitsBefore("newbie", "def")).thenReturn(true);
+
+        assertEquals(List.of(Person.of("newbie", Who.FIRST_TIME)), commitAuthors(source, 7));
+        assertEquals(List.of(Person.of("newbie", Who.COMMUNITY)), commitAuthors(source, 8));
+        verify(gh, times(1)).hasCommitsBefore("newbie", "abc");
+        verify(gh, times(1)).hasCommitsBefore("newbie", "def");
+    }
+
+    @Test
+    void aFailedLookupIsTriedAgainInTheNextPr() {
+        ProvenanceSource source = twoPrsOnDifferentBases("alice");
+        when(gh.isMember("alice")).thenThrow(new GhException("timed out")).thenReturn(true);
+
+        assertEquals(List.of(Person.other("alice", "membership lookup failed: timed out")), commitAuthors(source, 7));
+        assertEquals(List.of(Person.of("alice", Who.TEAM)), commitAuthors(source, 8));
+        verify(gh, times(2)).isMember("alice");
+    }
+
+    @Test
+    void aBotPrAuthorIsNotListedAgainUnderItsCommitSpelling() {
+        when(gh.authorship(7)).thenReturn(new GhAuthorship("app/dependabot", "", true, "", "abc",
+                List.of(commit("1", author("dependabot[bot]")), commit("2", author("Dependabot")))));
+
+        assertEquals(List.of(), commitAuthors(source, 7));
+    }
+
     @Test
     void commitAuthorsPastTheLimitAreNotLookedUp() {
         List<GhCommit> commits = new java.util.ArrayList<>();

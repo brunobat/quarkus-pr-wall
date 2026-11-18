@@ -371,7 +371,7 @@ class ReviewListTest {
     void aSecondCommitAuthorIsLookedUpOnceWithCachedCallsAndATrailerCoAuthorNever(QuarkusMainLauncher launcher)
             throws IOException {
         // 113: hank's PR with a commit by helper that names trailer-person as co-author; 115: ivy's PR with a commit
-        // by helper too.
+        // by helper too, on another base commit, as open PRs almost always are.
         long before = ghCalls();
         LaunchResult result = launcher.launch("review", "113", "115", "--output-dir", out.toString());
 

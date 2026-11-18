@@ -35,6 +35,7 @@ import io.quarkus.test.junit.main.QuarkusMainTest;
 class NeutralityTest {
 
     static final String SIGNALS_PROPERTY = "pr-review.provenance.ai-signals";
+    static final String AUTOMATION_PROPERTY = "pr-review.provenance.automation-accounts";
 
     static JevWireMock jev;
     static ClaudeWireMock claude;
@@ -60,8 +61,7 @@ class NeutralityTest {
         claude.reset();
     }
 
-    record Run(int exitCode, List<String> jevBodies, List<String> claudeBodies, String classification,
-            String provenance) {
+    record Run(int exitCode, List<String> jevBodies, List<String> claudeBodies, String report, String provenance) {
     }
 
     Run run(QuarkusMainLauncher launcher, int pr) throws IOException {
@@ -74,7 +74,18 @@ class NeutralityTest {
                 .orElseThrow();
         return new Run(result.exitCode(), jev.posts().stream().map(LoggedRequest::getBodyAsString).toList(),
                 claude.posts().stream().map(LoggedRequest::getBodyAsString).toList(),
-                report.substring(report.indexOf("## Classification")), provenance);
+                withoutProvenance(report).replaceFirst("^# PR #" + pr + ":", "# PR #N:"), provenance);
+    }
+
+    /**
+     * The report with its provenance section cut out: everything that is not about who wrote the PR. The caller
+     * replaces the PR's own number in the title, the only other line that differs between twins.
+     */
+    static String withoutProvenance(String report) {
+        int start = report.indexOf("## Provenance (GitHub)");
+        int end = report.indexOf("\n## ", start + 1);
+        assertTrue(start >= 0 && end > start, report);
+        return report.substring(0, start) + report.substring(end + 1);
     }
 
     @Test
@@ -89,7 +100,7 @@ class NeutralityTest {
         assertEquals(declared.exitCode(), team.exitCode());
         assertEquals(declared.jevBodies(), team.jevBodies());
         assertEquals(declared.claudeBodies(), team.claudeBodies());
-        assertEquals(declared.classification(), team.classification());
+        assertEquals(declared.report(), team.report());
 
         assertEquals("Author: newcomer (first-time) · AI: declared (commit 1160000: \"co-authored-by: claude\")",
                 declared.provenance());
@@ -109,6 +120,27 @@ class NeutralityTest {
 
         assertEquals(0, result.exitCode(), result.getErrorOutput());
         assertTrue(result.getOutput().contains("Author: newcomer (first-time) · AI: none declared"),
+                result.getOutput());
+    }
+
+    @Test
+    void aMissingAutomationListMakesEveryBotAnAgentAndTheRunSucceeds(QuarkusMainLauncher launcher) {
+        // 119 is a dependabot PR: dependabot's commits come back as dependabot[bot], the same account.
+        LaunchResult routine = launcher.launch("review", "119", "--output-dir", out.toString());
+        assertEquals(0, routine.exitCode(), routine.getErrorOutput());
+        assertTrue(routine.getOutput().contains("Author: app/dependabot (bot) · AI: none declared\n"),
+                routine.getOutput());
+
+        System.setProperty(AUTOMATION_PROPERTY, out.resolve("no-such-list.txt").toString());
+        LaunchResult result;
+        try {
+            result = launcher.launch("review", "119", "--output-dir", out.toString());
+        } finally {
+            System.clearProperty(AUTOMATION_PROPERTY);
+        }
+
+        assertEquals(0, result.exitCode(), result.getErrorOutput());
+        assertTrue(result.getOutput().contains("Author: app/dependabot (bot) · AI: agent (app/dependabot)\n"),
                 result.getOutput());
     }
 }

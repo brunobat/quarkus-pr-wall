@@ -196,6 +196,49 @@ class GhClientTest {
     }
 
     @Test
+    void aCacheTtlUnderASecondMeansNoCaching() throws IOException {
+        for (Duration ttl : List.of(Duration.ZERO, Duration.ofMillis(500), Duration.ofMinutes(-5))) {
+            GhClient uncached = new GhClient(config(FAKE_GH, Duration.ofSeconds(10), "quarkusio/quarkus", ttl),
+                    JsonMapper.builder().build());
+            uncached.isMember("member");
+            uncached.hasCommitsBefore("regular", SHA);
+
+            List<String> log = Files.readAllLines(FakeGh.CALLS_LOG);
+            assertEquals(List.of("api orgs/quarkusio/members/member -i",
+                    "api repos/quarkusio/quarkus/commits?author=regular&sha=" + SHA + "&per_page=1"),
+                    log.subList(log.size() - 2, log.size()), ttl.toString());
+        }
+    }
+
+    @Test
+    void apiPathsNameTheOwnerAndRepoOfAGithubComRepo() throws IOException {
+        GhClient hosted = new GhClient(config(FAKE_GH, Duration.ofSeconds(10), "github.com/quarkusio/quarkus",
+                Duration.ofHours(1)), JsonMapper.builder().build());
+
+        assertTrue(hosted.isMember("member"));
+        assertEquals("MEMBER", hosted.association(101));
+        List<String> log = Files.readAllLines(FakeGh.CALLS_LOG);
+        assertEquals(List.of("api orgs/quarkusio/members/member -i --cache 3600s",
+                "api repos/quarkusio/quarkus/pulls/101 --jq .author_association"), log.subList(log.size() - 2,
+                        log.size()));
+    }
+
+    @Test
+    void aRepoThatIsNotOwnerSlashRepoIsALookupFailureNotACrash() throws IOException {
+        for (String repo : List.of("quarkus", "/quarkus", "ghe.example.com/quarkusio/quarkus", "a/b/c/d")) {
+            GhClient odd = new GhClient(config(FAKE_GH, Duration.ofSeconds(10), repo, Duration.ofHours(1)),
+                    JsonMapper.builder().build());
+            long before = Files.readAllLines(FakeGh.CALLS_LOG).size();
+
+            GhException e = assertThrows(GhException.class, () -> odd.isMember("member"), repo);
+            assertTrue(e.getMessage().startsWith("GH_REPO is not OWNER/REPO"), e.getMessage());
+            assertThrows(GhException.class, () -> odd.association(101), repo);
+            assertThrows(GhException.class, () -> odd.hasCommitsBefore("regular", SHA), repo);
+            assertEquals(before, Files.readAllLines(FakeGh.CALLS_LOG).size(), "no gh process for " + repo);
+        }
+    }
+
+    @Test
     void commitsBeforeTheBaseAreReadFromTheCommitsList() {
         assertTrue(client.hasCommitsBefore("regular", SHA));
         assertFalse(client.hasCommitsBefore("new", SHA));
@@ -367,13 +410,17 @@ class GhClientTest {
     }
 
     static ReviewConfig config(String binary, Duration timeout) {
+        return config(binary, timeout, "quarkusio/quarkus", Duration.ofHours(1));
+    }
+
+    static ReviewConfig config(String binary, Duration timeout, String repo, Duration cacheTtl) {
         return new ReviewConfig() {
             @Override
             public Gh gh() {
                 return new Gh() {
                     @Override
                     public String repo() {
-                        return "quarkusio/quarkus";
+                        return repo;
                     }
 
                     @Override
@@ -388,7 +435,7 @@ class GhClientTest {
 
                     @Override
                     public Duration cacheTtl() {
-                        return Duration.ofHours(1);
+                        return cacheTtl;
                     }
                 };
             }

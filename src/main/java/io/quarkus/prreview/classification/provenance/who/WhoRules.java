@@ -1,5 +1,7 @@
 package io.quarkus.prreview.classification.provenance.who;
 
+import java.util.Locale;
+
 import jakarta.enterprise.context.ApplicationScoped;
 
 import io.quarkus.prreview.classification.provenance.model.Person;
@@ -8,6 +10,7 @@ import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
+import io.quarkus.prreview.report.PlainText;
 
 /**
  * Who each person of a PR is to the repository. The first matching rule wins and later lookups are not made. A
@@ -43,7 +46,7 @@ public class WhoRules {
         try {
             association = gh.association(pr);
         } catch (GhException e) {
-            return Person.other(login, "association lookup failed: " + oneLine(e.getMessage()));
+            return Person.other(login, "association lookup failed: " + PlainText.oneLine(e.getMessage()));
         }
         return switch (association) {
             case "MEMBER", "OWNER" -> Person.of(login, Who.TEAM);
@@ -72,7 +75,7 @@ public class WhoRules {
         try {
             member = gh.isMember(login);
         } catch (GhException e) {
-            return Person.other(login, "membership lookup failed: " + oneLine(e.getMessage()));
+            return Person.other(login, "membership lookup failed: " + PlainText.oneLine(e.getMessage()));
         }
         return member ? Person.of(login, Who.TEAM) : byCommitsBefore(login, baseSha);
     }
@@ -82,7 +85,7 @@ public class WhoRules {
         try {
             return Person.of(login, gh.hasCommitsBefore(login, baseSha) ? Who.COMMUNITY : Who.FIRST_TIME);
         } catch (GhException e) {
-            return Person.other(login, "commit history lookup failed: " + oneLine(e.getMessage()));
+            return Person.other(login, "commit history lookup failed: " + PlainText.oneLine(e.getMessage()));
         }
     }
 
@@ -93,7 +96,16 @@ public class WhoRules {
         return login.startsWith("app/") || login.endsWith("[bot]") || name.endsWith("[bot]");
     }
 
-    static String oneLine(String text) {
-        return text == null ? "" : text.strip().replaceAll("\\s+", " ");
+    /** The same account arrives as {@code dependabot}, {@code dependabot[bot]} or {@code app/dependabot}. */
+    public static String account(String login) {
+        String normalized = login.toLowerCase(Locale.ROOT).strip();
+        if (normalized.startsWith("app/")) {
+            normalized = normalized.substring("app/".length());
+        }
+        if (normalized.endsWith("[bot]")) {
+            normalized = normalized.substring(0, normalized.length() - "[bot]".length());
+        }
+        return normalized;
     }
+
 }

@@ -29,6 +29,7 @@ import io.quarkus.prreview.clients.jev.model.JevDecision;
 import io.quarkus.prreview.pr.DiffFiles;
 import io.quarkus.prreview.pr.model.PrContext;
 import io.quarkus.prreview.pr.model.PullRequest;
+import io.quarkus.prreview.report.PlainText;
 import io.quarkus.prreview.report.summary.SummaryService;
 import io.quarkus.prreview.triage.model.PrOutcome;
 
@@ -72,9 +73,14 @@ public class PrClassifier {
     public PrOutcome classify(int number) {
         FutureTask<SourceResult<Provenance>> whoWrote = new FutureTask<>(() -> provenance.gather(number));
         Thread.ofVirtual().name("provenance-" + number).start(whoWrote);
-        PrOutcome jevOnly = jev(number);
-        return new PrOutcome(number, checkIds(), jevOnly.pullRequest(), jevOnly.jev(), size.gather(number),
-                ci.gather(number), join(number, whoWrote));
+        try {
+            PrOutcome jevOnly = jev(number);
+            return new PrOutcome(number, checkIds(), jevOnly.pullRequest(), jevOnly.jev(), size.gather(number),
+                    ci.gather(number), join(number, whoWrote));
+        } finally {
+            // Only reached unfinished when something above threw: stop the lookups rather than leave them running.
+            whoWrote.cancel(true);
+        }
     }
 
     /**
@@ -92,7 +98,7 @@ public class PrClassifier {
             Throwable cause = e.getCause() == null ? e : e.getCause();
             LOG.warnf(cause, "PR #%d: provenance failed", number);
             String message = cause.getMessage() == null ? cause.getClass().getName() : cause.getMessage();
-            return SourceResult.unavailable(oneLine(message));
+            return SourceResult.unavailable(PlainText.oneLine(message));
         }
     }
 

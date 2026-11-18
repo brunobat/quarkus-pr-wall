@@ -12,6 +12,7 @@ import io.quarkus.prreview.classification.provenance.model.AiLabel;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Who;
 import io.quarkus.prreview.classification.provenance.signals.SignalList;
+import io.quarkus.prreview.classification.provenance.who.WhoRules;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.config.ReviewConfig;
@@ -85,13 +86,6 @@ public class AiRules {
 
     /** The same account arrives as {@code dependabot}, {@code dependabot[bot]} or {@code app/dependabot}. */
     static String normalizeLogin(String login) {
-        String normalized = login.toLowerCase(Locale.ROOT).strip();
-        if (normalized.startsWith("app/")) {
-            normalized = normalized.substring("app/".length());
-        }
-        if (normalized.endsWith("[bot]")) {
-            normalized = normalized.substring(0, normalized.length() - "[bot]".length());
-        }
-        return normalized;
+        return WhoRules.account(login);
     }
 }

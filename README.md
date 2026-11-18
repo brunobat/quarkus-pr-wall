@@ -245,7 +245,9 @@ nothing is concluded from them, and they are **never sent to `jev` or Claude**.
   changes as their PRs are merged. GitHub shows **private** org members as members only to a token that belongs to
   an org member; with another token a private member reads `community` or `first-time`. A PR author costs one
   `gh api` call, made while `jev` is asked; each other commit author up to two, cached by `gh` for
-  `GH_CACHE_TTL` and made once per run.
+  `GH_CACHE_TTL`. A commit author is looked up once per run, whichever PRs they appear in, with two exceptions: a
+  `first-time` author is checked again for a PR on another base commit, since their first PR may have been merged
+  in between, and a lookup that failed is tried again in the next PR.
 
   The two lists are plain text files kept **outside the repository**, one entry per line, `#` comments and blank
   lines ignored, case-insensitive. By default they are read from `resource-files/` in the current directory, which
@@ -294,10 +296,10 @@ Every value is set by an environment variable and declared once, in `ReviewConfi
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `GH_REPO` | `owner/repo` passed to every `gh` call | `quarkusio/quarkus` |
+| `GH_REPO` | `owner/repo` passed to every `gh` call; `github.com/owner/repo` also works, but any other host fails the provenance lookups | `quarkusio/quarkus` |
 | `GH_BINARY` | the `gh` executable | `gh` |
 | `GH_TIMEOUT` | how long one `gh` call may run before that PR is noted as not classified | `60s` |
-| `GH_CACHE_TTL` | how long `gh api --cache` keeps a per-person answer (org membership, commits before a base); a PR's own author association is never cached | `1h` |
+| `GH_CACHE_TTL` | how long `gh api --cache` keeps a per-person answer (org membership, commits before a base); a PR's own author association is never cached; under one second, nothing is cached | `1h` |
 | `PROVENANCE_AI_SIGNALS` | the AI-declaration markers: a file path, or `classpath:<resource>`; a missing file warns and counts as empty | `resource-files/ai-provenance-signals.txt` |
 | `PROVENANCE_AUTOMATION_ACCOUNTS` | the bot logins that are routine automation, not coding agents: a file path, or `classpath:<resource>`; a missing file warns and counts as empty | `resource-files/automation-accounts.txt` |
 | `PROVENANCE_MAX_PEOPLE` | the most commit authors looked up on GitHub for one PR, besides its author; the rest read `other (lookup limit)` | `10` |

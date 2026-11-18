@@ -222,7 +222,7 @@ public class GhClient {
      * {@code FIRST_TIME_CONTRIBUTOR}. Never cached: it changes as PRs are merged.
      */
     public String association(int pr) {
-        String value = run(List.of("api", "repos/" + config.gh().repo() + "/pulls/" + pr, "--jq",
+        String value = run(List.of("api", "repos/" + apiRepo() + "/pulls/" + pr, "--jq",
                 ".author_association")).strip();
         if (value.isEmpty() || value.equals("null")) {
             throw new GhException("GitHub did not report the author association of PR " + pr);
@@ -237,7 +237,7 @@ public class GhClient {
      */
     public boolean isMember(String login) {
         String path = "orgs/" + owner() + "/members/" + validLogin(login);
-        Result result = execute(List.of("api", path, "-i", "--cache", cacheTtl()));
+        Result result = execute(withCache(List.of("api", path, "-i")));
         String first = result.stdout().lines().findFirst().orElse("").strip();
         var status = STATUS_LINE.matcher(first);
         if (!status.matches()) {
@@ -259,8 +259,8 @@ public class GhClient {
         if (baseSha == null || !SHA.matcher(baseSha).matches()) {
             throw new GhException("not a commit SHA: " + baseSha);
         }
-        String json = run(List.of("api", "repos/" + config.gh().repo() + "/commits?author=" + validLogin(login)
-                + "&sha=" + baseSha + "&per_page=1", "--cache", cacheTtl()));
+        String json = run(withCache(List.of("api", "repos/" + apiRepo() + "/commits?author=" + validLogin(login)
+                + "&sha=" + baseSha + "&per_page=1")));
         Object[] commits;
         try {
             commits = mapper.readValue(json, Object[].class);
@@ -273,9 +273,19 @@ public class GhClient {
         return commits.length > 0;
     }
 
-    /** The configured cache duration as {@code gh api --cache} reads it, in whole seconds. */
-    private String cacheTtl() {
-        return config.gh().cacheTtl().toSeconds() + "s";
+    /**
+     * {@code args} with {@code --cache <GH_CACHE_TTL>} in whole seconds, as {@code gh api --cache} reads it. A TTL
+     * under one second, zero or negative included, means no caching, so the flag is left out.
+     */
+    private List<String> withCache(List<String> args) {
+        long seconds = config.gh().cacheTtl().toSeconds();
+        if (seconds < 1) {
+            return args;
+        }
+        List<String> cached = new ArrayList<>(args);
+        cached.add("--cache");
+        cached.add(seconds + "s");
+        return cached;
     }
 
     /** A login that is safe to put in an {@code api} path; anything else is a lookup failure, not a crash. */
@@ -453,7 +463,7 @@ public class GhClient {
     }
 
     private boolean allowedApiPath(String path) {
-        String repo = Pattern.quote(config.gh().repo());
+        String repo = Pattern.quote(apiRepo());
         String owner = Pattern.quote(owner());
         String login = LOGIN.pattern();
         return path.matches("repos/" + repo + "/pulls/[1-9][0-9]*")
@@ -462,10 +472,27 @@ public class GhClient {
                 || path.matches("orgs/" + owner + "/members/" + login);
     }
 
-    /** The owner part of the configured {@code owner/repo}: the org whose membership is looked up. */
-    String owner() {
+    /**
+     * The {@code OWNER/REPO} that {@code gh api} paths name: {@code GH_REPO}, or its last two parts when it is
+     * {@code github.com/OWNER/REPO}, a form {@code -R} also accepts. Any other shape is a lookup failure, since
+     * {@code gh api} would ask the wrong path or the wrong host.
+     */
+    String apiRepo() {
         String repo = config.gh().repo();
-        return repo.substring(0, Math.max(repo.indexOf('/'), 0));
+        String[] parts = repo.split("/", -1);
+        if (parts.length == 3 && parts[0].equalsIgnoreCase("github.com")) {
+            parts = new String[] { parts[1], parts[2] };
+        }
+        if (parts.length != 2 || parts[0].isBlank() || parts[1].isBlank()) {
+            throw new GhException("GH_REPO is not OWNER/REPO or github.com/OWNER/REPO: " + repo);
+        }
+        return parts[0] + "/" + parts[1];
+    }
+
+    /** The owner part of {@link #apiRepo()}: the org whose membership is looked up. */
+    String owner() {
+        String repo = apiRepo();
+        return repo.substring(0, repo.indexOf('/'));
     }
 
     /**

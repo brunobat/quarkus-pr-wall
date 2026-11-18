@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -24,6 +23,7 @@ import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.config.ReviewConfig;
+import io.quarkus.prreview.report.PlainText;
 
 /**
  * The authorship-provenance classification source: who wrote a PR, from GitHub's facts only, or why that could not be
@@ -64,7 +64,7 @@ public class ProvenanceSource {
             authorship = facts.authorship(pr).orElseGet(() -> gh.authorship(pr));
         } catch (GhException e) {
             LOG.warnf(e, "PR #%d: provenance unavailable", pr);
-            return SourceResult.unavailable("gh: " + e.getMessage().strip().replaceAll("\\s+", " "));
+            return SourceResult.unavailable("gh: " + PlainText.oneLine(e.getMessage()));
         }
         Instant readAt = Instant.now();
         Person author = who.prAuthor(pr, authorship);
@@ -95,25 +95,22 @@ public class ProvenanceSource {
     /**
      * The people to label besides the PR author: each commit's git author with an account, once, in first-seen order.
      * A commit's later authors come from {@code Co-authored-by:} trailers, which the PR controls, so they are never
-     * labelled even when GitHub matched them to an account. Logins compare case-insensitively, as GitHub's do.
+     * labelled even when GitHub matched them to an account. Logins compare as accounts: case-insensitively, as
+     * GitHub's do, and with a bot's {@code app/x} and {@code x[bot]} as the same account.
      */
     static List<GhCommit.Author> commitAuthorSubjects(GhAuthorship authorship) {
         Map<String, GhCommit.Author> subjects = new LinkedHashMap<>();
-        String prAuthor = authorship.login() == null ? null : key(authorship.login());
+        String prAuthor = authorship.login() == null ? null : WhoRules.account(authorship.login());
         for (GhCommit commit : authorship.commits()) {
             if (commit.authors().isEmpty() || commit.authors().getFirst().login() == null) {
                 continue;
             }
             GhCommit.Author gitAuthor = commit.authors().getFirst();
-            String key = key(gitAuthor.login());
+            String key = WhoRules.account(gitAuthor.login());
             if (!key.equals(prAuthor)) {
                 subjects.putIfAbsent(key, gitAuthor);
             }
         }
         return List.copyOf(subjects.values());
-    }
-
-    private static String key(String login) {
-        return login.toLowerCase(Locale.ROOT);
     }
 }
