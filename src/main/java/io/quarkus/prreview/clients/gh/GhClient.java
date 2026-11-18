@@ -26,8 +26,8 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Read-only access to GitHub through the {@code gh} CLI. Only {@code gh pr view} and {@code gh pr diff} can run;
- * any other subcommand is refused before a process starts.
+ * Read-only access to GitHub through the {@code gh} CLI. Only {@code gh pr view}, {@code gh pr diff} and
+ * {@code gh pr list} can run; any other subcommand is refused before a process starts.
  */
 @ApplicationScoped
 public class GhClient {

@@ -80,11 +80,13 @@ calibrated on collected data rather than guessed.
 
 A **read-only** command-line tool that classifies Quarkus pull requests for **test adequacy**. It is the triage
 stage: for each PR it asks TypeSafe `jev` four PR-level questions in a single submission and reports `jev`'s
-probabilities **exactly as returned**. Claude then writes a short prose summary of those answers.
+probabilities **exactly as returned**. Claude then writes a short prose summary of those answers. Next to
+`jev`'s answers it shows facts read from GitHub: the PR's size and the CI checks on its head commit, with the
+failing tests quarkus-bot reported (see [Facts from GitHub](#facts-from-github)).
 
 The tool **classifies; it does not decide.** There are no thresholds, no verdicts and no severities. No
 probability is compared against a number, and no answer changes the exit code. The tool never posts, approves,
-labels or merges anything: the only `gh` commands it runs are `gh pr view` and `gh pr diff`.
+labels or merges anything: the only `gh` commands it runs are `gh pr view`, `gh pr diff` and `gh pr list`.
 
 ## Prerequisites
 
@@ -154,10 +156,17 @@ PR is done. Every log line goes to stderr.
 PR #57088 - test adequacy
   behaviour 0.96  tests-changed 0.11  reach: no-test-changes 0.96  assert: no-test-changes 0.91
 Summary (Claude): jev judged it very likely that this PR changes runtime behaviour and unlikely that it adds or modifies tests, so for both reach and assert it chose no-test-changes.
+Size: 3 files changed, +40 -12
+CI: all 67 passed, skipped or neutral
 Report: reports/review-57088.md
 
 PR #57715 - test adequacy
   not classified: jev: {"error": {"type": "max_tokens_exceeded", ...}}
+Size: 12 files changed, +310 -95
+CI: 2 of 67 not passed
+  Check                                        Result   Test                                                          Flaky  What failed
+  JVM Tests - JDK 21 (Quarkus CI)              FAILURE  io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test  yes    Timeout waiting for response - java.lang.RuntimeException
+  JVM Integration Tests - JDK 17 (Quarkus CI)  FAILURE                                                                        Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.4:test (default-test) on project quarkus-integ...
 Report: reports/review-57715.md
 ```
 
@@ -168,17 +177,49 @@ Report: reports/review-57715.md
 
 **The report** (`review-<pr>.md`) has, in order:
 1. the title, link and state;
-2. **Classification**: each yes/no question with its text and probability, then each choice question with
+2. **Size (GitHub)** and **CI checks (GitHub)**: the same facts as the terminal, with each check linked to its run,
+   each failing test linked to its Develocity history, and the job's build scan when there is one;
+3. **Classification**: each yes/no question with its text and probability, then each choice question with
    `jev`'s chosen option and every option's description and probability, all **unrounded**;
-3. **Summary**: the prose and where it came from, `Claude (<model>)` or `fallback template`;
-4. **Changed files**: each path and its change kind (context only);
-5. **Run**: the `jev` model, the submission size and its limit, the project context used and its size,
+4. **Summary**: the prose and where it came from, `Claude (<model>)` or `fallback template`;
+5. **Changed files**: each path and its change kind (context only);
+6. **Run**: the `jev` model, the submission size and its limit, the project context used and its size,
    `jev`'s token usage, the summary source, and the
    Claude submission: the characters of the system and user messages sent (or "not sent") and Claude's reported
    token usage.
 
 Text from GitHub, `jev` or Claude cannot change the report's structure: it never starts a line, stays on one
 line, is escaped in tables, and cannot open HTML.
+
+## Facts from GitHub
+
+Two facts are read from GitHub for every PR, whatever `jev` answered. They are shown **as GitHub returned them**:
+nothing is concluded from them, and they are **never sent to `jev` or Claude**.
+
+- **Size:** changed files, additions and deletions, as GitHub counts them. It is read even when GitHub refuses
+  the diff (more than 300 files).
+- **CI checks:** every check on the PR's **head commit**: check runs (by name and workflow) and commit statuses.
+  A check passed when its value is `SUCCESS`, `SKIPPED` or `NEUTRAL`; any other value, including one still
+  running, counts as not passed. The line says `none` when the head commit has no checks, `all N passed, skipped
+  or neutral`, or `N of M not passed` followed by a table:
+
+  | Column | What it shows |
+  |---|---|
+  | Check | The check's name, with its workflow (or `status` for a commit status) |
+  | Result | GitHub's value, unchanged |
+  | Test | A failing test, or empty for a failure that is not a test (e.g. "Failed to execute goal ...") |
+  | Flaky | `yes` when quarkus-bot lists the same test as flaky under the same job, otherwise `no` |
+  | What failed | The error quarkus-bot reported; one line of at most 120 characters in the terminal |
+
+  The rows come from **quarkus-bot's status comment for the check's workflow on the head commit**; comments for
+  earlier commits are never used, and when there are several the latest counts. A check without such a comment
+  gets one row saying `details unavailable`, or `no source for failure details` on a PR quarkus-bot never
+  commented on. Flaky tests in jobs that passed are not shown.
+
+`unavailable` means GitHub could not be read for that fact (the reason is logged to stderr); `none` means there
+was nothing to show. To spare time and API calls, the facts of all PRs in a run are read up front with
+`gh pr list`, a few dozen PRs per call; a PR missing from those results, a failed call, or a list of exactly 100
+checks or comments (where gh cuts lists off) is read again on its own with `gh pr view`.
 
 ## Per-PR errors and exit codes
 
