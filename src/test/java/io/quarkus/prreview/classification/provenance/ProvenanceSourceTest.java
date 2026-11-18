@@ -193,6 +193,19 @@ class ProvenanceSourceTest {
     }
 
     @Test
+    void aFailedHistoryLookupIsTriedAgainWithoutAskingForMembershipAgain() {
+        ProvenanceSource source = twoPrsOnDifferentBases("alice");
+        when(gh.isMember("alice")).thenReturn(false);
+        when(gh.hasCommitsBefore("alice", "abc")).thenThrow(new GhException("HTTP 502"));
+        when(gh.hasCommitsBefore("alice", "def")).thenReturn(true);
+
+        assertEquals(List.of(Person.other("alice", "commit history lookup failed: HTTP 502")), commitAuthors(source, 7));
+        assertEquals(List.of(Person.of("alice", Who.COMMUNITY)), commitAuthors(source, 8));
+        verify(gh, times(1)).isMember("alice");
+        verify(gh, times(1)).hasCommitsBefore("alice", "def");
+    }
+
+    @Test
     void aBotPrAuthorIsNotListedAgainUnderItsCommitSpelling() {
         when(gh.authorship(7)).thenReturn(new GhAuthorship("app/dependabot", "", true, "", "abc",
                 List.of(commit("1", author("dependabot[bot]")), commit("2", author("Dependabot")))));

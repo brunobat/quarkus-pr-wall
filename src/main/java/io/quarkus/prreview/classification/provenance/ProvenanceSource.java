@@ -82,9 +82,7 @@ public class ProvenanceSource {
                 commitAuthors.add(Person.other(subject.login(), "lookup limit"));
             } else {
                 lookups++;
-                Person person = memo.knownNonMember(subject.login())
-                        ? who.nonMemberCommitAuthor(subject, authorship.baseSha())
-                        : who.commitAuthor(subject, authorship.baseSha());
+                Person person = label(subject, authorship.baseSha());
                 memo.put(subject.login(), authorship.baseSha(), person);
                 commitAuthors.add(person);
             }
@@ -92,6 +90,22 @@ public class ProvenanceSource {
         List<Person> labelled = List.copyOf(commitAuthors);
         return new SourceResult.Available<>(new Provenance(author, labelled, ai.label(authorship, author, labelled),
                 readAt));
+    }
+
+    /**
+     * A commit author who is not bot-shaped: membership first, unless this run already found them not to be a member,
+     * then their commit history before {@code baseSha}. A "not a member" answer is kept as soon as it comes, so a
+     * failed history lookup is retried later without asking for membership again.
+     */
+    private Person label(GhCommit.Author subject, String baseSha) {
+        if (!memo.knownNonMember(subject.login())) {
+            var member = who.byMembership(subject);
+            if (member.isPresent()) {
+                return member.get();
+            }
+            memo.markNonMember(subject.login());
+        }
+        return who.nonMemberCommitAuthor(subject, baseSha);
     }
 
     /**

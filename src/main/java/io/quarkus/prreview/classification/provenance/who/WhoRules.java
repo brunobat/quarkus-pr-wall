@@ -1,6 +1,7 @@
 package io.quarkus.prreview.classification.provenance.who;
 
 import java.util.Locale;
+import java.util.Optional;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -71,13 +72,20 @@ public class WhoRules {
         if (isBotShaped(author)) {
             return Person.of(login, Who.BOT);
         }
-        boolean member;
+        return byMembership(author).orElseGet(() -> nonMemberCommitAuthor(author, baseSha));
+    }
+
+    /**
+     * A commit author labelled by org membership alone: team when a member, other when the lookup failed, empty when
+     * GitHub answered that they are not a member (a 404).
+     */
+    public Optional<Person> byMembership(GhCommit.Author author) {
+        String login = author.login();
         try {
-            member = gh.isMember(login);
+            return gh.isMember(login) ? Optional.of(Person.of(login, Who.TEAM)) : Optional.empty();
         } catch (GhException e) {
-            return Person.other(login, "membership lookup failed: " + PlainText.oneLine(e.getMessage()));
+            return Optional.of(Person.other(login, "membership lookup failed: " + PlainText.oneLine(e.getMessage())));
         }
-        return member ? Person.of(login, Who.TEAM) : byCommitsBefore(login, baseSha);
     }
 
     /**
