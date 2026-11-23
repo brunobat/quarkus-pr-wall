@@ -297,7 +297,11 @@ class ReviewListTest {
                 + "java\\.lang\\.RuntimeException\n.*"), pr101);
         assertTrue(pr101.matches("(?s).*JVM Integration Tests - JDK 17 \\(Quarkus CI\\) +FAILURE +Failed to execute "
                 + "goal .*"), pr101);
-        assertFalse(pr101.contains("CompressionEnabledTestCase"), "flaky in a job that passed: " + pr101);
+        // A flaky test in a job that passed is not in the failure table, but in the flaky list after it.
+        String failureTable = pr101.substring(pr101.indexOf("  Check "), pr101.indexOf("Flaky: "));
+        assertFalse(failureTable.contains("CompressionEnabledTestCase"), pr101);
+        assertTrue(pr101.contains("  JVM Tests - JDK 17 Windows (Quarkus CI)  io.quarkus.undertow.test.compress"
+                + ".CompressionEnabledTestCase.testCompressed\n"), pr101);
         String report101 = Files.readString(out.resolve("review-101.md"));
         assertTrue(report101.contains("[`io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test`]("
                 + "https://develocity.quarkus.io/scans/tests?"), report101);
@@ -309,6 +313,7 @@ class ReviewListTest {
         assertTrue(block(stdout, 107).contains("no source for failure details"), result.getOutput());
         assertTrue(block(stdout, 108).contains("CI: 1 of 2 not passed\n"), result.getOutput());
         assertTrue(block(stdout, 108).contains("details unavailable"), result.getOutput());
+        assertTrue(block(stdout, 108).contains("\nFlaky: unavailable\n"), result.getOutput());
     }
 
     @Test

@@ -244,6 +244,50 @@ class ReviewSinglePrTest {
     }
 
     @Test
+    void aGreenPrShowsItsFlakyTests(QuarkusMainLauncher launcher) throws IOException {
+        LaunchResult result = launcher.launch("review", "150", "--output-dir", out.toString());
+
+        assertEquals(0, result.exitCode(), result.getOutput());
+        String block = ReviewListTest.block(result.getOutputStream(), 150);
+        assertTrue(block.contains("CI: all 2 passed, skipped or neutral\n"
+                + "Flaky: 2 tests in 2 jobs (passed on retry)\n"
+                + "  Job                                                 Test\n"
+                + "  JVM Tests - JDK 21 Windows (Quarkus CI)             io.quarkus.micrometer.deployment.binder"
+                + ".VertxTcpMetricsNoClientMetricsTest.testTcpMetricsWithoutClientMetrics\n"
+                + "  JVM Integration Tests - JDK 25 Semeru (Quarkus CI)  io.quarkus.it.rest.client.selfsigned"
+                + ".ExternalSelfSignedTestCase.javaxNetSsl\n"), block);
+        String markdown = Files.readString(out.resolve("review-150.md"));
+        assertTrue(markdown.contains("All 2 passed, skipped or neutral.\n\nFlaky: 2 tests in 2 jobs (passed on retry).\n\n"
+                + "| Job | Test | Module |\n|---|---|---|\n"
+                + "| JVM Tests - JDK 21 Windows (Quarkus CI) | [`io.quarkus.micrometer.deployment.binder"
+                + ".VertxTcpMetricsNoClientMetricsTest.testTcpMetricsWithoutClientMetrics`](https://ge.quarkus.io/scans/"
+                + "tests?tests.container=io.quarkus.micrometer.deployment.binder.VertxTcpMetricsNoClientMetricsTest"
+                + "&tests.test=testTcpMetricsWithoutClientMetrics) | extensions/micrometer/deployment |\n"), markdown);
+        assertTrue(markdown.contains(" | integration-tests/rest-client |\n"), markdown);
+    }
+
+    @Test
+    void aPrWithFailuresShowsItsFailureTableThenItsFlakyTests(QuarkusMainLauncher launcher) throws IOException {
+        LaunchResult result = launcher.launch("review", "151", "--output-dir", out.toString());
+
+        assertEquals(0, result.exitCode(), result.getOutput());
+        String block = ReviewListTest.block(result.getOutputStream(), 151);
+        int table = block.indexOf("  Check ");
+        int flaky = block.indexOf("Flaky: 2 tests in 2 jobs (passed on retry)\n");
+        assertTrue(block.contains("CI: 1 of 2 not passed\n  Check "), block);
+        assertTrue(0 < table && table < flaky, block);
+        // The failure table keeps its Flaky column.
+        assertTrue(block.matches("(?s).*GracefulShutdownFilterTest\\.test +yes +Timeout waiting.*"), block);
+        assertTrue(block.contains("  JVM Tests - JDK 17 Windows (Quarkus CI)  io.quarkus.undertow.test.compress"
+                + ".CompressionEnabledTestCase.testCompressed\n"), block);
+        String markdown = Files.readString(out.resolve("review-151.md"));
+        int mdTable = markdown.indexOf("| Check | Result | Test | Flaky | What failed |");
+        int mdFlaky = markdown.indexOf("\nFlaky: 2 tests in 2 jobs (passed on retry).\n\n| Job | Test | Module |\n");
+        assertTrue(0 < mdTable && mdTable < mdFlaky, markdown);
+        assertTrue(markdown.contains(" | extensions/undertow/deployment |\n"), markdown);
+    }
+
+    @Test
     void testsOnlyPrIsAlsoOneJevCall(QuarkusMainLauncher launcher) {
         LaunchResult result = launcher.launch("review", "102", "--output-dir", out.toString());
 

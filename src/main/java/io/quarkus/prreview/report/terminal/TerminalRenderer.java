@@ -6,6 +6,7 @@ import java.util.List;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
 import io.quarkus.prreview.classification.github.ci.model.FailureRow;
+import io.quarkus.prreview.classification.github.ci.model.FlakyTest;
 import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
@@ -82,13 +83,32 @@ public final class TerminalRenderer {
         } + "\n";
     }
 
-    /** The count line, then a table of the checks that did not pass, without links. */
+    /**
+     * The count line, then a table of the checks that did not pass, then the tests the bot lists as flaky, without
+     * links.
+     */
     private static String ci(SourceResult<CiChecks> ci) {
         return switch (ci) {
             case SourceResult.Unavailable<CiChecks> unavailable -> "CI: " + CiFormat.UNAVAILABLE + "\n";
             case SourceResult.Available<CiChecks> available -> "CI: " + CiFormat.count(available.facts()) + "\n"
-                    + table(available.facts());
+                    + table(available.facts()) + flaky(available.facts());
         };
+    }
+
+    private static String flaky(CiChecks ci) {
+        String line = CiFormat.flaky(ci);
+        if (line == null) {
+            return "";
+        }
+        if (ci.flaky() == null) {
+            return "Flaky: " + line + "\n";
+        }
+        List<String[]> rows = new ArrayList<>();
+        rows.add(CiFormat.FLAKY_COLUMNS);
+        for (FlakyTest flaky : ci.flaky()) {
+            rows.add(new String[] { PlainText.oneLine(CiFormat.job(flaky)), PlainText.oneLine(flaky.test()) });
+        }
+        return "Flaky: " + line + "\n" + aligned(rows);
     }
 
     private static String table(CiChecks ci) {
@@ -105,7 +125,12 @@ public final class TerminalRenderer {
                         CiFormat.flaky(row), cut(PlainText.oneLine(row.whatFailed())) });
             }
         }
-        int[] widths = new int[CiFormat.COLUMNS.length - 1];
+        return aligned(rows);
+    }
+
+    /** The rows indented by two spaces, each column but the last padded to its widest cell plus two spaces. */
+    private static String aligned(List<String[]> rows) {
+        int[] widths = new int[rows.getFirst().length - 1];
         for (String[] row : rows) {
             for (int i = 0; i < widths.length; i++) {
                 widths[i] = Math.max(widths[i], row[i].length());

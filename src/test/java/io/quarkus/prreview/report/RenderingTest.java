@@ -19,6 +19,7 @@ import io.quarkus.prreview.classification.github.ci.model.Approval;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
 import io.quarkus.prreview.classification.github.ci.model.FailureRow;
+import io.quarkus.prreview.classification.github.ci.model.FlakyTest;
 import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
@@ -561,6 +562,99 @@ class RenderingTest {
             assertTrue(MarkdownReport.render(outcome).contains("## CI checks (GitHub)\n\n" + expected[1]
                     + "\n## Provenance (GitHub)"), MarkdownReport.render(outcome));
         });
+    }
+
+    static final String LARGE = "io.quarkus.resteasy.reactive.jackson.deployment.test.LargeDtoReflectionFreeTest";
+    static final String MODULE = "extensions/resteasy-reactive/rest-jackson/deployment";
+    static final List<FlakyTest> FLAKY = List.of(
+            new FlakyTest("JVM Tests - JDK 21", "Quarkus CI", LARGE, MODULE, "https://ge.quarkus.io/h1"),
+            new FlakyTest("JVM Tests - JDK 25", "Quarkus CI", LARGE, MODULE, "https://ge.quarkus.io/h2"),
+            new FlakyTest("JVM Tests - JDK 21 Windows", "Quarkus CI", LARGE, MODULE, "https://ge.quarkus.io/h3"),
+            new FlakyTest("JVM Tests - JDK 21 Windows", "Quarkus CI",
+                    "io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test", "extensions/vertx-http/deployment",
+                    "https://ge.quarkus.io/h4"));
+
+    static PrOutcome withFlaky(List<CiCheck> checks, List<FlakyTest> flaky) {
+        CiChecks base = ci(checks);
+        return withCi(new SourceResult.Available<>(new CiChecks(base.headCommit(), base.checks(), base.notPassed(),
+                base.approval(), flaky)));
+    }
+
+    @Test
+    void flakyTestsFollowTheCountLineOfAGreenPr() {
+        PrOutcome outcome = withFlaky(List.of(new CiCheck(CiCheck.Kind.CHECK_RUN, "a", "W", "SUCCESS", "")), FLAKY);
+
+        assertTrue(TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)).contains("""
+                CI: all 1 passed, skipped or neutral
+                Flaky: 4 tests in 3 jobs (passed on retry)
+                  Job                                      Test
+                  JVM Tests - JDK 21 (Quarkus CI)          io.quarkus.resteasy.reactive.jackson.deployment.test.LargeDtoReflectionFreeTest
+                  JVM Tests - JDK 25 (Quarkus CI)          io.quarkus.resteasy.reactive.jackson.deployment.test.LargeDtoReflectionFreeTest
+                  JVM Tests - JDK 21 Windows (Quarkus CI)  io.quarkus.resteasy.reactive.jackson.deployment.test.LargeDtoReflectionFreeTest
+                  JVM Tests - JDK 21 Windows (Quarkus CI)  io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test
+                Author: unavailable
+                """), TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)));
+        assertTrue(MarkdownReport.render(outcome).contains("""
+                ## CI checks (GitHub)
+
+                All 1 passed, skipped or neutral.
+
+                Flaky: 4 tests in 3 jobs (passed on retry).
+
+                | Job | Test | Module |
+                |---|---|---|
+                | JVM Tests - JDK 21 (Quarkus CI) | [`io.quarkus.resteasy.reactive.jackson.deployment.test.LargeDtoReflectionFreeTest`](https://ge.quarkus.io/h1) | extensions/resteasy-reactive/rest-jackson/deployment |
+                """), MarkdownReport.render(outcome));
+        assertTrue(MarkdownReport.render(outcome).contains("| extensions/vertx-http/deployment |\n\n## Provenance"),
+                MarkdownReport.render(outcome));
+    }
+
+    @Test
+    void flakyTestsFollowTheUnchangedFailureTable() {
+        List<CiCheck> checks = List.of(new CiCheck(CiCheck.Kind.CHECK_RUN, "JVM Tests", "W", "FAILURE",
+                "https://github.com/q/q/runs/2"));
+        String before = TerminalRenderer.render(withFlaky(checks, List.of()), new ReportWriter.Written(REPORT));
+        String beforeReport = MarkdownReport.render(withFlaky(checks, List.of()));
+        PrOutcome outcome = withFlaky(checks, FLAKY.subList(0, 1));
+
+        String block = TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT));
+        String table = "  JVM Tests (W)  FAILURE               details unavailable\n";
+        assertTrue(before.contains(table + "Author: "), before);
+        assertTrue(block.contains(table + "Flaky: 1 test in 1 job (passed on retry)\n  Job"), block);
+        String report = MarkdownReport.render(outcome);
+        String failureTable = beforeReport.substring(beforeReport.indexOf("| Check |"),
+                beforeReport.indexOf("\n\n## Provenance"));
+        assertTrue(report.contains(failureTable + "\n\nFlaky: 1 test in 1 job (passed on retry).\n\n| Job | Test |"
+                + " Module |\n"), report);
+    }
+
+    @Test
+    void flakyLineWhenThereAreNoneTheCommentsAreUnreadableOrCiIsUnavailable() {
+        List<CiCheck> green = List.of(new CiCheck(CiCheck.Kind.CHECK_RUN, "a", "W", "SUCCESS", ""));
+
+        PrOutcome none = withFlaky(green, List.of());
+        assertFalse(TerminalRenderer.render(none, new ReportWriter.Written(REPORT)).contains("Flaky:"));
+        assertFalse(MarkdownReport.render(none).contains("Flaky:"));
+        PrOutcome unreadable = withFlaky(green, null);
+        assertTrue(TerminalRenderer.render(unreadable, new ReportWriter.Written(REPORT))
+                .contains("CI: all 1 passed, skipped or neutral\nFlaky: unavailable\nAuthor: "));
+        assertTrue(MarkdownReport.render(unreadable).contains(
+                "All 1 passed, skipped or neutral.\n\nFlaky: unavailable.\n\n## Provenance"),
+                MarkdownReport.render(unreadable));
+        PrOutcome noCi = withCi(SourceResult.unavailable("gh: x"));
+        assertFalse(TerminalRenderer.render(noCi, new ReportWriter.Written(REPORT)).contains("Flaky"));
+        assertFalse(MarkdownReport.render(noCi).contains("Flaky"));
+    }
+
+    @Test
+    void flakyValuesFromGitHubAreEscaped() {
+        PrOutcome outcome = withFlaky(List.of(), List.of(new FlakyTest("Job | <b>\nx", "W", "a.B`c<d", "m|<!--",
+                "javascript:alert(1)")));
+
+        String block = TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT));
+        assertTrue(block.contains("  Job | <b> x (W)  a.B`c<d\n"), block);
+        String report = MarkdownReport.render(outcome);
+        assertTrue(report.contains("| Job \\| \\<b\\> x (W) | `` a.B`c<d `` | m\\|\\<!-- |\n"), report);
     }
 
     @Test

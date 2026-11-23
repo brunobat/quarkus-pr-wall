@@ -10,6 +10,7 @@ import io.quarkus.prreview.classification.github.ci.model.CiCheck;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
 import io.quarkus.prreview.classification.github.ci.model.FailureRow;
+import io.quarkus.prreview.classification.github.ci.model.FlakyTest;
 import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
@@ -77,14 +78,37 @@ public final class MarkdownReport {
         md.append("\n");
     }
 
-    /** The count line, then a table of the checks that did not pass, linking only to {@code https://} URLs. */
+    /**
+     * The count line, then a table of the checks that did not pass, then the tests the bot lists as flaky, linking
+     * only to {@code https://} URLs.
+     */
     private static void appendCi(StringBuilder md, SourceResult<CiChecks> ci) {
         md.append("## CI checks (GitHub)\n\n");
         switch (ci) {
             case SourceResult.Unavailable<CiChecks> unavailable -> md.append(CiFormat.UNAVAILABLE).append("\n");
-            case SourceResult.Available<CiChecks> available -> appendCiTable(md, available.facts());
+            case SourceResult.Available<CiChecks> available -> {
+                appendCiTable(md, available.facts());
+                appendFlaky(md, available.facts());
+            }
         }
         md.append("\n");
+    }
+
+    private static void appendFlaky(StringBuilder md, CiChecks ci) {
+        String line = CiFormat.flaky(ci);
+        if (line == null) {
+            return;
+        }
+        md.append("\nFlaky: ").append(line).append(".\n");
+        if (ci.flaky() == null) {
+            return;
+        }
+        md.append("\n| Job | Test | Module |\n|---|---|---|\n");
+        for (FlakyTest flaky : ci.flaky()) {
+            md.append("| ").append(text(CiFormat.job(flaky))).append(" | ")
+                    .append(linkedCode(flaky.test(), flaky.historyLink())).append(" | ").append(text(flaky.module()))
+                    .append(" |\n");
+        }
     }
 
     /** The author line and when GitHub was read; every value from GitHub is escaped as plain text. */

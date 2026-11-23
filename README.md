@@ -237,9 +237,26 @@ nothing is concluded from them, and they are **never sent to `jev` or Claude**.
   | What failed | The error quarkus-bot reported; one line of at most 120 characters in the terminal |
 
   The rows come from **quarkus-bot's status comment for the check's workflow on the head commit**; comments for
-  earlier commits are never used, and when there are several the latest counts. A check without such a comment
-  gets one row saying `details unavailable`, or `no source for failure details` on a PR quarkus-bot never
-  commented on. Flaky tests in jobs that passed are not shown.
+  earlier commits are never used. When there are several, one whose `workflow-run-id` marker names a run that the
+  head commit's checks link to (`actions/runs/<id>`) is preferred, and among those (or among all when none
+  matches) the latest counts. A check without such a comment gets one row saying `details unavailable`, or
+  `no source for failure details` on a PR quarkus-bot never commented on.
+
+  **Flaky tests** follow, whatever the checks say: the tests that same comment lists under `Flaky tests` (they
+  failed, then passed on retry), once per job and test. The comments are read for every PR.
+
+  ```
+  CI: all 71 passed, skipped or neutral
+  Flaky: 2 tests in 2 jobs (passed on retry)
+    Job                                      Test
+    JVM Tests - JDK 21 (Quarkus CI)          io.quarkus.resteasy.reactive.jackson.deployment.test.LargeDtoReflectionFreeTest
+    JVM Tests - JDK 21 Windows (Quarkus CI)  io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test
+  ```
+
+  The report adds each test's module and links the test to its Develocity history. When checks failed, the
+  failure table comes first, unchanged. There is no `Flaky:` line when the comment lists none or there is no
+  comment for the head commit; it reads `Flaky: unavailable` when the comments could not be read. A class-only
+  entry (`io.quarkus.grpc.client.InstanceInjectionTest.`) is shown without its trailing dot.
 
 - **Provenance:** who wrote the PR, on one line: `Author: <login> (<who>) · AI: <label>`, followed by
   `· Commits: <login> (<who>), ...` when commits were authored by someone else.
