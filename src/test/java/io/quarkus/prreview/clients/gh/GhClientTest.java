@@ -38,7 +38,7 @@ class GhClientTest {
 
     @Test
     void fetchesMetadataAndDiff() {
-        PullRequest pr = client.fetch(101);
+        PullRequest pr = client.withDiff(client.metadata(101));
 
         assertEquals(101, pr.number());
         assertEquals("Fix the frobnicator", pr.title());
@@ -49,14 +49,14 @@ class GhClientTest {
 
     @Test
     void unknownPrCarriesGhMessage() {
-        GhException e = assertThrows(GhException.class, () -> client.fetch(404));
+        GhException e = assertThrows(GhException.class, () -> client.metadata(404));
         assertTrue(e.getMessage().contains("Could not resolve to a PullRequest with the number of 404"), e.getMessage());
         assertNull(e.pullRequest());
     }
 
     @Test
     void tooLargeDiffMessageIsPropagated() {
-        GhException e = assertThrows(GhException.class, () -> client.fetch(406));
+        GhException e = assertThrows(GhException.class, () -> client.withDiff(client.metadata(406)));
         assertTrue(e.getMessage().contains("HTTP 406"), e.getMessage());
         assertTrue(e.getMessage().contains("too_large"), e.getMessage());
         // gh pr view succeeded; only the diff failed, so the title is kept.
@@ -270,7 +270,7 @@ class GhClientTest {
 
     @Test
     void slowGhTimesOut() throws IOException, InterruptedException {
-        GhException e = assertThrows(GhException.class, () -> client.fetch(99));
+        GhException e = assertThrows(GhException.class, () -> client.metadata(99));
         assertTrue(e.getMessage().contains("timed out after"), e.getMessage());
 
         // gh's own children are killed too: a child holding the output pipes would otherwise outlive the timeout.
@@ -294,7 +294,7 @@ class GhClientTest {
     @Test
     void missingBinaryIsAGhFailure() {
         GhClient missing = new GhClient(config("/nonexistent/gh", Duration.ofSeconds(1)), JsonMapper.builder().build());
-        GhException e = assertThrows(GhException.class, () -> missing.fetch(101));
+        GhException e = assertThrows(GhException.class, () -> missing.metadata(101));
         assertTrue(e.getMessage().contains("cannot run /nonexistent/gh"), e.getMessage());
     }
 

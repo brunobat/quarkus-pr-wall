@@ -65,11 +65,8 @@ public class GhClient {
         this.mapper = mapper;
     }
 
-    /**
-     * Fetches the PR metadata and its unified diff. When only the diff fails (e.g. GitHub's 406 for more than 300
-     * files), the exception carries the metadata, so the error report can still show the title.
-     */
-    public PullRequest fetch(int pr) {
+    /** Fetches the PR's metadata: number, title, URL and state, with an empty diff. */
+    public PullRequest metadata(int pr) {
         String json = run(List.of("pr", "view", Integer.toString(pr), "--json", "number,title,url,state"));
         View view;
         try {
@@ -77,14 +74,21 @@ public class GhClient {
         } catch (JacksonException e) {
             throw new GhException("unexpected output from gh pr view " + pr + ": " + e.getOriginalMessage(), e);
         }
+        return new PullRequest(view.number(), view.title(), view.url(), view.state(), "");
+    }
+
+    /**
+     * {@code metadata} with the PR's unified diff. When the diff fails (e.g. GitHub's 406 for more than 300 files),
+     * the exception carries the metadata, so the error report can still show the title.
+     */
+    public PullRequest withDiff(PullRequest metadata) {
         String diff;
         try {
-            diff = run(List.of("pr", "diff", Integer.toString(pr)));
+            diff = run(List.of("pr", "diff", Integer.toString(metadata.number())));
         } catch (GhException e) {
-            throw new GhException(e.getMessage(),
-                    new PullRequest(view.number(), view.title(), view.url(), view.state(), ""), e);
+            throw new GhException(e.getMessage(), metadata, e);
         }
-        return new PullRequest(view.number(), view.title(), view.url(), view.state(), diff);
+        return new PullRequest(metadata.number(), metadata.title(), metadata.url(), metadata.state(), diff);
     }
 
     private record View(int number, String title, String url, String state) {

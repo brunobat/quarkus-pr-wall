@@ -20,6 +20,7 @@ import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.report.ReportWriter;
 import io.quarkus.prreview.report.markdown.MarkdownReport;
 import io.quarkus.prreview.report.terminal.TerminalRenderer;
+import io.quarkus.prreview.triage.NotAPullRequestException;
 import io.quarkus.prreview.triage.PrClassifier;
 import io.quarkus.prreview.triage.model.PrOutcome;
 import picocli.CommandLine;
@@ -46,6 +47,9 @@ public class ReviewCommand implements Callable<Integer> {
 
     @Inject
     ProjectContextLoader projectContext;
+
+    @Inject
+    ReviewConfig config;
 
     @CommandLine.Parameters(arity = "1..*", paramLabel = "<pr>", description = "PR numbers, processed in the order given.")
     List<Integer> prs;
@@ -75,7 +79,15 @@ public class ReviewCommand implements Callable<Integer> {
             if (pr != uniquePrs.getFirst()) {
                 out.println();
             }
-            PrOutcome outcome = classifier.classify(pr);
+            PrOutcome outcome;
+            try {
+                outcome = classifier.classify(pr);
+            } catch (NotAPullRequestException e) {
+                out.print(TerminalRenderer.notAPullRequest(pr, config.gh().repo()));
+                out.flush();
+                errors++;
+                continue;
+            }
             ReportWriter.Result report = ReportWriter.write(dir, pr, MarkdownReport.render(outcome));
             // Each block is printed as soon as its PR is done.
             out.print(TerminalRenderer.render(outcome, report));

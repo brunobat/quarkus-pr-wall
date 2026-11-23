@@ -43,6 +43,11 @@ public final class TerminalRenderer {
     private TerminalRenderer() {
     }
 
+    /** The whole block for a number GitHub says is not a pull request in {@code repo}: one line. */
+    public static String notAPullRequest(int number, String repo) {
+        return "PR #" + number + ": not a pull request in " + PlainText.oneLine(repo) + "\n";
+    }
+
     /** The whole block: the header, then each classification source's part in a fixed order, then the report line. */
     public static String render(PrOutcome outcome, ReportWriter.Result report) {
         return header(outcome.number(), outcome.checks()) + jev(outcome.jev()) + size(outcome.size()) + ci(outcome.ci())

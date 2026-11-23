@@ -101,13 +101,13 @@ class ReviewListTest {
 
     @Test
     void whenEveryPrFailsTheExitCodeIsOne(QuarkusMainLauncher launcher) throws IOException {
-        LaunchResult result = launcher.launch("review", "404", "406", "--output-dir", out.toString());
+        LaunchResult result = launcher.launch("review", "131", "406", "--output-dir", out.toString());
 
         assertEquals(1, result.exitCode(), result.getOutput());
-        assertTrue(block(result.getOutputStream(), 404).contains("  not classified: gh: GraphQL: Could not resolve to a PullRequest with the number of 404."),
+        assertTrue(block(result.getOutputStream(), 131).contains("  not classified: gh: error connecting to api.github.com"),
                 result.getOutput());
         assertTrue(block(result.getOutputStream(), 406).contains("  not classified: gh: "), result.getOutput());
-        assertTrue(Files.readString(out.resolve("review-404.md")).startsWith("# PR #404\n"));
+        assertTrue(Files.readString(out.resolve("review-131.md")).startsWith("# PR #131\n"));
         String report406 = Files.readString(out.resolve("review-406.md"));
         assertTrue(report406.contains("too_large"), report406);
         // gh pr view worked and only the diff failed, so the report keeps the title.
@@ -116,7 +116,7 @@ class ReviewListTest {
         assertTrue(block(result.getOutputStream(), 406).contains("Size: 1244 files changed, +17 -19751\n"),
                 result.getOutput());
         assertTrue(report406.contains("- Changed files: 1244\n- Lines added: 17\n- Lines deleted: 19751\n"), report406);
-        assertTrue(block(result.getOutputStream(), 404).contains("Size: unavailable\n"), result.getOutput());
+        assertTrue(block(result.getOutputStream(), 131).contains("Size: unavailable\n"), result.getOutput());
         assertTrue(block(result.getOutputStream(), 406).contains("CI: unavailable\n"), result.getOutput());
         assertTrue(report406.contains("## CI checks (GitHub)\n\nunavailable\n"), report406);
         assertEquals(0, jev.posts().size());

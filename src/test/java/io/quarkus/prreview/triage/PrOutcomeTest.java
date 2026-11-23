@@ -3,6 +3,7 @@ package io.quarkus.prreview.triage;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -45,12 +46,20 @@ class PrOutcomeTest {
     PrClassifier classifier;
 
     @Test
-    void aPrGhCannotFindIsAGhFailure() {
-        PrOutcome outcome = classifier.classify(404);
+    void aNumberGitHubSaysIsNotAPullRequestStopsThere() {
+        NotAPullRequestException e = assertThrows(NotAPullRequestException.class, () -> classifier.classify(404));
+
+        assertEquals(404, e.number());
+        verifyNoInteractions(model, summarizer);
+    }
+
+    @Test
+    void aMetadataReadThatFailsIsAGhFailure() {
+        PrOutcome outcome = classifier.classify(131);
         JevResult.NotAnswered jev = (JevResult.NotAnswered) outcome.jev();
 
-        assertEquals(404, outcome.number());
-        assertEquals("gh: GraphQL: Could not resolve to a PullRequest with the number of 404. (repository.pullRequest)", jev.reason());
+        assertEquals(131, outcome.number());
+        assertEquals("gh: error connecting to api.github.com", jev.reason());
         assertNull(outcome.pullRequest());
         assertNull(jev.jevModel());
         assertNull(jev.submissionChars());
@@ -132,7 +141,7 @@ class PrOutcomeTest {
 
     @Test
     void everyOutcomeHasAResultFromEverySource() {
-        for (int pr : new int[] { 404, 406, 103 }) {
+        for (int pr : new int[] { 131, 406, 103 }) {
             PrOutcome outcome = classifier.classify(pr);
             assertNotNull(outcome.jev(), "jev for #" + pr);
             assertNotNull(outcome.size(), "size for #" + pr);

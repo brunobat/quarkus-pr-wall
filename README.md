@@ -279,7 +279,7 @@ full message) and the run details known by then. Claude is not called for it.
 
 | Situation for one PR | Reason |
 |---|---|
-| `gh` fails (not found, not authenticated, timeout, diff too large for GitHub) | `gh: <message>` |
+| `gh` fails (not authenticated, rate limited, timeout, network, diff too large for GitHub) | `gh: <message>` |
 | The diff is empty | `empty diff` |
 | The submission's estimated tokens plus 1,000 for the answer are over `JEV_MAX_SUBMISSION_TOKENS` (checked before sending) | `submission estimated at <e> tokens + 1000 for the answer exceeds limit <limit>` |
 | `jev` fails (HTTP error such as `max_tokens_exceeded`, timeout, invalid or incomplete answers) | `jev: <message>` |
@@ -287,6 +287,12 @@ full message) and the run details known by then. Claude is not called for it.
 
 Each of these counts as an error for that PR. Each logs one warning line on stderr; the stack trace is logged only
 at debug level.
+
+A number that is **not a pull request** in `GH_REPO` (an issue number, or a number that does not exist) is told
+apart by GitHub's HTTP 404 for `repos/<GH_REPO>/pulls/<n>`, read only after its metadata read failed. Its whole
+block is one line, `PR #58521: not a pull request in quarkusio/quarkus`. Nothing else is looked up for it, no
+report is written, and nothing is logged at the default level (at debug level, `gh`'s message and stack trace). It
+counts as an error.
 
 | Run | Exit code |
 |---|---|

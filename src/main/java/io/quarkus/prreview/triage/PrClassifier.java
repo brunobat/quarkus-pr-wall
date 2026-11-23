@@ -36,10 +36,11 @@ import io.quarkus.prreview.report.summary.SummaryService;
 import io.quarkus.prreview.triage.model.PrOutcome;
 
 /**
- * Classifies one PR: fetch it, let every check ask its questions, send them to {@code jev} in one submission, keep
- * the answers unchanged and describe them, then gather GitHub's facts. A failure for this PR becomes an outcome whose
- * {@code jev} result is not answered, with a one-line reason (spec "Per-PR failures and exit codes"); it is never
- * thrown, so the run goes on.
+ * Classifies one PR: read its metadata, fetch its diff, let every check ask its questions, send them to {@code jev}
+ * in one submission, keep the answers unchanged and describe them, then gather GitHub's facts. A failure for this PR
+ * becomes an outcome whose {@code jev} result is not answered, with a one-line reason; it is never thrown, so the run
+ * goes on. The one exception is a number GitHub says is not a pull request: nothing more is looked up for it, and
+ * {@link NotAPullRequestException} is thrown.
  */
 @ApplicationScoped
 public class PrClassifier {
@@ -69,14 +70,29 @@ public class PrClassifier {
     }
 
     /**
-     * {@code jev}'s result, then each GitHub source's, whatever {@code jev}'s result was. Who wrote the PR is looked up
-     * on its own virtual thread while {@code jev} is asked, so the PR waits for the slower of the two, not both.
+     * {@code jev}'s result, then each GitHub source's, whatever {@code jev}'s result was. The metadata is read first,
+     * so a number that is not a pull request costs no other lookup. Who wrote the PR is then looked up on its own
+     * virtual thread while {@code jev} is asked, so the PR waits for the slower of the two, not both.
+     *
+     * @throws NotAPullRequestException when GitHub answers that the repository has no pull request with this number
      */
     public PrOutcome classify(int number) {
+        PullRequest metadata;
+        GhException metadataFailure = null;
+        try {
+            metadata = gh.metadata(number);
+        } catch (GhException e) {
+            if (gh.isNotAPullRequest(number)) {
+                LOG.debugf(e, "PR #%d: not a pull request: gh: %s", number, PlainText.oneLine(e.getMessage()));
+                throw new NotAPullRequestException(number, e);
+            }
+            metadata = null;
+            metadataFailure = e;
+        }
         FutureTask<SourceResult<Provenance>> whoWrote = new FutureTask<>(() -> provenance.gather(number));
         Thread.ofVirtual().name("provenance-" + number).start(whoWrote);
         try {
-            PrOutcome jevOnly = jev(number);
+            PrOutcome jevOnly = metadataFailure == null ? jev(number, metadata) : notFetched(number, metadataFailure);
             return new PrOutcome(number, checkIds(), jevOnly.pullRequest(), jevOnly.jev(), size.gather(number),
                     ci.gather(number), join(number, whoWrote));
         } finally {
@@ -104,15 +120,13 @@ public class PrClassifier {
         }
     }
 
-    private PrOutcome jev(int number) {
+    private PrOutcome jev(int number, PullRequest metadata) {
         PullRequest pr;
         try {
-            pr = gh.fetch(number);
+            pr = gh.withDiff(metadata);
         } catch (GhException e) {
-            FailureLog.warn(LOG, "PR #" + number + ": not classified: gh", e);
             // The PR's title is kept when only its diff failed.
-            return PrOutcome.notAnswered(number, checkIds(), e.pullRequest(), "gh: " + oneLine(e.getMessage()),
-                    e.getMessage(), null, null, null, null);
+            return notFetched(number, e);
         }
         if (pr.diff().isBlank()) {
             LOG.warnf("PR #%d: gh returned an empty diff", number);
@@ -151,6 +165,12 @@ public class PrClassifier {
                     : response.modelName(), decision.submissionChars(), decision.estimatedTokens(), decision.limit());
         }
         return PrOutcome.answered(classification, summaries.summarize(classification));
+    }
+
+    private PrOutcome notFetched(int number, GhException e) {
+        FailureLog.warn(LOG, "PR #" + number + ": not classified: gh", e);
+        return PrOutcome.notAnswered(number, checkIds(), e.pullRequest(), "gh: " + oneLine(e.getMessage()),
+                e.getMessage(), null, null, null, null);
     }
 
     private List<String> checkIds() {
