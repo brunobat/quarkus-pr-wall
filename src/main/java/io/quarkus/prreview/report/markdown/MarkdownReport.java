@@ -17,6 +17,7 @@ import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.classification.source.model.SourceResult;
+import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.pr.model.ChangedFile;
 import io.quarkus.prreview.pr.model.PullRequest;
 import io.quarkus.prreview.report.AnswerFormat;
@@ -186,8 +187,8 @@ public final class MarkdownReport {
         md.append("\n## Run\n\n");
         md.append("- jev model: ").append(classification.jevModel() == null ? "not reported"
                 : inline(classification.jevModel())).append("\n");
-        md.append("- Submission size: ").append(classification.submissionChars()).append(" characters (limit ")
-                .append(classification.limit()).append(")\n");
+        appendSubmissionSize(md, classification.submissionChars(), classification.estimatedTokens(),
+                classification.limit());
         md.append("- Project context: ").append(inline(classification.projectContext().source())).append(" (")
                 .append(classification.projectContext().text().length()).append(" characters)\n");
         md.append("- jev tokens: ").append(tokens(classification.tokenUsage())).append("\n");
@@ -206,9 +207,16 @@ public final class MarkdownReport {
         md.append("- jev model: ").append(outcome.jevModel() == null ? "not reached" : inline(outcome.jevModel()))
                 .append("\n");
         if (outcome.submissionChars() != null) {
-            md.append("- Submission size: ").append(outcome.submissionChars()).append(" characters (limit ")
-                    .append(outcome.limit()).append(")\n");
+            appendSubmissionSize(md, outcome.submissionChars(), outcome.estimatedTokens(), outcome.limit());
         }
+    }
+
+    /** The estimate checked against the limit, then the measured characters it came from. */
+    private static void appendSubmissionSize(StringBuilder md, int chars, int estimatedTokens, int limit) {
+        md.append("- Submission size: estimated ").append(estimatedTokens).append(" tokens + ")
+                .append(ReviewConfig.Jev.ANSWER_TOKENS).append(" for the answer (limit ").append(limit)
+                .append(" tokens)\n");
+        md.append("- Submission characters: ").append(chars).append("\n");
     }
 
     /** {@code # PR #<n>: <title>} and the link line, or just {@code # PR #<n>} when the PR was not fetched. */

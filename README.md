@@ -69,8 +69,10 @@ calibrated on collected data rather than guessed.
 
 - **Decisions:** no thresholds, no verdicts, no severities. A probability is shown, never compared with a
   number.
-- **Large PRs:** a PR whose submission exceeds `JEV_MAX_SUBMISSION_CHARS` (60,000 characters by default) is
-  not classified. It is noted and the run continues.
+- **Large PRs:** a PR whose submission is estimated over `JEV_MAX_SUBMISSION_TOKENS` (60,000 tokens by default)
+  is not classified. It is noted and the run continues. `jev` gives no token count before sending, so tokens are
+  estimated from the request body at 3.0 characters per token, below every ratio seen on real submissions, and
+  1,000 tokens are kept for the answer.
 - **Accuracy:** no accuracy has been measured. Answers have been checked by hand on a handful of live PRs
   only, and there is no evaluation set yet.
 - **Other repositories:** only a `quarkusio/quarkus` project context is bundled. Another repository needs its
@@ -187,7 +189,8 @@ Report: reports/review-57715.md
    `jev`'s chosen option and every option's description and probability, all **unrounded**;
 4. **Summary**: the prose and where it came from, `Claude (<model>)` or `fallback template`;
 5. **Changed files**: each path and its change kind (context only);
-6. **Run**: the `jev` model, the submission size and its limit, the project context used and its size,
+6. **Run**: the `jev` model, the submission's estimated tokens plus the 1,000 kept for the answer, checked
+   against the limit, and its size in characters, the project context used and its size,
    `jev`'s token usage, the summary source, and the
    Claude submission: the characters of the system and user messages sent (or "not sent") and Claude's reported
    token usage.
@@ -276,7 +279,7 @@ full message) and the run details known by then. Claude is not called for it.
 |---|---|
 | `gh` fails (not found, not authenticated, timeout, diff too large for GitHub) | `gh: <message>` |
 | The diff is empty | `empty diff` |
-| The submission is over `JEV_MAX_SUBMISSION_CHARS` (checked before sending) | `submission <n> chars exceeds limit <limit>` |
+| The submission's estimated tokens plus 1,000 for the answer are over `JEV_MAX_SUBMISSION_TOKENS` (checked before sending) | `submission estimated at <e> tokens + 1000 for the answer exceeds limit <limit>` |
 | `jev` fails (HTTP error such as `max_tokens_exceeded`, timeout, invalid or incomplete answers) | `jev: <message>` |
 | The report can't be written | the block ends with `Report: not written: <error>` |
 
@@ -304,7 +307,7 @@ Every value is set by an environment variable and declared once, in `ReviewConfi
 | `PROVENANCE_AI_SIGNALS` | the AI-declaration markers: a file path, or `classpath:<resource>`; a missing file warns and counts as empty | `resource-files/ai-provenance-signals.txt` |
 | `PROVENANCE_AUTOMATION_ACCOUNTS` | the bot logins that are routine automation, not coding agents: a file path, or `classpath:<resource>`; a missing file warns and counts as empty | `resource-files/automation-accounts.txt` |
 | `PROVENANCE_MAX_PEOPLE` | the most commit authors looked up on GitHub for one PR, besides its author; the rest read `other (lookup limit)` | `10` |
-| `JEV_MAX_SUBMISSION_CHARS` | the largest `jev` submission sent, in characters of the request body; a larger one is noted as not classified before sending, rather than being rejected by `jev` or sent partially | `60000` |
+| `JEV_MAX_SUBMISSION_TOKENS` | the largest `jev` submission sent, in tokens, including the 1,000 kept for the answer; tokens are estimated from the request body at 3.0 characters per token; a larger one is noted as not classified before sending, rather than being rejected by `jev` or sent partially | `60000` |
 | `JEV_PROJECT_CONTEXT` | the project context sent at the start of every `jev` submission: a file path, or `classpath:<resource>` for a bundled one; it describes the repository's conventions, never an answer | `classpath:project-context/quarkusio-quarkus.txt` |
 | `TYPESAFE_API_KEY` | `jev` API key | none (required) |
 | `JEV_MODEL` | `jev` model name | `jev-latest` |
@@ -320,6 +323,10 @@ An exported but empty variable counts as unset. Each setting can also be set und
 `PR_REVIEW_JEV_PROJECT_CONTEXT` or `QUARKUS_LANGCHAIN4J_TYPESAFE_API_KEY`. An empty API-key property means no key,
 but an empty `PR_REVIEW_*` variable is not supported: it would hide the default and startup fails. Use the names
 above.
+
+The character limit `JEV_MAX_SUBMISSION_CHARS` was replaced by `JEV_MAX_SUBMISSION_TOKENS`, with no alias. An
+exported `JEV_MAX_SUBMISSION_CHARS` is ignored. A leftover `pr-review.jev.max-submission-chars` property in a
+property source makes startup fail, because it maps to no setting.
 
 ## Development
 
@@ -358,7 +365,7 @@ are the gaps we hit and how the code works around each one. Each is worth revisi
 |---|---|
 | The Decision API's `@Decide` decision services make one `jev` call per method, so several questions cost several calls. | Our own single-submission contract (`classification/api`, `JevSubmission`): every check adds its questions to one `DecisionRequest`, answered in one call per PR. |
 | `DecisionRequest` has only `input`, `questions`, `parameters` and `modelName`. There is no system or context field. | The project context is placed at the start of the input text, and it counts toward the submission size. |
-| There is no public way to know a submission's size before sending it. `jev` rejects an oversized one with a 400 `max_tokens_exceeded`, which arrives as an `InvalidRequestException` with `jev`'s body in the message. | `SubmissionSize` serializes the request with `langchain4j-typesafe`'s own internal mapper and codec settings. It depends on LangChain4j internals, and an end-to-end test checks that the size matches the body `jev` receives. Oversized PRs are noted before anything is sent. |
+| There is no public way to know a submission's size before sending it. `jev` rejects an oversized one with a 400 `max_tokens_exceeded`, which arrives as an `InvalidRequestException` with `jev`'s body in the message. | `SubmissionSize` serializes the request with `langchain4j-typesafe`'s own internal mapper and codec settings. It depends on LangChain4j internals, and an end-to-end test checks that the size matches the body `jev` receives. `jev` limits tokens but offers no count before sending, so the size is turned into a token estimate at 3.0 characters per token, with 1,000 tokens kept for the answer. Oversized PRs are noted before anything is sent. |
 | A choice answer's probabilities are a map, with no guarantee they come back in the order the options were declared. | `JevSubmission` reorders them to the declared order before they are recorded. |
 | An AI service is request-scoped by default, and a picocli command has no request context, so the call fails. | `ClassificationSummarizer` is `@ApplicationScoped`, with no tools and no chat memory declared explicitly. |
 | A plain `String` return type gives no token usage. | The AI service returns `Result<String>`, which carries Claude's token usage for the report. |

@@ -110,8 +110,10 @@ class ReviewSinglePrTest {
         assertTrue(markdown.contains("docs/src/main/asciidoc/foo.adoc"), markdown);
         assertTrue(markdown.contains("## Run\n"), markdown);
         // The size the app measured before sending is the length of the body jev received.
-        assertTrue(markdown.contains("- Submission size: " + posts.getFirst().getBodyAsString().length()
-                + " characters (limit 60000)"), markdown);
+        int sent = posts.getFirst().getBodyAsString().length();
+        assertTrue(markdown.contains("- Submission size: estimated " + (int) Math.ceil(sent / 3.0)
+                + " tokens + 1000 for the answer (limit 60000 tokens)\n- Submission characters: " + sent + "\n"),
+                markdown);
         assertTrue(markdown.contains("- jev model: jev-test"), markdown);
         // jev's input starts with the bundled project context, which the footer names.
         String context = Files.readString(BUNDLED_CONTEXT).strip();

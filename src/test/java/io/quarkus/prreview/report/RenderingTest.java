@@ -63,7 +63,7 @@ class RenderingTest {
                         new QuestionResult.Choice("no-test-changes", TestAdequacyCheck.ASSERTS.options(),
                                 probs("no-test-changes", 0.77, "none", 0.23)))));
         return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,
-                60000, CONTEXT);
+                1667, 60000, CONTEXT);
     }
 
     static Classification sample(double behaviour, String chosen, Map<String, Double> options) {
@@ -77,8 +77,8 @@ class RenderingTest {
     }
 
     static PrOutcome notAnswered(PullRequest pr, String reason, String message) {
-        return PrOutcome.notAnswered(57715, List.of("test-adequacy"), pr, reason, message, "jev-latest", 61234,
-                60000);
+        return PrOutcome.notAnswered(57715, List.of("test-adequacy"), pr, reason, message, "jev-latest", 215269,
+                71757, 60000);
     }
 
     static Map<String, Double> probs(Object... pairs) {
@@ -173,7 +173,8 @@ class RenderingTest {
                 ## Run
 
                 - jev model: jev-1
-                - Submission size: 5000 characters (limit 60000)
+                - Submission size: estimated 1667 tokens + 1000 for the answer (limit 60000 tokens)
+                - Submission characters: 5000
                 - Project context: contexts/test.txt (35 characters)
                 - jev tokens: 1200 input, 40 output
                 - Summary: Claude (claude-opus-5-5)
@@ -222,7 +223,7 @@ class RenderingTest {
     void untrustedTextNeverStartsALine() {
         PullRequest pr = new PullRequest(1, "t", "> quote", "- list", "");
         Classification c = new Classification(new PrContext(pr, List.of()), sample(0.5, "undetermined",
-                probs("undetermined", 0.5)).checks(), "jev", null, 1, 2, CONTEXT);
+                probs("undetermined", 0.5)).checks(), "jev", null, 1, 1, 2, CONTEXT);
         for (String text : List.of("# Heading", "```", "> quote", "- item", "1. item", "| a | b |", "~~~")) {
             String report = MarkdownReport.render(c, new Summary(text + "\n## Run\nmore", "m"));
 
@@ -286,8 +287,10 @@ class RenderingTest {
     void errorReportWithATitle() {
         PullRequest pr = new PullRequest(57715, "Big | change", "https://github.com/quarkusio/quarkus/pull/57715",
                 "OPEN", "");
-        String report = MarkdownReport.render(notAnswered(pr, "submission 61234 chars exceeds limit 60000",
-                "submission is 61234 characters,\nover the limit of 60000"));
+        String report = MarkdownReport.render(notAnswered(pr,
+                "submission estimated at 71757 tokens + 1000 for the answer exceeds limit 60000",
+                "submission is 215269 characters, estimated at 71757 tokens (3.0 characters per token);\nwith 1000"
+                        + " tokens kept for the answer it is over the limit of 60000 tokens"));
 
         assertEquals("""
                 # PR #57715: Big | change
@@ -308,14 +311,15 @@ class RenderingTest {
 
                 ## Not classified
 
-                Reason: submission 61234 chars exceeds limit 60000
+                Reason: submission estimated at 71757 tokens + 1000 for the answer exceeds limit 60000
 
-                Message: submission is 61234 characters, over the limit of 60000
+                Message: submission is 215269 characters, estimated at 71757 tokens (3.0 characters per token); with 1000 tokens kept for the answer it is over the limit of 60000 tokens
 
                 ## Run
 
                 - jev model: jev-latest
-                - Submission size: 61234 characters (limit 60000)
+                - Submission size: estimated 71757 tokens + 1000 for the answer (limit 60000 tokens)
+                - Submission characters: 215269
                 """, report);
         assertFalse(report.contains("## Classification"));
         assertFalse(report.contains("## Summary"));
@@ -324,7 +328,7 @@ class RenderingTest {
     @Test
     void errorReportWithoutATitleShowsOnlyWhatIsKnown() {
         PrOutcome outcome = PrOutcome.notAnswered(404, List.of("test-adequacy"), null,
-                "gh: no pull requests found", "no pull requests found\n## Run\n<!-- hidden", null, null, null);
+                "gh: no pull requests found", "no pull requests found\n## Run\n<!-- hidden", null, null, null, null);
 
         assertEquals("""
                 # PR #404
@@ -389,7 +393,7 @@ class RenderingTest {
                 """), MarkdownReport.render(classified));
 
         PrOutcome titleLess = PrOutcome.notAnswered(404, List.of("test-adequacy"), null, "gh: no pull requests found",
-                "no pull requests found", null, null, null);
+                "no pull requests found", null, null, null, null);
         titleLess = new PrOutcome(404, titleLess.checks(), null, titleLess.jev(), new SourceResult.Available<>(size),
                 titleLess.ci(), titleLess.provenance());
         assertEquals("""
@@ -488,7 +492,7 @@ class RenderingTest {
     }
 
     static PrOutcome withCi(SourceResult<CiChecks> ci) {
-        PrOutcome outcome = PrOutcome.notAnswered(57715, List.of("test-adequacy"), null, "gh: x", "x", null, null, null);
+        PrOutcome outcome = PrOutcome.notAnswered(57715, List.of("test-adequacy"), null, "gh: x", "x", null, null, null, null);
         return new PrOutcome(outcome.number(), outcome.checks(), null, outcome.jev(), outcome.size(), ci,
                 outcome.provenance());
     }

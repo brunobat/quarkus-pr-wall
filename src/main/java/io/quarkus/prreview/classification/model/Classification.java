@@ -12,9 +12,10 @@ import io.quarkus.prreview.pr.model.PrContext;
  * @param jevModel the model name {@code jev} reported, or {@code null} when not reported
  * @param tokenUsage {@code jev}'s reported token usage, or {@code null} when not reported
  * @param submissionChars the measured submission size, in characters
- * @param limit the configured submission limit, in characters
+ * @param estimatedTokens the submission's estimated tokens, without the share kept for the answer
+ * @param limit the configured submission limit, in tokens
  * @param projectContext the project context the submission started with
  */
 public record Classification(PrContext pr, List<CheckResult> checks, String jevModel, TokenUsage tokenUsage,
-        int submissionChars, int limit, ProjectContext projectContext) {
+        int submissionChars, int estimatedTokens, int limit, ProjectContext projectContext) {
 }

@@ -130,10 +130,11 @@ class ReviewListTest {
 
             assertEquals(1, result.exitCode(), result.getOutput());
             String block = block(result.getOutputStream(), 101);
-            assertTrue(block.matches("(?s).*  not classified: submission \\d+ chars exceeds limit 1000\n.*"), block);
+            assertTrue(block.matches("(?s).*  not classified: submission estimated at \\d+ tokens \\+ 1000 for the answer exceeds limit 1000\n.*"), block);
             String report = Files.readString(out.resolve("review-101.md"));
             assertTrue(report.contains("## Not classified"), report);
-            assertTrue(report.contains("(limit 1000)"), report);
+            assertTrue(report.contains("(limit 1000 tokens)\n- Submission characters: "), report);
+            assertTrue(report.contains("tokens kept for the answer it is over the limit of 1000 tokens"), report);
             // Too large for jev, but its size is reported.
             assertTrue(block.contains("Size: 2 files changed, +12 -3\n"), block);
             assertTrue(report.contains("## Size (GitHub)\n\n- Changed files: 2\n"), report);

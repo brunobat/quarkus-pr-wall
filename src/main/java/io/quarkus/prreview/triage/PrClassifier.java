@@ -26,6 +26,7 @@ import io.quarkus.prreview.clients.jev.JevClient;
 import io.quarkus.prreview.clients.jev.JevException;
 import io.quarkus.prreview.clients.jev.SubmissionTooLargeException;
 import io.quarkus.prreview.clients.jev.model.JevDecision;
+import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.pr.DiffFiles;
 import io.quarkus.prreview.pr.model.PrContext;
 import io.quarkus.prreview.pr.model.PullRequest;
@@ -110,12 +111,12 @@ public class PrClassifier {
             LOG.warnf(e, "PR #%d: gh failed", number);
             // The PR's title is kept when only its diff failed.
             return PrOutcome.notAnswered(number, checkIds(), e.pullRequest(), "gh: " + oneLine(e.getMessage()),
-                    e.getMessage(), null, null, null);
+                    e.getMessage(), null, null, null, null);
         }
         if (pr.diff().isBlank()) {
             LOG.warnf("PR #%d: gh returned an empty diff", number);
             return PrOutcome.notAnswered(number, checkIds(), pr, "empty diff", "gh pr diff returned no changes",
-                    null, null, null);
+                    null, null, null, null);
         }
 
         PrContext context = new PrContext(pr, DiffFiles.parse(pr.diff()));
@@ -126,25 +127,27 @@ public class PrClassifier {
         } catch (SubmissionTooLargeException e) {
             LOG.warnf("PR #%d: %s", number, e.getMessage());
             return PrOutcome.notAnswered(number, checkIds(), pr,
-                    "submission %d chars exceeds limit %d".formatted(e.submissionChars(), e.limit()), e.getMessage(),
-                    jev.modelName(), e.submissionChars(), e.limit());
+                    "submission estimated at %d tokens + %d for the answer exceeds limit %d".formatted(
+                            e.estimatedTokens(), ReviewConfig.Jev.ANSWER_TOKENS, e.limit()),
+                    e.getMessage(), jev.modelName(), e.submissionChars(), e.estimatedTokens(), e.limit());
         } catch (JevException e) {
             LOG.warnf(e, "PR #%d: jev failed", number);
-            return jevFailure(number, pr, e.getMessage(), jev.modelName(), e.submissionChars(), e.limit());
+            return jevFailure(number, pr, e.getMessage(), jev.modelName(), e.submissionChars(), e.estimatedTokens(),
+                    e.limit());
         }
 
         DecisionResponse response = decision.response();
         Classification classification;
         try {
             classification = new Classification(context, submission.results(response), response.modelName(),
-                    response.tokenUsage(), decision.submissionChars(), decision.limit(),
+                    response.tokenUsage(), decision.submissionChars(), decision.estimatedTokens(), decision.limit(),
                     submission.projectContext());
         } catch (RuntimeException e) {
             // An answer jev's response lacks, or one of the wrong kind.
             LOG.warnf(e, "PR #%d: jev's response does not answer every question", number);
             String message = e.getMessage() == null ? e.getClass().getName() : e.getMessage();
             return jevFailure(number, pr, message, response.modelName() == null ? jev.modelName()
-                    : response.modelName(), decision.submissionChars(), decision.limit());
+                    : response.modelName(), decision.submissionChars(), decision.estimatedTokens(), decision.limit());
         }
         return PrOutcome.answered(classification, summaries.summarize(classification));
     }
@@ -154,9 +157,9 @@ public class PrClassifier {
     }
 
     private PrOutcome jevFailure(int number, PullRequest pr, String message, String model,
-            int submissionChars, int limit) {
+            int submissionChars, int estimatedTokens, int limit) {
         return PrOutcome.notAnswered(number, checkIds(), pr, "jev: " + oneLine(message), message, model,
-                submissionChars, limit);
+                submissionChars, estimatedTokens, limit);
     }
 
     private static String oneLine(String text) {

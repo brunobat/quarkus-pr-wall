@@ -18,10 +18,12 @@ public sealed interface JevResult permits JevResult.Answered, JevResult.NotAnswe
      * @param reason the one-line reason shown after {@code not classified:}, e.g. {@code gh: <message>}
      * @param message the full error message, e.g. {@code jev}'s response body
      * @param jevModel the {@code jev} model, or {@code null} when {@code jev} was not reached
-     * @param submissionChars the measured submission size, or {@code null} when not measured
-     * @param limit the submission limit, or {@code null} when no submission was measured
+     * @param submissionChars the measured submission size in characters, or {@code null} when not measured
+     * @param estimatedTokens the submission's estimated tokens, or {@code null} when not measured
+     * @param limit the submission limit in tokens, or {@code null} when no submission was measured
      */
-    record NotAnswered(String reason, String message, String jevModel, Integer submissionChars, Integer limit)
+    record NotAnswered(String reason, String message, String jevModel, Integer submissionChars,
+            Integer estimatedTokens, Integer limit)
             implements JevResult {
     }
 }

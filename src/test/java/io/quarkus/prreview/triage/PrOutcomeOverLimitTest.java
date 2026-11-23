@@ -49,8 +49,10 @@ class PrOutcomeOverLimitTest {
         PrOutcome outcome = classifier.classify(101);
         JevResult.NotAnswered jev = (JevResult.NotAnswered) outcome.jev();
 
-        assertTrue(jev.submissionChars() > 1000, outcome.toString());
-        assertEquals("submission " + jev.submissionChars() + " chars exceeds limit 1000", jev.reason());
+        assertTrue(jev.submissionChars() > 0, outcome.toString());
+        assertEquals((int) Math.ceil(jev.submissionChars() / 3.0), jev.estimatedTokens());
+        assertEquals("submission estimated at " + jev.estimatedTokens() + " tokens + 1000 for the answer exceeds limit 1000",
+                jev.reason());
         assertEquals(1000, jev.limit());
         assertEquals("jev-latest", jev.jevModel());
         assertEquals("Fix the frobnicator", outcome.pullRequest().title());

@@ -42,9 +42,9 @@ public record PrOutcome(int number, List<String> checks, PullRequest pullRequest
 
     /** A PR {@code jev} did not classify; the GitHub sources are not gathered. */
     public static PrOutcome notAnswered(int number, List<String> checks, PullRequest pullRequest, String reason,
-            String message, String jevModel, Integer submissionChars, Integer limit) {
+            String message, String jevModel, Integer submissionChars, Integer estimatedTokens, Integer limit) {
         return new PrOutcome(number, checks, pullRequest,
-                new JevResult.NotAnswered(reason, message, jevModel, submissionChars, limit),
+                new JevResult.NotAnswered(reason, message, jevModel, submissionChars, estimatedTokens, limit),
                 SourceResult.unavailable(NOT_GATHERED), SourceResult.unavailable(NOT_GATHERED),
                 SourceResult.unavailable(NOT_GATHERED));
     }

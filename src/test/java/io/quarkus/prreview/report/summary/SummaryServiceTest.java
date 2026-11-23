@@ -62,7 +62,7 @@ class SummaryServiceTest {
                         new QuestionResult.Choice("all", TestAdequacyCheck.ASSERTS.options(),
                                 Map.of("all", 0.66)))));
         return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,
-                60000, new ProjectContext("contexts/test.txt", "Project context: a test repository."));
+                1667, 60000, new ProjectContext("contexts/test.txt", "Project context: a test repository."));
     }
 
     static Result<String> result(String text) {
