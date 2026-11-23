@@ -58,11 +58,6 @@ public final class MarkdownReport {
         return md.toString();
     }
 
-    /** The report for a classified PR whose GitHub facts were not gathered. */
-    public static String render(Classification classification, Summary summary) {
-        return render(PrOutcome.answered(classification, summary));
-    }
-
     private static void appendSize(StringBuilder md, SourceResult<PrSize> size) {
         md.append("## Size (GitHub)\n\n");
         switch (size) {

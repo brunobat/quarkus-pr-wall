@@ -35,6 +35,7 @@ import io.quarkus.prreview.triage.DiffFiles;
 import io.quarkus.prreview.triage.model.PrContext;
 import io.quarkus.prreview.triage.model.PrOutcome;
 import io.quarkus.prreview.triage.model.PullRequest;
+import io.quarkus.prreview.triage.model.TestOutcomes;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -86,7 +87,7 @@ class JevClientLiveTest {
     }
 
     private static void print(int number, String title, Classification classification) {
-        String block = TerminalRenderer.render(PrOutcome.answered(classification,
+        String block = TerminalRenderer.render(TestOutcomes.answered(classification,
                 FallbackSummary.of(classification)), new ReportWriter.Written(Path.of("-")));
         StringBuilder out = new StringBuilder(block.lines().takeWhile(l -> !l.startsWith("Summary"))
                 .reduce("", (a, b) -> a + b + "\n"));

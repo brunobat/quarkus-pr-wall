@@ -13,6 +13,7 @@ import io.quarkus.prreview.classification.github.model.CiChecks;
 import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.triage.model.PrOutcome;
 import io.quarkus.prreview.triage.model.PullRequest;
+import io.quarkus.prreview.triage.model.TestOutcomes;
 
 /** The escaping helpers and the report header on their own; whole reports are checked in {@code RenderingTest}. */
 class MarkdownReportTest {
@@ -92,7 +93,8 @@ class MarkdownReportTest {
     }
 
     private static PrOutcome outcome(PullRequest pr, SourceResult<CiChecks> ci) {
-        PrOutcome outcome = PrOutcome.notAnswered(7, List.of("test-adequacy"), pr, "gh: x", "x", null, null, null, null);
+        PrOutcome outcome = TestOutcomes.notAnswered(7, List.of("test-adequacy"), pr, "gh: x", "x", null, null, null,
+                null);
         return new PrOutcome(7, outcome.checks(), pr, outcome.jev(), outcome.size(), ci, outcome.provenance());
     }
 }

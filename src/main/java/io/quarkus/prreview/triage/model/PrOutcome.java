@@ -5,12 +5,9 @@ import java.util.List;
 import io.quarkus.prreview.classification.github.model.Approval;
 import io.quarkus.prreview.classification.github.model.CiChecks;
 import io.quarkus.prreview.classification.github.model.PrSize;
-import io.quarkus.prreview.classification.model.CheckResult;
-import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
-import io.quarkus.prreview.report.summary.Summary;
 
 /**
  * How one PR ended: one result from each classification source. {@code jev}'s result says whether {@code jev} answered,
@@ -38,25 +35,5 @@ public record PrOutcome(int number, List<String> checks, PullRequest pullRequest
     public boolean waitingForApproval() {
         return ci instanceof SourceResult.Available<CiChecks> available
                 && available.facts().approval() == Approval.WAITING;
-    }
-
-    /** The reason given by a GitHub source that was not asked. */
-    public static final String NOT_GATHERED = "not gathered";
-
-    /** A PR {@code jev} classified; the GitHub sources are not gathered. */
-    public static PrOutcome answered(Classification classification, Summary summary) {
-        PullRequest pr = classification.pr().pullRequest();
-        return new PrOutcome(pr.number(), classification.checks().stream().map(CheckResult::checkId).toList(), pr,
-                new JevResult.Answered(classification, summary), SourceResult.unavailable(NOT_GATHERED),
-                SourceResult.unavailable(NOT_GATHERED), SourceResult.unavailable(NOT_GATHERED));
-    }
-
-    /** A PR {@code jev} did not classify; the GitHub sources are not gathered. */
-    public static PrOutcome notAnswered(int number, List<String> checks, PullRequest pullRequest, String reason,
-            String message, String jevModel, Integer submissionChars, Integer estimatedTokens, Integer limit) {
-        return new PrOutcome(number, checks, pullRequest,
-                new JevResult.NotAnswered(reason, message, jevModel, submissionChars, estimatedTokens, limit),
-                SourceResult.unavailable(NOT_GATHERED), SourceResult.unavailable(NOT_GATHERED),
-                SourceResult.unavailable(NOT_GATHERED));
     }
 }

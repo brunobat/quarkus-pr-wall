@@ -36,6 +36,7 @@ import io.quarkus.prreview.triage.model.ChangedFile;
 import io.quarkus.prreview.triage.model.PrContext;
 import io.quarkus.prreview.triage.model.PrOutcome;
 import io.quarkus.prreview.triage.model.PullRequest;
+import io.quarkus.prreview.triage.model.TestOutcomes;
 
 class RenderingTest {
 
@@ -72,12 +73,12 @@ class RenderingTest {
 
     /** The terminal block for a classified PR whose report was written to {@link #REPORT}. */
     static String terminal(Classification classification, Summary summary) {
-        return TerminalRenderer.render(PrOutcome.answered(classification, summary),
+        return TerminalRenderer.render(TestOutcomes.answered(classification, summary),
                 new ReportWriter.Written(REPORT));
     }
 
     static PrOutcome notAnswered(PullRequest pr, String reason, String message) {
-        return PrOutcome.notAnswered(57715, List.of("test-adequacy"), pr, reason, message, "jev-latest", 215269,
+        return TestOutcomes.notAnswered(57715, List.of("test-adequacy"), pr, reason, message, "jev-latest", 215269,
                 71757, 60000);
     }
 
@@ -111,7 +112,7 @@ class RenderingTest {
         for (double p : new double[] { 0.0, 0.4999, 0.5, 1.0, 0.88 }) {
             Classification c = sample(p, "none", probs("none", p));
             String terminal = terminal(c, CLAUDE);
-            String report = MarkdownReport.render(c, CLAUDE);
+            String report = MarkdownReport.render(TestOutcomes.answered(c, CLAUDE));
 
             assertTrue(terminal.contains("behaviour " + AnswerFormat.rounded(p) + "  "), terminal);
             assertTrue(report.contains("| " + AnswerFormat.exact(p) + " |"), report);
@@ -132,7 +133,7 @@ class RenderingTest {
         Classification c = sample(0.5, "undetermined", probs("all", 0.6, "undetermined", 0.3));
 
         assertTrue(terminal(c, CLAUDE).contains("reach: undetermined 0.30"));
-        String report = MarkdownReport.render(c, CLAUDE);
+        String report = MarkdownReport.render(TestOutcomes.answered(c, CLAUDE));
         assertTrue(report.contains("jev's choice: `undetermined`"), report);
         assertTrue(report.contains("| `all` | " + TestAdequacyService.REACH.options().get("all") + " | 0.6 |"), report);
         assertTrue(report.contains("| `none` | " + TestAdequacyService.REACH.options().get("none")
@@ -150,7 +151,7 @@ class RenderingTest {
 
     @Test
     void reportSectionsAppearInOrderWithEveryOption() {
-        String report = MarkdownReport.render(sample(0.88, "none", probs("none", 0.83)), CLAUDE);
+        String report = MarkdownReport.render(TestOutcomes.answered(sample(0.88, "none", probs("none", 0.83)), CLAUDE));
 
         assertTrue(report.startsWith("# PR #57720: Bump jackson-bom\n\nLink: https://github.com/quarkusio/quarkus/pull/57720"
                 + " · State: OPEN\n"), report);
@@ -186,11 +187,12 @@ class RenderingTest {
     @Test
     void reportFooterSaysWhenClaudeWasNotCalledOrReportedNoTokens() {
         Classification c = sample(0.88, "none", probs("none", 0.83));
-        String notSent = MarkdownReport.render(c, FallbackSummary.of(c));
+        String notSent = MarkdownReport.render(TestOutcomes.answered(c, FallbackSummary.of(c)));
         assertTrue(notSent.endsWith("- Summary: fallback template\n- Claude submission: not sent\n"
                 + "- Claude tokens: not reported\n"), notSent);
 
-        String failed = MarkdownReport.render(c, new Summary(FallbackSummary.of(c).text(), null, 987, null));
+        String failed = MarkdownReport.render(TestOutcomes.answered(c,
+                new Summary(FallbackSummary.of(c).text(), null, 987, null)));
         assertTrue(failed.endsWith("- Summary: fallback template\n"
                 + "- Claude submission: 987 characters (system and user messages)\n"
                 + "- Claude tokens: not reported\n"), failed);
@@ -202,7 +204,7 @@ class RenderingTest {
                 "none", probs("none", 0.5));
         Summary summary = new Summary("Line one.\n# Heading\n| x |", "model|x");
 
-        String report = MarkdownReport.render(c, summary);
+        String report = MarkdownReport.render(TestOutcomes.answered(c, summary));
 
         assertTrue(report.startsWith("# PR #57720: Fix | pipes ## Injected | a | b |\n"), report);
         assertTrue(report.contains("- `` docs/a|b `x`.adoc `` (modified)"), report);
@@ -225,7 +227,7 @@ class RenderingTest {
         Classification c = new Classification(new PrContext(pr, List.of()), sample(0.5, "undetermined",
                 probs("undetermined", 0.5)).checks(), "jev", null, 1, 1, 2, CONTEXT);
         for (String text : List.of("# Heading", "```", "> quote", "- item", "1. item", "| a | b |", "~~~")) {
-            String report = MarkdownReport.render(c, new Summary(text + "\n## Run\nmore", "m"));
+            String report = MarkdownReport.render(TestOutcomes.answered(c, new Summary(text + "\n## Run\nmore", "m")));
 
             // Every line of the report starts with the renderer's own text.
             report.lines().filter(l -> !l.isEmpty()).forEach(l -> assertTrue(
@@ -237,7 +239,7 @@ class RenderingTest {
             assertTrue(report.contains("\n**Claude (m):** " + text + " ## Run more\n"), report);
         }
         // GitHub text on the link line follows the fixed label too.
-        String report = MarkdownReport.render(c, new Summary("x", "m"));
+        String report = MarkdownReport.render(TestOutcomes.answered(c, new Summary("x", "m")));
         assertTrue(report.contains("Link: > quote · State: - list\n"), report);
     }
 
@@ -276,7 +278,7 @@ class RenderingTest {
 
     @Test
     void reportNotWrittenAlsoEndsAClassifiedBlock() {
-        String block = TerminalRenderer.render(PrOutcome.answered(sample(0.88, "none",
+        String block = TerminalRenderer.render(TestOutcomes.answered(sample(0.88, "none",
                 probs("none", 0.83)), CLAUDE), new ReportWriter.Failed("AccessDeniedException: x"));
 
         assertTrue(block.endsWith("Summary (Claude): Runtime behaviour changes; no tests were changed.\n"
@@ -351,7 +353,7 @@ class RenderingTest {
 
     @Test
     void errorReportWithoutATitleShowsOnlyWhatIsKnown() {
-        PrOutcome outcome = PrOutcome.notAnswered(404, List.of("test-adequacy"), null,
+        PrOutcome outcome = TestOutcomes.notAnswered(404, List.of("test-adequacy"), null,
                 "gh: no pull requests found", "no pull requests found\n## Run\n<!-- hidden", null, null, null, null);
 
         assertEquals("""
@@ -384,7 +386,7 @@ class RenderingTest {
     @Test
     void sizeIsShownForClassifiedAndNotClassifiedPrs() {
         PrSize size = new PrSize(61, 933, 197);
-        PrOutcome classified = PrOutcome.answered(sample(0.88, "none", probs("none", 0.83)),
+        PrOutcome classified = TestOutcomes.answered(sample(0.88, "none", probs("none", 0.83)),
                 CLAUDE);
         classified = new PrOutcome(classified.number(), classified.checks(), classified.pullRequest(), classified.jev(),
                 new SourceResult.Available<>(size), classified.ci(), classified.provenance());
@@ -416,7 +418,8 @@ class RenderingTest {
                 ## Classification
                 """), MarkdownReport.render(classified));
 
-        PrOutcome titleLess = PrOutcome.notAnswered(404, List.of("test-adequacy"), null, "gh: no pull requests found",
+        PrOutcome titleLess = TestOutcomes.notAnswered(404, List.of("test-adequacy"), null,
+                "gh: no pull requests found",
                 "no pull requests found", null, null, null, null);
         titleLess = new PrOutcome(404, titleLess.checks(), null, titleLess.jev(), new SourceResult.Available<>(size),
                 titleLess.ci(), titleLess.provenance());
@@ -449,7 +452,7 @@ class RenderingTest {
         Provenance provenance = new Provenance(Person.of("app/copilot-swe-agent", Who.BOT),
                 List.of(Person.of("alice", Who.COMMUNITY), Person.other("bob", "lookup limit")),
                 new AiLabel(AiLabel.Kind.AGENT, "app/copilot-swe-agent"), READ_AT);
-        PrOutcome outcome = withProvenance(PrOutcome.answered(sample(0.88, "none",
+        PrOutcome outcome = withProvenance(TestOutcomes.answered(sample(0.88, "none",
                 probs("none", 0.83)), CLAUDE), provenance);
 
         assertTrue(TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)).endsWith("""
@@ -516,7 +519,8 @@ class RenderingTest {
     }
 
     static PrOutcome withCi(SourceResult<CiChecks> ci) {
-        PrOutcome outcome = PrOutcome.notAnswered(57715, List.of("test-adequacy"), null, "gh: x", "x", null, null, null, null);
+        PrOutcome outcome = TestOutcomes.notAnswered(57715, List.of("test-adequacy"), null, "gh: x", "x", null, null,
+                null, null);
         return new PrOutcome(outcome.number(), outcome.checks(), null, outcome.jev(), outcome.size(), ci,
                 outcome.provenance());
     }

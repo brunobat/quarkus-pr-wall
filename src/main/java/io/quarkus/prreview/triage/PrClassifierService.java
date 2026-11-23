@@ -15,6 +15,7 @@ import io.quarkus.prreview.classification.checks.ClassificationCheck;
 import io.quarkus.prreview.classification.github.SizeService;
 import io.quarkus.prreview.classification.github.ci.CiService;
 import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.JevResult;
 import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.ProvenanceService;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
@@ -91,8 +92,8 @@ public class PrClassifierService {
         FutureTask<SourceResult<Provenance>> whoWrote = new FutureTask<>(() -> provenance.gather(number));
         Thread.ofVirtual().name("provenance-" + number).start(whoWrote);
         try {
-            PrOutcome jevOnly = metadataFailure == null ? jev(number, metadata) : notFetched(number, metadataFailure);
-            return new PrOutcome(number, checkIds(), jevOnly.pullRequest(), jevOnly.jev(), size.gather(number),
+            JevPart jevPart = metadataFailure == null ? jev(number, metadata) : notFetched(metadataFailure, number);
+            return new PrOutcome(number, checkIds(), jevPart.pullRequest(), jevPart.result(), size.gather(number),
                     ci.gather(number), join(number, whoWrote));
         } finally {
             // Only reached unfinished when something above threw: stop the lookups rather than leave them running.
@@ -119,18 +120,21 @@ public class PrClassifierService {
         }
     }
 
-    private PrOutcome jev(int number, PullRequest metadata) {
+    /** The PR as fetched, or {@code null}, and {@code jev}'s result for it. */
+    private record JevPart(PullRequest pullRequest, JevResult result) {
+    }
+
+    private JevPart jev(int number, PullRequest metadata) {
         PullRequest pr;
         try {
             pr = gh.withDiff(metadata);
         } catch (GhException e) {
             // The PR's title is kept when only its diff failed.
-            return notFetched(number, e);
+            return notFetched(e, number);
         }
         if (pr.diff().isBlank()) {
             LOG.warnf("PR #%d: gh returned an empty diff", number);
-            return PrOutcome.notAnswered(number, checkIds(), pr, "empty diff", "gh pr diff returned no changes",
-                    null, null, null, null);
+            return notAnswered(pr, "empty diff", "gh pr diff returned no changes", null, null, null, null);
         }
 
         PrContext context = new PrContext(pr, DiffFiles.parse(pr.diff()));
@@ -140,13 +144,13 @@ public class PrClassifierService {
             decision = jev.decide(submission.toDecisionRequest());
         } catch (SubmissionTooLargeException e) {
             LOG.warnf("PR #%d: %s", number, e.getMessage());
-            return PrOutcome.notAnswered(number, checkIds(), pr,
+            return notAnswered(pr,
                     "submission estimated at %d tokens + %d for the answer exceeds limit %d".formatted(
                             e.estimatedTokens(), ReviewConfig.Jev.ANSWER_TOKENS, e.limit()),
                     e.getMessage(), jev.modelName(), e.submissionChars(), e.estimatedTokens(), e.limit());
         } catch (JevException e) {
             FailureLog.warn(LOG, "PR #" + number + ": jev failed", e);
-            return jevFailure(number, pr, e.getMessage(), jev.modelName(), e.submissionChars(), e.estimatedTokens(),
+            return jevFailure(pr, e.getMessage(), jev.modelName(), e.submissionChars(), e.estimatedTokens(),
                     e.limit());
         }
 
@@ -160,16 +164,16 @@ public class PrClassifierService {
             // An answer jev's response lacks, or one of the wrong kind.
             FailureLog.warn(LOG, "PR #" + number + ": jev's response does not answer every question", e);
             String message = e.getMessage() == null ? e.getClass().getName() : e.getMessage();
-            return jevFailure(number, pr, message, response.modelName() == null ? jev.modelName()
+            return jevFailure(pr, message, response.modelName() == null ? jev.modelName()
                     : response.modelName(), decision.submissionChars(), decision.estimatedTokens(), decision.limit());
         }
-        return PrOutcome.answered(classification, summaries.summarize(classification));
+        return new JevPart(pr, new JevResult.Answered(classification, summaries.summarize(classification)));
     }
 
-    private PrOutcome notFetched(int number, GhException e) {
+    private static JevPart notFetched(GhException e, int number) {
         FailureLog.warn(LOG, "PR #" + number + ": not classified: gh", e);
-        return PrOutcome.notAnswered(number, checkIds(), e.pullRequest(), "gh: " + PlainText.oneLine(e.getMessage()),
-                e.getMessage(), null, null, null, null);
+        return notAnswered(e.pullRequest(), "gh: " + PlainText.oneLine(e.getMessage()), e.getMessage(), null, null,
+                null, null);
     }
 
     /** The ids of {@code jev}'s checks, in the order their questions are asked. */
@@ -177,10 +181,16 @@ public class PrClassifierService {
         return checks.stream().map(ClassificationCheck::id).toList();
     }
 
-    private PrOutcome jevFailure(int number, PullRequest pr, String message, String model,
-            int submissionChars, int estimatedTokens, int limit) {
-        return PrOutcome.notAnswered(number, checkIds(), pr, "jev: " + PlainText.oneLine(message), message, model,
-                submissionChars, estimatedTokens, limit);
+    private static JevPart jevFailure(PullRequest pr, String message, String model, int submissionChars,
+            int estimatedTokens, int limit) {
+        return notAnswered(pr, "jev: " + PlainText.oneLine(message), message, model, submissionChars,
+                estimatedTokens, limit);
+    }
+
+    private static JevPart notAnswered(PullRequest pr, String reason, String message, String model,
+            Integer submissionChars, Integer estimatedTokens, Integer limit) {
+        return new JevPart(pr, new JevResult.NotAnswered(reason, message, model, submissionChars, estimatedTokens,
+                limit));
     }
 
 }
