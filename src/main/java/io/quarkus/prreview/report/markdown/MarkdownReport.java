@@ -49,7 +49,7 @@ public final class MarkdownReport {
     /** The whole report: the title, then each classification source's part in a fixed order. */
     public static String render(PrOutcome outcome) {
         StringBuilder md = new StringBuilder();
-        appendTitle(md, outcome.number(), outcome.pullRequest());
+        appendTitle(md, outcome.number(), outcome.pullRequest(), outcome.ci());
         appendSize(md, outcome.size());
         appendCi(md, outcome.ci());
         appendProvenance(md, outcome.provenance());
@@ -219,15 +219,32 @@ public final class MarkdownReport {
         md.append("- Submission characters: ").append(chars).append("\n");
     }
 
-    /** {@code # PR #<n>: <title>} and the link line, or just {@code # PR #<n>} when the PR was not fetched. */
-    private static void appendTitle(StringBuilder md, int number, PullRequest pr) {
+    /**
+     * {@code # PR #<n>: <title>} and the link line, or just {@code # PR #<n>} when the PR was not fetched. When CI was
+     * read, the commit its checks belong to ends the link line, or has a line of its own when there is no link line.
+     */
+    private static void appendTitle(StringBuilder md, int number, PullRequest pr, SourceResult<CiChecks> ci) {
+        String commit = ci instanceof SourceResult.Available<CiChecks> available
+                ? ciCommit(available.facts().headCommit()) : null;
         if (pr == null) {
             md.append("# PR #").append(number).append("\n\n");
+            if (commit != null) {
+                md.append(commit).append("\n\n");
+            }
             return;
         }
         md.append("# PR #").append(number).append(": ").append(inline(pr.title())).append("\n\n");
         md.append("Link: ").append(inline(pr.url())).append(" · State: ").append(inline(pr.state()))
-                .append(pr.draft() ? " (draft)" : "").append("\n\n");
+                .append(pr.draft() ? " (draft)" : "").append(commit == null ? "" : " · " + commit).append("\n\n");
+    }
+
+    /** {@code CI on commit <first 7 characters>}, or {@code null} when GitHub gave no commit. */
+    private static String ciCommit(String headCommit) {
+        if (headCommit == null || headCommit.isBlank()) {
+            return null;
+        }
+        String sha = headCommit.strip();
+        return "CI on commit " + inline(sha.substring(0, Math.min(7, sha.length())));
     }
 
     private static void appendYesNo(StringBuilder md, CheckResult check) {

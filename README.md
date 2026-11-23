@@ -185,7 +185,10 @@ Report: reports/review-57715.md
   `jev classification: behaviour 0.96; tests-changed 0.11; reach no-test-changes 0.96; assert no-test-changes 0.91.`
 
 **The report** (`review-<pr>.md`) has, in order:
-1. the title, link and state, e.g. `Link: <url> · State: OPEN`, with ` (draft)` after a draft's state;
+1. the title, link and state, e.g. `Link: <url> · State: OPEN · CI on commit ba9690a`: ` (draft)` follows a
+   draft's state, and `CI on commit <first 7 characters of the SHA>` names the head commit the CI checks were read
+   for. It is left out when CI could not be read, and is a line of its own when the PR's title and link could not be
+   read;
 2. **Size (GitHub)**, **CI checks (GitHub)** and **Provenance (GitHub)**: the same facts as the terminal, with each
    check linked to its run, each failing test linked to its Develocity history, the job's build scan when there is
    one, and the time GitHub was read for who wrote the PR;

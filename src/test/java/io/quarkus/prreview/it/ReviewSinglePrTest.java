@@ -1,6 +1,7 @@
 package io.quarkus.prreview.it;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -225,6 +226,21 @@ class ReviewSinglePrTest {
         String markdown = Files.readString(out.resolve("review-121.md"));
         assertTrue(markdown.contains("\nLink: https://github.com/quarkusio/quarkus/pull/121 · State: OPEN (draft)"),
                 markdown);
+    }
+
+    @Test
+    void theReportNamesTheCommitCiWasReadForAndTheTerminalDoesNot(QuarkusMainLauncher launcher) throws IOException {
+        LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
+
+        assertEquals(0, result.exitCode(), result.getOutput());
+        String markdown = Files.readString(out.resolve("review-101.md"));
+        assertTrue(markdown.contains("\nLink: https://github.com/quarkusio/quarkus/pull/101 · State: OPEN"
+                + " · CI on commit ba9690a\n"), markdown);
+        // The terminal block is unchanged: its PR line as before, and the commit nowhere in it.
+        String block = ReviewListTest.block(result.getOutputStream(), 101);
+        assertTrue(block.startsWith("PR #101 - test adequacy\n"), block);
+        assertFalse(block.contains("ba9690a"), block);
+        assertFalse(block.contains("CI on commit"), block);
     }
 
     @Test
