@@ -1,6 +1,8 @@
 package io.quarkus.prreview.classification.github.ci;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -11,6 +13,7 @@ import io.quarkus.prreview.classification.github.ci.botcomment.BotCommentParser;
 import io.quarkus.prreview.classification.github.ci.botcomment.BotStatusComment;
 import io.quarkus.prreview.classification.github.ci.model.CiCheck;
 import io.quarkus.prreview.classification.github.ci.model.FailureRow;
+import io.quarkus.prreview.classification.github.ci.model.FlakyTest;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 
 /**
@@ -66,6 +69,24 @@ final class FailureDetails {
         return entries.stream().map(e -> e.test() == null ? new FailureRow(null, null, e.text(), null, scan)
                 : new FailureRow(e.test(), found.isFlaky(check.name(), e.test()), e.text(), e.historyLink(), scan))
                 .toList();
+    }
+
+    /**
+     * The tests the bot lists as flaky on the head commit: for each workflow with a status comment for the head
+     * commit, the entries of the comment chosen as for failure rows, in the comments' order.
+     */
+    static List<FlakyTest> flaky(List<GhComment> comments, String head, List<CiCheck> checks) {
+        Set<String> workflows = new LinkedHashSet<>();
+        for (GhComment comment : comments) {
+            BotCommentParser.parse(comment).filter(c -> c.commit().equalsIgnoreCase(head))
+                    .ifPresent(c -> workflows.add(c.workflow()));
+        }
+        List<FlakyTest> flaky = new ArrayList<>();
+        for (String workflow : workflows) {
+            comment(comments, workflow, head, checks).ifPresent(c -> c.flaky().forEach(f -> flaky.add(
+                    new FlakyTest(f.job(), workflow, f.test(), f.module(), f.historyLink()))));
+        }
+        return List.copyOf(flaky);
     }
 
     private static List<FailureRow> unavailable() {

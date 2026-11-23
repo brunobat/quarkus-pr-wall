@@ -79,8 +79,6 @@ class GitHubFactsTest {
         verify(gh).size(1);
         verify(gh).checks(1);
         verify(gh).comments(1);
-        // No checks in bulk, so no bulk comments call is needed.
-        verify(gh, never()).comments(anyList());
     }
 
     @Test
@@ -130,17 +128,25 @@ class GitHubFactsTest {
     }
 
     @Test
-    void commentsAreReadInBulkOnlyForPrsWithACheckThatDidNotPass() {
+    void commentsAreReadInBulkForEveryPrWhateverItsChecksSay() {
         GhCheck passed = new GhCheck(GhCheck.CHECK_RUN, "Build", "Quarkus CI", "COMPLETED", "SUCCESS", "", null, null,
                 null);
-        when(gh.sizes(List.of(1, 2))).thenReturn(Map.of());
-        when(gh.checks(List.of(1, 2))).thenReturn(Map.of(1, CHECKS, 2, new GhChecks("def", List.of(passed))));
-        when(gh.comments(List.of(1))).thenReturn(Map.of(1, COMMENTS));
+        when(gh.sizes(List.of(1, 2, 3))).thenReturn(Map.of());
+        when(gh.checks(List.of(1, 2, 3))).thenReturn(Map.of(1, CHECKS, 2, new GhChecks("def", List.of(passed))));
+        when(gh.comments(List.of(1, 2, 3))).thenReturn(Map.of(1, COMMENTS, 2, COMMENTS));
+        when(gh.comments(3)).thenReturn(COMMENTS);
 
-        facts.prefetch(List.of(1, 2));
+        facts.prefetch(List.of(1, 2, 3));
 
-        verify(gh).comments(List.of(1));
+        verify(gh).comments(List.of(1, 2, 3));
         assertEquals(COMMENTS, facts.comments(1).orElseThrow());
+        assertEquals(COMMENTS, facts.comments(2).orElseThrow());
+        // A PR the bulk read missed is read on its own when its CI is gathered.
+        assertTrue(facts.comments(3).isEmpty());
+        when(gh.checks(3)).thenReturn(new GhChecks("ghi", List.of(passed)));
+        ci.gather(3);
+        verify(gh).comments(3);
+        verify(gh, never()).comments(2);
     }
 
     static GhAuthorship authorship(int commits) {

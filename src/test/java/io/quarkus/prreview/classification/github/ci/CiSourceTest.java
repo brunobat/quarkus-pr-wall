@@ -8,10 +8,12 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.quarkus.prreview.classification.github.ci.model.CiCheck;
+import io.quarkus.prreview.classification.github.ci.botcomment.BotCommentParserTest;
 import io.quarkus.prreview.classification.github.ci.model.Approval;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
 import io.quarkus.prreview.classification.github.ci.model.FailureRow;
+import io.quarkus.prreview.classification.github.ci.model.FlakyTest;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhCheckSuite;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
@@ -104,5 +106,31 @@ class CiSourceTest {
         for (Approval approval : Approval.values()) {
             assertEquals(approval, CiSource.of(new GhChecks(HEAD, List.of()), List.of(), approval).approval());
         }
+    }
+
+    @Test
+    void flakyTestsComeFromTheHeadCommitsCommentWhenEveryCheckPassed() {
+        String head = "a718653ee237e844bbf0d8d0b4c08915a17a9bd4";
+        List<GhComment> comments = List.of(new GhComment("quarkus-bot",
+                BotCommentParserTest.body("2026-passed-with-flaky.md"), "2026-09-24T23:59:28Z"));
+        GhChecks green = new GhChecks(head, List.of(run("JVM Tests - JDK 21 Windows", "Quarkus CI", "COMPLETED",
+                "SUCCESS")));
+
+        CiChecks ci = CiSource.of(green, comments, Approval.NOT_WAITING);
+
+        assertEquals(List.of(), ci.notPassed());
+        assertEquals(2, ci.flaky().size());
+        assertEquals(new FlakyTest("JVM Tests - JDK 21 Windows", "Quarkus CI",
+                "io.quarkus.micrometer.deployment.binder.VertxTcpMetricsNoClientMetricsTest.testTcpMetricsWithoutClientMetrics",
+                "extensions/micrometer/deployment",
+                "https://ge.quarkus.io/scans/tests?tests.container=io.quarkus.micrometer.deployment.binder"
+                        + ".VertxTcpMetricsNoClientMetricsTest&tests.test=testTcpMetricsWithoutClientMetrics"),
+                ci.flaky().getFirst());
+        // Only the head commit's comments count; without one there are no flaky tests; unreadable comments are null.
+        assertEquals(List.of(), CiSource.of(new GhChecks(HEAD, green.rollup()), comments, Approval.NOT_WAITING).flaky());
+        assertEquals(List.of(), CiSource.of(green, List.of(), Approval.NOT_WAITING).flaky());
+        CiChecks unreadable = CiSource.of(green, null, Approval.NOT_WAITING);
+        assertEquals(null, unreadable.flaky());
+        assertEquals(1, unreadable.checks().size());
     }
 }

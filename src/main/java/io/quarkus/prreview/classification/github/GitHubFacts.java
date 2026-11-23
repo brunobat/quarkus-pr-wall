@@ -10,7 +10,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import org.jboss.logging.Logger;
 
-import io.quarkus.prreview.classification.github.ci.CiSource;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
@@ -21,9 +20,8 @@ import io.quarkus.prreview.log.FailureLog;
 
 /**
  * GitHub's facts for every PR of the run, read in bulk once before the PRs are classified: one {@code gh pr list}
- * call per batch for the sizes, one for the checks, one for who wrote each PR and, for the PRs with a check that did
- * not pass, one for the comments. Each call fails on its own; what it would have returned is then simply not here. Kept for this run
- * only.
+ * call per batch for the sizes, one for the checks, one for who wrote each PR and one for the comments. Each call
+ * fails on its own; what it would have returned is then simply not here. Kept for this run only.
  * <p>
  * A fact is not here, so its source reads it with its own per-PR call, when the PR was missing from the results,
  * when the bulk call failed, or when the list may have been cut off: gh returns at most 100 checks, comments or
@@ -56,9 +54,7 @@ public class GitHubFacts {
         read("sizes", prs, gh::sizes, sizes);
         read("checks", prs, gh::checks, checks);
         read("authorships", prs, gh::authorships, authorships);
-        List<Integer> failing = prs.stream().filter(checks::containsKey)
-                .filter(pr -> CiSource.anyNotPassed(checks.get(pr))).toList();
-        read("comments", failing, gh::comments, comments);
+        read("comments", prs, gh::comments, comments);
     }
 
     private static <T> void read(String fact, List<Integer> prs, Function<List<Integer>, Map<Integer, T>> call,

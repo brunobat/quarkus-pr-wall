@@ -238,6 +238,17 @@ class ReviewListTest {
     }
 
     @Test
+    void commentsAreReadInBulkForGreenPrsToo(QuarkusMainLauncher launcher) throws IOException {
+        long before = ghCalls();
+        launcher.launch("review", "140", "144", "145", "--output-dir", out.toString());
+
+        List<String> calls = callsSince(before);
+        assertEquals(List.of("pr list --state all --search 140 144 145 --json number,comments --limit 3"
+                + " -R quarkusio/quarkus"), calls.stream().filter(c -> c.contains("comments")).toList());
+        assertEquals(List.of(), factViews(calls), "no per-PR fact call");
+    }
+
+    @Test
     void workflowsWaitingForApprovalAreReported(QuarkusMainLauncher launcher) throws IOException {
         // 140: two passing checks and a suite awaiting approval; 141: the same with a failed check; 142: awaiting
         // approval with no checks; 144: no checks and only queued suites; 145: the suites cannot be read.
@@ -311,8 +322,8 @@ class ReviewListTest {
                 + "commits --limit 4 -R quarkusio/quarkus"), calls.toString());
         assertTrue(calls.contains("pr list --state all --search 101 103 106 107 --json number,additions,deletions,"
                 + "changedFiles --limit 4 -R quarkusio/quarkus"), calls.toString());
-        // Comments only for the PRs with a check that did not pass.
-        assertTrue(calls.contains("pr list --state all --search 101 106 107 --json number,comments --limit 3 "
+        // Comments for every PR, whatever its checks say (103 has none).
+        assertTrue(calls.contains("pr list --state all --search 101 103 106 107 --json number,comments --limit 4 "
                 + "-R quarkusio/quarkus"), calls.toString());
         assertEquals(List.of(), factViews(calls), "no per-PR fact call");
         List<String> stdout = result.getOutputStream();

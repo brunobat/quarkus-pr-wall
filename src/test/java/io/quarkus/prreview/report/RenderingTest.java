@@ -529,7 +529,7 @@ class RenderingTest {
     static CiChecks ci(List<CiCheck> checks, Approval approval) {
         return new CiChecks("ba9690af", checks, checks.stream().filter(c -> !List.of("SUCCESS", "SKIPPED", "NEUTRAL")
                 .contains(c.value())).map(c -> new FailedCheck(c, List.of(FailureRow.withoutTest("details unavailable"))))
-                .toList(), approval);
+                .toList(), approval, List.of());
     }
 
     @Test
@@ -628,7 +628,7 @@ class RenderingTest {
         CiCheck check = new CiCheck(CiCheck.Kind.CHECK_RUN, "JVM Tests - JDK 21", "Quarkus CI", "FAILURE",
                 "https://github.com/q/q/actions/runs/1/job/2");
         return withCi(new SourceResult.Available<>(new CiChecks("ba9690af", List.of(check),
-                List.of(new FailedCheck(check, rows)), Approval.NOT_WAITING)));
+                List.of(new FailedCheck(check, rows)), Approval.NOT_WAITING, List.of())));
     }
 
     @Test

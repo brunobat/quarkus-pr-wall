@@ -68,7 +68,7 @@ class MarkdownReportTest {
     @Test
     void theLinkLineEndsWithTheCommitCiWasReadFor() {
         String report = MarkdownReport.render(outcome(PR, new SourceResult.Available<>(
-                new CiChecks(SHA, List.of(), List.of(), Approval.NOT_WAITING))));
+                new CiChecks(SHA, List.of(), List.of(), Approval.NOT_WAITING, List.of()))));
 
         assertTrue(report.startsWith("# PR #7: Title\n\nLink: https://github.com/q/q/pull/7 · State: OPEN (draft)"
                 + " · CI on commit ba9690a\n\n## Size (GitHub)\n"), report);
@@ -86,7 +86,7 @@ class MarkdownReportTest {
     @Test
     void withoutALinkLineTheCommitHasALineOfItsOwn() {
         String report = MarkdownReport.render(outcome(null, new SourceResult.Available<>(
-                new CiChecks(SHA, List.of(), List.of(), Approval.NOT_WAITING))));
+                new CiChecks(SHA, List.of(), List.of(), Approval.NOT_WAITING, List.of()))));
 
         assertTrue(report.startsWith("# PR #7\n\nCI on commit ba9690a\n\n## Size (GitHub)\n"), report);
     }

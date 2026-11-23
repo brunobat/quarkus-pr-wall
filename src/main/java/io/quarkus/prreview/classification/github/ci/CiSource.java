@@ -23,8 +23,9 @@ import io.quarkus.prreview.log.FailureLog;
 
 /**
  * The CI classification source: the checks on a PR's head commit, with those that did not pass listed with their
- * failures from quarkus-bot's comments (read only when a check did not pass), and whether a check suite on the head
- * commit awaits approval, or why the checks are unavailable. GitHub's values are kept as returned; nothing is concluded from them. Never throws for gh.
+ * failures from quarkus-bot's comments, the tests the bot lists as flaky, and whether a check suite on the head
+ * commit awaits approval, or why the checks are unavailable. GitHub's values are kept as returned; nothing is
+ * concluded from them. Never throws for gh.
  */
 @ApplicationScoped
 public class CiSource {
@@ -42,11 +43,6 @@ public class CiSource {
         this.facts = facts;
     }
 
-    /** Whether a check in {@code checks} did not pass, so that the PR's comments are needed for its rows. */
-    public static boolean anyNotPassed(GhChecks checks) {
-        return checks.rollup().stream().map(CiSource::check).anyMatch(c -> !PASSED.contains(c.value()));
-    }
-
     public SourceResult<CiChecks> gather(int pr) {
         GhChecks checks;
         try {
@@ -56,12 +52,11 @@ public class CiSource {
             return SourceResult.unavailable("gh: " + e.getMessage().strip().replaceAll("\\s+", " "));
         }
         List<GhComment> comments = null;
-        if (anyNotPassed(checks)) {
-            try {
-                comments = facts.comments(pr).orElseGet(() -> gh.comments(pr));
-            } catch (GhException e) {
-                FailureLog.warn(LOG, "PR #" + pr + ": comments unavailable, so are failure details: gh", e);
-            }
+        try {
+            comments = facts.comments(pr).orElseGet(() -> gh.comments(pr));
+        } catch (GhException e) {
+            FailureLog.warn(LOG, "PR #" + pr + ": comments unavailable, so are failure details and flaky tests: gh",
+                    e);
         }
         return new SourceResult.Available<>(of(checks, comments, approval(pr, checks.headRefOid())));
     }
@@ -95,7 +90,8 @@ public class CiSource {
         List<CiCheck> checks = gh.rollup().stream().map(CiSource::check).toList();
         List<FailedCheck> notPassed = checks.stream().filter(c -> !PASSED.contains(c.value()))
                 .map(c -> new FailedCheck(c, FailureDetails.rows(c, comments, gh.headRefOid(), checks))).toList();
-        return new CiChecks(gh.headRefOid(), checks, notPassed, approval);
+        return new CiChecks(gh.headRefOid(), checks, notPassed, approval,
+                comments == null ? null : FailureDetails.flaky(comments, gh.headRefOid(), checks));
     }
 
     private static CiCheck check(GhCheck check) {
