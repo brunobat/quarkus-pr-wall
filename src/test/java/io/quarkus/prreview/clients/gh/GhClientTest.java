@@ -30,7 +30,7 @@ import io.quarkus.prreview.pr.model.PullRequest;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Runs the real {@link GhClient} against the fake {@code gh} script in {@code src/test/resources/fake-gh}. */
-class GhClientTest {
+public class GhClientTest {
 
     static final Path FAKE_GH_DIR = Path.of("src/test/resources/fake-gh").toAbsolutePath();
     static final String FAKE_GH = FAKE_GH_DIR.resolve("gh").toString();
@@ -484,7 +484,7 @@ class GhClientTest {
                 bulk.authorships(List.of(1, 2, 3)));
     }
 
-    static ReviewConfig config(String binary, Duration timeout) {
+    public static ReviewConfig config(String binary, Duration timeout) {
         return config(binary, timeout, "quarkusio/quarkus", Duration.ofHours(1));
     }
 

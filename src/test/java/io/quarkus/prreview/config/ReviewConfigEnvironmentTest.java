@@ -76,4 +76,14 @@ class ReviewConfigEnvironmentTest {
                 "<excludedEnvironmentVariable>PR_REVIEW_JEV_MAX_SUBMISSION_TOKENS</excludedEnvironmentVariable>"));
         assertFalse(pom.contains("JEV_MAX_SUBMISSION_CHARS"));
     }
+
+    @Test
+    void onlyTheLiveProfileLetsTheJevKeyThroughAndNoProfileTheClaudeKey() throws IOException {
+        String pom = Files.readString(Path.of("pom.xml"));
+
+        assertTrue(pom.contains("<excludedEnvironmentVariable>${live.typesafeKeyVariable}</excludedEnvironmentVariable>"));
+        assertTrue(pom.contains("<live.typesafeKeyVariable>TYPESAFE_API_KEY</live.typesafeKeyVariable>"));
+        assertTrue(pom.contains("<live.typesafeKeyVariable>KEEP_TYPESAFE_API_KEY</live.typesafeKeyVariable>"));
+        assertTrue(pom.contains("<excludedEnvironmentVariable>ANTHROPIC_API_KEY</excludedEnvironmentVariable>"));
+    }
 }

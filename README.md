@@ -400,10 +400,19 @@ property source makes startup fail, because it maps to no setting.
 
 ```shell
 ./mvnw test              # the whole suite: gh is a fake script, jev and Claude are WireMock stubs
-./mvnw verify -Plive     # only tests tagged "live", which call the real GitHub, jev and Claude
+./mvnw verify -Plive     # only tests tagged "live", which call the real GitHub and jev
 ```
 
-Tests never reach a real service unless they are tagged `live`, and live tests run only with `-Plive`.
+Tests never reach a real service unless they are tagged `live`, and live tests run only with `-Plive`. No live test
+calls Claude. Live tests read GitHub with the installed `gh` (read-only calls). The `jev` live test sends the
+question set for PR 58508 and any PRs given with `-Dlive.prs=<n>,<n>,...`, and prints each PR's answers for you to
+judge. It checks only that every question is answered. A PR over the submission limit is printed as not sent.
+It is skipped without `TYPESAFE_API_KEY`, which `-Plive` passes through; every other setting, `ANTHROPIC_API_KEY`
+included, is still kept out of tests:
+
+```shell
+TYPESAFE_API_KEY=... ./mvnw verify -Plive -Dtest=JevClientLiveTest -Dlive.prs=58115,57350
+```
 
 Layout (base package `io.quarkus.prreview`):
 

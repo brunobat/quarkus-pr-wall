@@ -17,9 +17,10 @@
         <quarkus-langchain4j.version>2.0.0.Beta1</quarkus-langchain4j.version>
         <surefire-plugin.version>3.5.6</surefire-plugin.version>
         <wiremock.version>3.13.2</wiremock.version>
-        <!-- Tests tagged "live" call real services (GitHub, jev, Claude); they run only with -Plive, by hand. -->
+        <!-- Tests tagged "live" call the real GitHub and jev (never Claude); they run only with -Plive, by hand. -->
         <live.groups></live.groups>
         <live.excludedGroups>live</live.excludedGroups>
+        <live.typesafeKeyVariable>TYPESAFE_API_KEY</live.typesafeKeyVariable>
     </properties>
 
     <dependencyManagement>
@@ -133,7 +134,8 @@
                         <excludedEnvironmentVariable>JEV_TIMEOUT</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_MODEL</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_PROJECT_CONTEXT</excludedEnvironmentVariable>
-                        <excludedEnvironmentVariable>TYPESAFE_API_KEY</excludedEnvironmentVariable>
+                        <!-- The live profile renames this entry to a variable nobody sets, so its key reaches jev. -->
+                        <excludedEnvironmentVariable>${live.typesafeKeyVariable}</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>ANTHROPIC_API_KEY</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>ANTHROPIC_MODEL</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>ANTHROPIC_TIMEOUT</excludedEnvironmentVariable>
@@ -160,12 +162,14 @@
 
     <profiles>
         <profile>
-            <!-- Manual only: ./mvnw verify -Plive runs just the tests tagged "live", with real credentials. -->
+            <!-- Manual only: ./mvnw verify -Plive runs just the tests tagged "live", with real credentials. The jev
+                 key is kept for them; every other setting, the Claude key included, is still stripped. -->
             <id>live</id>
             <properties>
                 <live.groups>live</live.groups>
                 <live.excludedGroups></live.excludedGroups>
                 <surefire.failIfNoSpecifiedTests>false</surefire.failIfNoSpecifiedTests>
+                <live.typesafeKeyVariable>KEEP_TYPESAFE_API_KEY</live.typesafeKeyVariable>
             </properties>
         </profile>
     </profiles>
