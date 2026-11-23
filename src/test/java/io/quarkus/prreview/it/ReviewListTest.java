@@ -293,8 +293,9 @@ class ReviewListTest {
         assertEquals(List.of("pr view 109 --json additions,deletions,changedFiles -R quarkusio/quarkus",
                 "pr view 109 --json headRefOid,statusCheckRollup -R quarkusio/quarkus",
                 "pr view 109 --json comments -R quarkusio/quarkus"), factViews(callsSince(before)));
-        // The same output as for 107, whose facts came in bulk: only the number and title differ.
-        assertEquals(throughReport(block(result.getOutputStream(), 107)).replace("107", "109"),
+        // The same output as for 107, whose facts came in bulk: only the number and title differ (the number as a whole
+        // word, since the temporary directory's name may contain its digits).
+        assertEquals(throughReport(block(result.getOutputStream(), 107)).replaceAll("\\b107\\b", "109"),
                 throughReport(block(result.getOutputStream(), 109)));
 
         before = ghCalls();
