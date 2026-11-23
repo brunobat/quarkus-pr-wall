@@ -10,6 +10,7 @@ import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhSize;
+import io.quarkus.prreview.log.FailureLog;
 
 /** The size classification source: GitHub's counts for a PR, or why they are unavailable. Never throws for gh. */
 @ApplicationScoped
@@ -30,7 +31,7 @@ public class SizeSource {
             GhSize size = facts.size(pr).orElseGet(() -> gh.size(pr));
             return new SourceResult.Available<>(new PrSize(size.changedFiles(), size.additions(), size.deletions()));
         } catch (GhException e) {
-            LOG.warnf(e, "PR #%d: size unavailable", pr);
+            FailureLog.warn(LOG, "PR #" + pr + ": size unavailable: gh", e);
             return SourceResult.unavailable("gh: " + e.getMessage().strip().replaceAll("\\s+", " "));
         }
     }

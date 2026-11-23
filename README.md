@@ -153,7 +153,9 @@ Every changed file is sent, test files included; no path rule filters or short-c
 ## Output
 
 stdout carries only the result, one block per PR with a blank line between blocks, each printed as soon as that
-PR is done. Every log line goes to stderr.
+PR is done. Every log line goes to stderr. A failed `gh` or `jev` call logs one warning line naming the PR, what
+could not be read and the message; its stack trace is logged only at debug level, which
+`QUARKUS_LOG_CATEGORY__IO_QUARKUS_PRREVIEW__LEVEL=DEBUG` turns on.
 
 ```
 PR #57088 - test adequacy
@@ -283,7 +285,8 @@ full message) and the run details known by then. Claude is not called for it.
 | `jev` fails (HTTP error such as `max_tokens_exceeded`, timeout, invalid or incomplete answers) | `jev: <message>` |
 | The report can't be written | the block ends with `Report: not written: <error>` |
 
-Each of these counts as an error for that PR, and its full detail is logged to stderr.
+Each of these counts as an error for that PR. Each logs one warning line on stderr; the stack trace is logged only
+at debug level.
 
 | Run | Exit code |
 |---|---|

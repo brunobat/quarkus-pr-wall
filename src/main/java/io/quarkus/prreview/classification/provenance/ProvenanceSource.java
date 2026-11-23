@@ -23,6 +23,7 @@ import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.config.ReviewConfig;
+import io.quarkus.prreview.log.FailureLog;
 import io.quarkus.prreview.report.PlainText;
 
 /**
@@ -63,7 +64,7 @@ public class ProvenanceSource {
         try {
             authorship = facts.authorship(pr).orElseGet(() -> gh.authorship(pr));
         } catch (GhException e) {
-            LOG.warnf(e, "PR #%d: provenance unavailable", pr);
+            FailureLog.warn(LOG, "PR #" + pr + ": provenance unavailable: gh", e);
             return SourceResult.unavailable("gh: " + PlainText.oneLine(e.getMessage()));
         }
         Instant readAt = Instant.now();

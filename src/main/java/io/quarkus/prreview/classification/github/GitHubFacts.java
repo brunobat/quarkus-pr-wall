@@ -17,6 +17,7 @@ import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 import io.quarkus.prreview.clients.gh.model.GhSize;
+import io.quarkus.prreview.log.FailureLog;
 
 /**
  * GitHub's facts for every PR of the run, read in bulk once before the PRs are classified: one {@code gh pr list}
@@ -66,7 +67,7 @@ public class GitHubFacts {
             try {
                 into.putAll(call.apply(batch));
             } catch (GhException e) {
-                LOG.warnf(e, "bulk %s for PRs %s failed; each is read on its own", fact, batch);
+                FailureLog.warn(LOG, "bulk %s for PRs %s failed; each is read on its own: gh".formatted(fact, batch), e);
             }
         }
     }

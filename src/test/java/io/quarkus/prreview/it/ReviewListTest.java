@@ -84,9 +84,10 @@ class ReviewListTest {
         assertTrue(block(stdout, 104).contains("CI: all 3 passed, skipped or neutral\n"), result.getOutput());
         assertTrue(Files.readString(out.resolve("review-101.md"))
                 .contains("## CI checks (GitHub)\n\n5 of 9 not passed.\n"));
-        // A blank line between blocks.
-        int second = stdout.indexOf("PR #102 - test adequacy");
-        assertEquals("", stdout.get(second - 1), result.getOutput());
+        // A blank line between blocks. Log lines are captured with stdout here, so they are left out.
+        List<String> results = stdout.stream().filter(l -> !l.matches("^\\d{4}-\\d\\d-\\d\\d .*")).toList();
+        int second = results.indexOf("PR #102 - test adequacy");
+        assertEquals("", results.get(second - 1), result.getOutput());
 
         String report102 = Files.readString(out.resolve("review-102.md"));
         assertTrue(report102.contains("## Not classified"), report102);
@@ -449,7 +450,7 @@ class ReviewListTest {
     }
 
     /** The lines of one PR's block, from its header to the next blank line. */
-    private static String block(List<String> stdout, int pr) {
+    static String block(List<String> stdout, int pr) {
         int start = stdout.indexOf("PR #" + pr + " - test adequacy");
         assertTrue(start >= 0, "no block for PR #" + pr + " in " + stdout);
         StringBuilder block = new StringBuilder();

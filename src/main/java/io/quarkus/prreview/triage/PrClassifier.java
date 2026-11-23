@@ -27,6 +27,7 @@ import io.quarkus.prreview.clients.jev.JevException;
 import io.quarkus.prreview.clients.jev.SubmissionTooLargeException;
 import io.quarkus.prreview.clients.jev.model.JevDecision;
 import io.quarkus.prreview.config.ReviewConfig;
+import io.quarkus.prreview.log.FailureLog;
 import io.quarkus.prreview.pr.DiffFiles;
 import io.quarkus.prreview.pr.model.PrContext;
 import io.quarkus.prreview.pr.model.PullRequest;
@@ -108,7 +109,7 @@ public class PrClassifier {
         try {
             pr = gh.fetch(number);
         } catch (GhException e) {
-            LOG.warnf(e, "PR #%d: gh failed", number);
+            FailureLog.warn(LOG, "PR #" + number + ": not classified: gh", e);
             // The PR's title is kept when only its diff failed.
             return PrOutcome.notAnswered(number, checkIds(), e.pullRequest(), "gh: " + oneLine(e.getMessage()),
                     e.getMessage(), null, null, null, null);
@@ -131,7 +132,7 @@ public class PrClassifier {
                             e.estimatedTokens(), ReviewConfig.Jev.ANSWER_TOKENS, e.limit()),
                     e.getMessage(), jev.modelName(), e.submissionChars(), e.estimatedTokens(), e.limit());
         } catch (JevException e) {
-            LOG.warnf(e, "PR #%d: jev failed", number);
+            FailureLog.warn(LOG, "PR #" + number + ": jev failed", e);
             return jevFailure(number, pr, e.getMessage(), jev.modelName(), e.submissionChars(), e.estimatedTokens(),
                     e.limit());
         }
@@ -144,7 +145,7 @@ public class PrClassifier {
                     submission.projectContext());
         } catch (RuntimeException e) {
             // An answer jev's response lacks, or one of the wrong kind.
-            LOG.warnf(e, "PR #%d: jev's response does not answer every question", number);
+            FailureLog.warn(LOG, "PR #" + number + ": jev's response does not answer every question", e);
             String message = e.getMessage() == null ? e.getClass().getName() : e.getMessage();
             return jevFailure(number, pr, message, response.modelName() == null ? jev.modelName()
                     : response.modelName(), decision.submissionChars(), decision.estimatedTokens(), decision.limit());
