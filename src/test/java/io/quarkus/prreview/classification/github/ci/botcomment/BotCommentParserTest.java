@@ -173,10 +173,11 @@ public class BotCommentParserTest {
                 new GhComment("someone", body("2026-failures.md"), "2026-10-22T16:00:00Z"),
                 bot("2026-passed-with-flaky.md", "2026-10-23T00:00:00Z"));
 
-        BotStatusComment chosen = BotCommentParser.forHead(comments, "Quarkus CI", COMMIT_57715).orElseThrow();
+        BotStatusComment chosen = BotCommentParser.forHead(comments, "Quarkus CI", COMMIT_57715, Set.of())
+                .orElseThrow();
         assertTrue(chosen.failures().containsKey("JVM Tests - JDK 21 again"), chosen.toString());
-        assertTrue(BotCommentParser.forHead(comments, "Quarkus Documentation CI", COMMIT_57715).isEmpty());
-        assertTrue(BotCommentParser.forHead(comments, "Quarkus CI", "0".repeat(40)).isEmpty());
+        assertTrue(BotCommentParser.forHead(comments, "Quarkus Documentation CI", COMMIT_57715, Set.of()).isEmpty());
+        assertTrue(BotCommentParser.forHead(comments, "Quarkus CI", "0".repeat(40), Set.of()).isEmpty());
         assertTrue(BotCommentParser.hasBotComment(comments));
         assertFalse(BotCommentParser.hasBotComment(List.of(new GhComment("someone", "hi", "x"))));
     }
@@ -187,10 +188,30 @@ public class BotCommentParserTest {
         GhComment undated = new GhComment("quarkus-bot", rerun, null);
 
         BotStatusComment dated = BotCommentParser
-                .forHead(List.of(undated, bot("2026-failures.md", "2026-10-22T13:46:09Z")), "Quarkus CI", COMMIT_57715)
+                .forHead(List.of(undated, bot("2026-failures.md", "2026-10-22T13:46:09Z")), "Quarkus CI", COMMIT_57715,
+                        Set.of())
                 .orElseThrow();
         assertFalse(dated.failures().containsKey("JVM Tests - JDK 21 again"), dated.toString());
-        BotStatusComment alone = BotCommentParser.forHead(List.of(undated), "Quarkus CI", COMMIT_57715).orElseThrow();
+        BotStatusComment alone = BotCommentParser.forHead(List.of(undated), "Quarkus CI", COMMIT_57715, Set.of())
+                .orElseThrow();
         assertTrue(alone.failures().containsKey("JVM Tests - JDK 21 again"), alone.toString());
+    }
+
+    @Test
+    void aCommentForARunOnTheHeadCommitIsPreferredEvenWhenOlder() {
+        String older = body("2026-failures.md").replace("JVM Tests - JDK 21", "JVM Tests - JDK 21 older")
+                .replace("workflow-run-id:39751658302", "workflow-run-id:41878251737");
+        String newer = body("2026-failures.md").replace("workflow-run-id:39751658302", "workflow-run-id:41878389852");
+        List<GhComment> comments = List.of(new GhComment("quarkus-bot", older, "2026-10-22T10:00:00Z"),
+                new GhComment("quarkus-bot", newer, "2026-10-22T12:00:00Z"));
+
+        assertEquals("41878251737",
+                BotCommentParser.forHead(comments, "Quarkus CI", COMMIT_57715, Set.of("41878251737")).orElseThrow()
+                        .runId());
+        // No run matches: the latest, as before.
+        assertEquals("41878389852",
+                BotCommentParser.forHead(comments, "Quarkus CI", COMMIT_57715, Set.of("1")).orElseThrow().runId());
+        assertEquals("41878389852",
+                BotCommentParser.forHead(comments, "Quarkus CI", COMMIT_57715, Set.of()).orElseThrow().runId());
     }
 }

@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -49,18 +50,21 @@ public final class BotCommentParser {
     }
 
     /**
-     * The status comment for {@code workflow} on commit {@code head}: the one created last when there are several
-     * (re-runs on the same commit); one without a creation time counts as the oldest. Comments for other commits are
-     * never returned.
+     * The status comment for {@code workflow} on commit {@code head}. A comment whose run id is one of
+     * {@code headRunIds}, the runs the head commit's checks link to, is preferred; among the preferred ones, or among
+     * all when none is, the one created last wins (re-runs keep their run id). One without a creation time counts as
+     * the oldest. Comments for other commits are never returned.
      */
-    public static Optional<BotStatusComment> forHead(List<GhComment> comments, String workflow, String head) {
+    public static Optional<BotStatusComment> forHead(List<GhComment> comments, String workflow, String head,
+            Set<String> headRunIds) {
+        List<BotStatusComment> candidates = comments.stream().map(BotCommentParser::parse).flatMap(Optional::stream)
+                .filter(c -> c.workflow().equals(workflow) && c.commit().equalsIgnoreCase(head)).toList();
+        List<BotStatusComment> preferred = candidates.stream()
+                .filter(c -> c.runId() != null && headRunIds.contains(c.runId())).toList();
         BotStatusComment found = null;
-        for (GhComment comment : comments) {
-            Optional<BotStatusComment> parsed = parse(comment);
-            if (parsed.isPresent() && parsed.get().workflow().equals(workflow)
-                    && parsed.get().commit().equalsIgnoreCase(head)
-                    && (found == null || CREATED.compare(parsed.get().createdAt(), found.createdAt()) >= 0)) {
-                found = parsed.get();
+        for (BotStatusComment candidate : preferred.isEmpty() ? candidates : preferred) {
+            if (found == null || CREATED.compare(candidate.createdAt(), found.createdAt()) >= 0) {
+                found = candidate;
             }
         }
         return Optional.ofNullable(found);

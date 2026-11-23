@@ -94,7 +94,7 @@ public class CiSource {
     static CiChecks of(GhChecks gh, List<GhComment> comments, Approval approval) {
         List<CiCheck> checks = gh.rollup().stream().map(CiSource::check).toList();
         List<FailedCheck> notPassed = checks.stream().filter(c -> !PASSED.contains(c.value()))
-                .map(c -> new FailedCheck(c, FailureDetails.rows(c, comments, gh.headRefOid()))).toList();
+                .map(c -> new FailedCheck(c, FailureDetails.rows(c, comments, gh.headRefOid(), checks))).toList();
         return new CiChecks(gh.headRefOid(), checks, notPassed, approval);
     }
 

@@ -99,4 +99,26 @@ class FailureDetailsTest {
         assertEquals(5, ci.notPassed().size());
         rows(ci).forEach(r -> assertEquals(UNAVAILABLE, r));
     }
+
+    @Test
+    void theCommentForTheRunTheHeadCommitsChecksLinkToIsUsed() {
+        String older = BotCommentParserTest.body("2026-failures.md")
+                .replace("workflow-run-id:39751658302", "workflow-run-id:41878251737");
+        String newer = BotCommentParserTest.body("2026-failures.md")
+                .replace("io.quarkus.websockets.next.test.maxframesize.MaxFrameSizeTest.testMaxFrameSize", "x.Y.z")
+                .replace("workflow-run-id:39751658302", "workflow-run-id:41878389852");
+        List<GhComment> comments = List.of(new GhComment("quarkus-bot", older, "2026-10-22T10:00:00Z"),
+                new GhComment("quarkus-bot", newer, "2026-10-22T12:00:00Z"));
+        GhCheck linked = new GhCheck(GhCheck.CHECK_RUN, "JVM Tests - JDK 21", "Quarkus CI", "COMPLETED", "FAILURE",
+                "https://github.com/quarkusio/quarkus/actions/runs/41878251737/job/1", null, null, null);
+        GhCheck unlinked = CiSourceTest.run("JVM Tests - JDK 21", "Quarkus CI", "COMPLETED", "FAILURE");
+
+        FailureRow first = CiSource.of(new GhChecks(HEAD, List.of(linked)), comments, Approval.NOT_WAITING).notPassed()
+                .getFirst().rows().getFirst();
+        assertEquals("io.quarkus.websockets.next.test.maxframesize.MaxFrameSizeTest.testMaxFrameSize", first.test());
+        // Without a link to one of the runs, the latest comment is used, as before.
+        FailureRow latest = CiSource.of(new GhChecks(HEAD, List.of(unlinked)), comments, Approval.NOT_WAITING)
+                .notPassed().getFirst().rows().getFirst();
+        assertEquals("x.Y.z", latest.test());
+    }
 }
