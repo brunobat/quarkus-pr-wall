@@ -45,13 +45,12 @@ public class TestAdequacyCheck implements ClassificationCheck {
 
     /** The {@code assert} question; {@code assert} is a Java keyword. */
     public static final ChoiceQuestion ASSERTS = ChoiceQuestion.builder()
-            .text("Of the changed runtime code that the tests this PR adds or modifies execute, how much has its"
+            .text("Of the changed runtime code in test classes on this PR, how extensive are the test assertion changes"
                     + " outcome asserted by those tests?")
-            .option("all", "Every changed runtime path the changed tests execute has its outcome asserted.")
-            .option("some", "Some executed changed paths are asserted; others are only called, built or smoke-run.")
-            .option("none", "The changed tests execute changed runtime code but assert none of its outcomes.")
-            .option("nothing-executed", "The changed tests execute none of the changed runtime code, so there is"
-                    + " nothing to assert.")
+            .option("all", "EVERY changes in the runtime code includes tests assertions validating that runtime code change.")
+            .option("some", "Some changes in the runtime path includes tests assertions validating that runtime code change.")
+            .option("none", "No changes in the runtime path includes tests assertions validating that runtime code change.")
+            .option("nothing-executed", "No need for test assertions because there was no runtime code affected by the PR.")
             .option("undetermined", "The diff does not give enough to tell.")
             .build();
 
