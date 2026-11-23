@@ -16,15 +16,15 @@ import dev.langchain4j.model.decision.request.YesNoQuestion;
 import dev.langchain4j.model.decision.response.ChoiceAnswer;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import dev.langchain4j.model.decision.response.YesNoAnswer;
-import io.quarkus.prreview.classification.api.CheckQuestions;
-import io.quarkus.prreview.classification.api.ClassificationCheck;
-import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyService;
+import io.quarkus.prreview.classification.checks.CheckQuestions;
+import io.quarkus.prreview.classification.checks.ClassificationCheck;
+import io.quarkus.prreview.classification.checks.TestAdequacyService;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.model.QuestionResult;
-import io.quarkus.prreview.pr.DiffFiles;
-import io.quarkus.prreview.pr.model.PrContext;
-import io.quarkus.prreview.pr.model.PullRequest;
+import io.quarkus.prreview.triage.DiffFiles;
+import io.quarkus.prreview.triage.model.PrContext;
+import io.quarkus.prreview.triage.model.PullRequest;
 
 class JevSubmissionTest {
 

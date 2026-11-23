@@ -14,16 +14,12 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.prreview.classification.github.GitHubFactsService;
+import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.model.AiLabel;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.classification.provenance.model.Who;
-import io.quarkus.prreview.classification.github.GitHubFactsService;
-import io.quarkus.prreview.classification.provenance.ai.AiService;
-import io.quarkus.prreview.classification.provenance.signals.SignalList;
-import io.quarkus.prreview.classification.provenance.who.LoginMemoService;
-import io.quarkus.prreview.classification.provenance.who.WhoService;
-import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;

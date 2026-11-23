@@ -12,13 +12,13 @@ import dev.langchain4j.model.decision.request.Question;
 import dev.langchain4j.model.decision.request.YesNoQuestion;
 import dev.langchain4j.model.decision.response.ChoiceAnswer;
 import dev.langchain4j.model.decision.response.DecisionResponse;
-import io.quarkus.prreview.classification.api.CheckQuestions;
-import io.quarkus.prreview.classification.api.ClassificationCheck;
+import io.quarkus.prreview.classification.checks.CheckQuestions;
+import io.quarkus.prreview.classification.checks.ClassificationCheck;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.model.QuestionResult;
-import io.quarkus.prreview.pr.model.ChangedFile;
-import io.quarkus.prreview.pr.model.PrContext;
+import io.quarkus.prreview.triage.model.ChangedFile;
+import io.quarkus.prreview.triage.model.PrContext;
 
 /**
  * The single {@code jev} submission for one PR: the shared input, added once, plus every check's questions.

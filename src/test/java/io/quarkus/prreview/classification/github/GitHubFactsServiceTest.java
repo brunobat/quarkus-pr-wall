@@ -16,7 +16,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import io.quarkus.prreview.classification.github.ci.CiService;
-import io.quarkus.prreview.classification.github.size.SizeService;
+import io.quarkus.prreview.classification.github.model.PrSize;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
@@ -24,7 +24,6 @@ import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
-import io.quarkus.prreview.clients.gh.model.GhSize;
 
 class GitHubFactsServiceTest {
 
@@ -32,7 +31,7 @@ class GitHubFactsServiceTest {
             "https://github.com/q/q/actions/runs/1/job/2", null, null, null);
     static final GhChecks CHECKS = new GhChecks("abc", List.of(FAILED));
     static final List<GhComment> COMMENTS = List.of(new GhComment("someone", "hi", "2026-01-01T00:00:00Z"));
-    static final GhSize SIZE = new GhSize(12, 3, 2);
+    static final PrSize SIZE = new PrSize(2, 12, 3);
 
     final GhClient gh = mock(GhClient.class);
     final GitHubFactsService facts = new GitHubFactsService(gh);

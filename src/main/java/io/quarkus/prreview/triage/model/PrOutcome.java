@@ -2,16 +2,15 @@ package io.quarkus.prreview.triage.model;
 
 import java.util.List;
 
-import io.quarkus.prreview.classification.github.ci.model.Approval;
-import io.quarkus.prreview.classification.github.ci.model.CiChecks;
-import io.quarkus.prreview.classification.github.size.model.PrSize;
+import io.quarkus.prreview.classification.github.model.Approval;
+import io.quarkus.prreview.classification.github.model.CiChecks;
+import io.quarkus.prreview.classification.github.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.JevResult;
+import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
-import io.quarkus.prreview.classification.source.model.SourceResult;
-import io.quarkus.prreview.pr.model.PullRequest;
-import io.quarkus.prreview.report.summary.model.Summary;
+import io.quarkus.prreview.report.summary.Summary;
 
 /**
  * How one PR ended: one result from each classification source. {@code jev}'s result says whether {@code jev} answered,

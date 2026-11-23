@@ -1,6 +1,6 @@
 package io.quarkus.prreview.clients.gh;
 
-import io.quarkus.prreview.pr.model.PullRequest;
+import io.quarkus.prreview.triage.model.PullRequest;
 
 /** A {@code gh} invocation failed; the message carries {@code gh}'s own error text. */
 public class GhException extends RuntimeException {

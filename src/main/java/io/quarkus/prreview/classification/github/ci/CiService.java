@@ -8,18 +8,18 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 
 import io.quarkus.prreview.classification.github.GitHubFactsService;
-import io.quarkus.prreview.classification.github.ci.model.Approval;
-import io.quarkus.prreview.classification.github.ci.model.CiCheck;
-import io.quarkus.prreview.classification.github.ci.model.CiChecks;
-import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
-import io.quarkus.prreview.classification.source.model.SourceResult;
+import io.quarkus.prreview.classification.github.model.Approval;
+import io.quarkus.prreview.classification.github.model.CiCheck;
+import io.quarkus.prreview.classification.github.model.CiChecks;
+import io.quarkus.prreview.classification.github.model.FailedCheck;
+import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhCheckSuite;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
-import io.quarkus.prreview.log.FailureLog;
+import io.quarkus.prreview.util.FailureLog;
 
 /**
  * The CI classification source: the checks on a PR's head commit, with those that did not pass listed with their

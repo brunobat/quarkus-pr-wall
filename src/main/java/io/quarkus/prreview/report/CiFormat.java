@@ -2,11 +2,11 @@ package io.quarkus.prreview.report;
 
 import java.util.List;
 
-import io.quarkus.prreview.classification.github.ci.model.Approval;
-import io.quarkus.prreview.classification.github.ci.model.CiCheck;
-import io.quarkus.prreview.classification.github.ci.model.CiChecks;
-import io.quarkus.prreview.classification.github.ci.model.FailureRow;
-import io.quarkus.prreview.classification.github.ci.model.FlakyTest;
+import io.quarkus.prreview.classification.github.model.Approval;
+import io.quarkus.prreview.classification.github.model.CiCheck;
+import io.quarkus.prreview.classification.github.model.CiChecks;
+import io.quarkus.prreview.classification.github.model.FailureRow;
+import io.quarkus.prreview.classification.github.model.FlakyTest;
 
 /** Wording shared by the terminal block and the markdown report for a PR's checks. */
 public final class CiFormat {

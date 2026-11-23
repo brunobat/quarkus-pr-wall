@@ -11,9 +11,9 @@ import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.prreview.classification.provenance.WhoService;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Who;
-import io.quarkus.prreview.classification.provenance.who.WhoService;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 import tools.jackson.databind.json.JsonMapper;

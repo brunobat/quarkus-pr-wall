@@ -3,7 +3,7 @@ package io.quarkus.prreview.classification.model;
 import java.util.List;
 
 import dev.langchain4j.model.output.TokenUsage;
-import io.quarkus.prreview.pr.model.PrContext;
+import io.quarkus.prreview.triage.model.PrContext;
 
 /**
  * One PR's classification: {@code jev}'s answers, unchanged and grouped by check, with the run details shown in the

@@ -17,15 +17,15 @@ import java.util.regex.Pattern;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
+import io.quarkus.prreview.classification.github.model.PrSize;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhCheckSuite;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
-import io.quarkus.prreview.clients.gh.model.GhSize;
 import io.quarkus.prreview.config.ReviewConfig;
-import io.quarkus.prreview.pr.model.PullRequest;
+import io.quarkus.prreview.triage.model.PullRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import tools.jackson.core.JacksonException;
@@ -101,7 +101,7 @@ public class GhClient {
      * Fetches the PR's size counts on their own, so they are known even when the diff is refused (GitHub's 406 for
      * more than 300 files) and a failure here loses nothing else. A missing or null count is a failure, never 0.
      */
-    public GhSize size(int pr) {
+    public PrSize size(int pr) {
         String json = run(List.of("pr", "view", Integer.toString(pr), "--json", "additions,deletions,changedFiles"));
         SizeView view;
         try {
@@ -112,7 +112,7 @@ public class GhClient {
         if (view.additions() == null || view.deletions() == null || view.changedFiles() == null) {
             throw new GhException("gh pr view " + pr + " did not report additions, deletions and changedFiles");
         }
-        return new GhSize(view.additions(), view.deletions(), view.changedFiles());
+        return new PrSize(view.changedFiles(), view.additions(), view.deletions());
     }
 
     private record SizeView(Integer additions, Integer deletions, Integer changedFiles) {
@@ -349,11 +349,11 @@ public class GhClient {
      * did not return, or returned without its number or every count, is absent; the search may also match PRs that weren't
      * requested (it matches text), and those are dropped.
      */
-    public Map<Integer, GhSize> sizes(List<Integer> prs) {
-        Map<Integer, GhSize> sizes = new LinkedHashMap<>();
+    public Map<Integer, PrSize> sizes(List<Integer> prs) {
+        Map<Integer, PrSize> sizes = new LinkedHashMap<>();
         for (SizeItem item : list(prs, "additions,deletions,changedFiles", SizeItem[].class)) {
             if (item.number() != null && item.additions() != null && item.deletions() != null && item.changedFiles() != null) {
-                sizes.put(item.number(), new GhSize(item.additions(), item.deletions(), item.changedFiles()));
+                sizes.put(item.number(), new PrSize(item.changedFiles(), item.additions(), item.deletions()));
             }
         }
         sizes.keySet().retainAll(prs);

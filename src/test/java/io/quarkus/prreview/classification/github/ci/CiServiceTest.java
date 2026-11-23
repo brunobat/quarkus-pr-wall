@@ -7,13 +7,12 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import io.quarkus.prreview.classification.github.ci.model.CiCheck;
-import io.quarkus.prreview.classification.github.ci.botcomment.BotCommentParserTest;
-import io.quarkus.prreview.classification.github.ci.model.Approval;
-import io.quarkus.prreview.classification.github.ci.model.CiChecks;
-import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
-import io.quarkus.prreview.classification.github.ci.model.FailureRow;
-import io.quarkus.prreview.classification.github.ci.model.FlakyTest;
+import io.quarkus.prreview.classification.github.model.Approval;
+import io.quarkus.prreview.classification.github.model.CiCheck;
+import io.quarkus.prreview.classification.github.model.CiChecks;
+import io.quarkus.prreview.classification.github.model.FailedCheck;
+import io.quarkus.prreview.classification.github.model.FailureRow;
+import io.quarkus.prreview.classification.github.model.FlakyTest;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhCheckSuite;
 import io.quarkus.prreview.clients.gh.model.GhChecks;

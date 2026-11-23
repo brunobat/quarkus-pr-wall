@@ -29,7 +29,7 @@ README's top section lists the planned classifications and decisions.
 ### Asking `jev`
 
 - There is one `jev` call per PR. Every check adds its questions to the single submission
-  (`classification/api`, `JevSubmission`); don't use `@Decide` services.
+  (`classification/checks`, `JevSubmission`); don't use `@Decide` services.
 - Questions are PR-level only. Per-file questions belong to the later deep-analysis stage.
 - Each question asks about one thing, and each choice option is one situation. When a measure has nothing to
   measure, its own option says so (`no-runtime-change`, `nothing-executed`, ...). Never use a combined "not
@@ -47,10 +47,12 @@ Base package `io.quarkus.prreview`:
 
 - `clients/{gh,jev,claude}` holds the only code that talks to external systems. Business code goes through it,
   and clients return our model types.
-- `classification/{api,model,submission,checks/<name>,github,provenance}`, `pr/`, `triage/` and
-  `report/{terminal,markdown,summary}` hold the business logic.
-- Place a class by what it is: results go in `model`, contracts in `api`, and anything that only presents a
-  classification goes under `report/`. Don't make packages flat.
+- `classification/{checks,submission,model,github,github/ci,provenance}`, `triage/` and `report/{,summary}` hold
+  the business logic; results go in the `model/` beside them.
+- `util/` holds only helpers that know nothing about PRs, `jev` or GitHub and are used from at least two domains.
+- Place a class by what it is: results go in `model`, check contracts and checks in `classification/checks`, and
+  anything that only presents a classification goes under `report/`. Prefer an existing package to a new one,
+  and don't make packages flat.
 - Every `@ApplicationScoped` class outside `clients/` is named `...Service` (`ServiceSuffixTest`); clients keep the
   name of the system they talk to.
 - Tests mirror the main packages. Test support (WireMock stubs, the fake `gh`) lives in `it/support`.

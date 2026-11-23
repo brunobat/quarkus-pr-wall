@@ -416,14 +416,17 @@ TYPESAFE_API_KEY=... ./mvnw verify -Plive -Dtest=JevClientLiveTest -Dlive.prs=58
 
 Layout (base package `io.quarkus.prreview`):
 
-- `cli/`: the `review` command;
+- `cli/`: the `review` command and the run summary;
 - `config/`: `ReviewConfig`, `ApiKey` and `BlankEnvironmentIsUnset`;
-- `clients/{gh,jev,claude}/`: the only code that talks to `gh`, `jev` and Claude;
-- `pr/`: the PR model and diff parsing;
-- `classification/`: the check contract, the single `jev` submission and the test-adequacy check; `github/`, the
-  facts read from GitHub (size, CI, and the bulk read); `provenance/`, who wrote a PR;
-- `triage/`: one PR from fetch to outcome;
-- `report/`: terminal, markdown and summary rendering.
+- `util/`: helpers that know nothing about PRs, `jev` or GitHub, such as `FailureLog`;
+- `clients/{gh,jev,claude}/`: the only code that talks to `gh`, `jev` and Claude, each with its `model/`;
+- `triage/`: one PR from fetch to outcome, and diff parsing; `triage/model/`, the PR and its outcome;
+- `classification/checks/`: the check contract and the test-adequacy check; `classification/submission/`, the
+  single `jev` submission; `classification/model/`, `jev`'s results and `SourceResult`;
+- `classification/github/`: the facts read from GitHub (the bulk read, size, and CI in `ci/`), with their
+  `model/`;
+- `classification/provenance/`: who wrote a PR, with its `model/`;
+- `report/`: terminal and markdown rendering and their formats; `report/summary/`, the summary.
 
 ## Guides
 
@@ -440,7 +443,7 @@ are the gaps we hit and how the code works around each one. Each is worth revisi
 
 | Limitation | Workaround |
 |---|---|
-| The Decision API's `@Decide` decision services make one `jev` call per method, so several questions cost several calls. | Our own single-submission contract (`classification/api`, `JevSubmission`): every check adds its questions to one `DecisionRequest`, answered in one call per PR. |
+| The Decision API's `@Decide` decision services make one `jev` call per method, so several questions cost several calls. | Our own single-submission contract (`classification/checks`, `JevSubmission`): every check adds its questions to one `DecisionRequest`, answered in one call per PR. |
 | `DecisionRequest` has only `input`, `questions`, `parameters` and `modelName`. There is no system or context field. | The project context is placed at the start of the input text, and it counts toward the submission size. |
 | There is no public way to know a submission's size before sending it. `jev` rejects an oversized one with a 400 `max_tokens_exceeded`, which arrives as an `InvalidRequestException` with `jev`'s body in the message. | `SubmissionSize` serializes the request with `langchain4j-typesafe`'s own internal mapper and codec settings. It depends on LangChain4j internals, and an end-to-end test checks that the size matches the body `jev` receives. `jev` limits tokens but offers no count before sending, so the size is turned into a token estimate at 3.0 characters per token, with 1,000 tokens kept for the answer. Oversized PRs are noted before anything is sent. |
 | A choice answer's probabilities are a map, with no guarantee they come back in the order the options were declared. | `JevSubmission` reorders them to the declared order before they are recorded. |

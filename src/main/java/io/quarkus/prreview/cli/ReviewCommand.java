@@ -15,14 +15,14 @@ import org.jboss.logging.Logger;
 
 import io.quarkus.arc.Unremovable;
 import io.quarkus.prreview.classification.github.GitHubFactsService;
-import io.quarkus.prreview.classification.provenance.who.LoginMemoService;
 import io.quarkus.prreview.classification.model.JevResult;
+import io.quarkus.prreview.classification.provenance.LoginMemoService;
 import io.quarkus.prreview.classification.submission.ProjectContextService;
 import io.quarkus.prreview.clients.jev.JevClient;
 import io.quarkus.prreview.config.ReviewConfig;
+import io.quarkus.prreview.report.MarkdownReport;
 import io.quarkus.prreview.report.ReportWriter;
-import io.quarkus.prreview.report.markdown.MarkdownReport;
-import io.quarkus.prreview.report.terminal.TerminalRenderer;
+import io.quarkus.prreview.report.TerminalRenderer;
 import io.quarkus.prreview.triage.NotAPullRequestException;
 import io.quarkus.prreview.triage.PrClassifierService;
 import io.quarkus.prreview.triage.model.PrOutcome;

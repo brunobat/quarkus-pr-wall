@@ -9,11 +9,9 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import io.quarkus.prreview.classification.github.ci.botcomment.BotCommentParser;
-import io.quarkus.prreview.classification.github.ci.botcomment.BotStatusComment;
-import io.quarkus.prreview.classification.github.ci.model.CiCheck;
-import io.quarkus.prreview.classification.github.ci.model.FailureRow;
-import io.quarkus.prreview.classification.github.ci.model.FlakyTest;
+import io.quarkus.prreview.classification.github.model.CiCheck;
+import io.quarkus.prreview.classification.github.model.FailureRow;
+import io.quarkus.prreview.classification.github.model.FlakyTest;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 
 /**

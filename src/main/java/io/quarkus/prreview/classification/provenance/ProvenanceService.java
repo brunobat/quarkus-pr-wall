@@ -12,19 +12,16 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import io.quarkus.prreview.classification.github.GitHubFactsService;
-import io.quarkus.prreview.classification.provenance.ai.AiService;
+import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
-import io.quarkus.prreview.classification.provenance.who.LoginMemoService;
-import io.quarkus.prreview.classification.provenance.who.WhoService;
-import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.config.ReviewConfig;
-import io.quarkus.prreview.log.FailureLog;
 import io.quarkus.prreview.report.PlainText;
+import io.quarkus.prreview.util.FailureLog;
 
 /**
  * The authorship-provenance classification source: who wrote a PR, from GitHub's facts only, or why that could not be

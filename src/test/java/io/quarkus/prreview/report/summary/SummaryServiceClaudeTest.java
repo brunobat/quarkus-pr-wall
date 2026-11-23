@@ -16,7 +16,6 @@ import tools.jackson.databind.json.JsonMapper;
 
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
-import io.quarkus.prreview.report.summary.model.Summary;
 import io.quarkus.prreview.it.support.ClaudeWireMock;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 import io.quarkus.test.common.WithTestResource;

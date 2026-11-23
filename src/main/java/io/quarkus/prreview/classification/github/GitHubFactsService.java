@@ -10,13 +10,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import org.jboss.logging.Logger;
 
+import io.quarkus.prreview.classification.github.model.PrSize;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
-import io.quarkus.prreview.clients.gh.model.GhSize;
-import io.quarkus.prreview.log.FailureLog;
+import io.quarkus.prreview.util.FailureLog;
 
 /**
  * GitHub's facts for every PR of the run, read in bulk once before the PRs are classified: one {@code gh pr list}
@@ -36,7 +36,7 @@ public class GitHubFactsService {
     static final int BULK_LIST_CAP = 100;
 
     private final GhClient gh;
-    private final Map<Integer, GhSize> sizes = new ConcurrentHashMap<>();
+    private final Map<Integer, PrSize> sizes = new ConcurrentHashMap<>();
     private final Map<Integer, GhChecks> checks = new ConcurrentHashMap<>();
     private final Map<Integer, List<GhComment>> comments = new ConcurrentHashMap<>();
     private final Map<Integer, GhAuthorship> authorships = new ConcurrentHashMap<>();
@@ -73,7 +73,7 @@ public class GitHubFactsService {
     }
 
     /** The PR's size from the bulk read, or empty when it has none. */
-    public Optional<GhSize> size(int pr) {
+    public Optional<PrSize> size(int pr) {
         return Optional.ofNullable(sizes.get(pr));
     }
 

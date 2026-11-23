@@ -11,13 +11,13 @@ import org.jboss.logging.Logger;
 
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import io.quarkus.arc.All;
-import io.quarkus.prreview.classification.api.ClassificationCheck;
+import io.quarkus.prreview.classification.checks.ClassificationCheck;
+import io.quarkus.prreview.classification.github.SizeService;
 import io.quarkus.prreview.classification.github.ci.CiService;
-import io.quarkus.prreview.classification.github.size.SizeService;
 import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.ProvenanceService;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
-import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.classification.submission.JevSubmission;
 import io.quarkus.prreview.classification.submission.ProjectContextService;
 import io.quarkus.prreview.clients.gh.GhClient;
@@ -27,13 +27,12 @@ import io.quarkus.prreview.clients.jev.JevException;
 import io.quarkus.prreview.clients.jev.SubmissionTooLargeException;
 import io.quarkus.prreview.clients.jev.model.JevDecision;
 import io.quarkus.prreview.config.ReviewConfig;
-import io.quarkus.prreview.log.FailureLog;
-import io.quarkus.prreview.pr.DiffFiles;
-import io.quarkus.prreview.pr.model.PrContext;
-import io.quarkus.prreview.pr.model.PullRequest;
 import io.quarkus.prreview.report.PlainText;
 import io.quarkus.prreview.report.summary.SummaryService;
+import io.quarkus.prreview.triage.model.PrContext;
 import io.quarkus.prreview.triage.model.PrOutcome;
+import io.quarkus.prreview.triage.model.PullRequest;
+import io.quarkus.prreview.util.FailureLog;
 
 /**
  * Classifies one PR: read its metadata, fetch its diff, let every check ask its questions, send them to {@code jev}

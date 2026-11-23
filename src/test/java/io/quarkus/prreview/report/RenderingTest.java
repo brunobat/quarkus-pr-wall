@@ -13,31 +13,29 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.model.output.TokenUsage;
-import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyService;
-import io.quarkus.prreview.classification.github.ci.model.CiCheck;
-import io.quarkus.prreview.classification.github.ci.model.Approval;
-import io.quarkus.prreview.classification.github.ci.model.CiChecks;
-import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
-import io.quarkus.prreview.classification.github.ci.model.FailureRow;
-import io.quarkus.prreview.classification.github.ci.model.FlakyTest;
-import io.quarkus.prreview.classification.github.size.model.PrSize;
+import io.quarkus.prreview.classification.checks.TestAdequacyService;
+import io.quarkus.prreview.classification.github.model.Approval;
+import io.quarkus.prreview.classification.github.model.CiCheck;
+import io.quarkus.prreview.classification.github.model.CiChecks;
+import io.quarkus.prreview.classification.github.model.FailedCheck;
+import io.quarkus.prreview.classification.github.model.FailureRow;
+import io.quarkus.prreview.classification.github.model.FlakyTest;
+import io.quarkus.prreview.classification.github.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.model.AiLabel;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.classification.provenance.model.Who;
-import io.quarkus.prreview.classification.source.model.SourceResult;
-import io.quarkus.prreview.pr.model.ChangedFile;
-import io.quarkus.prreview.pr.model.PrContext;
-import io.quarkus.prreview.pr.model.PullRequest;
-import io.quarkus.prreview.report.markdown.MarkdownReport;
 import io.quarkus.prreview.report.summary.FallbackSummary;
-import io.quarkus.prreview.report.summary.model.Summary;
-import io.quarkus.prreview.report.terminal.TerminalRenderer;
+import io.quarkus.prreview.report.summary.Summary;
+import io.quarkus.prreview.triage.model.ChangedFile;
+import io.quarkus.prreview.triage.model.PrContext;
 import io.quarkus.prreview.triage.model.PrOutcome;
+import io.quarkus.prreview.triage.model.PullRequest;
 
 class RenderingTest {
 

@@ -7,7 +7,6 @@ import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.report.AnswerFormat;
-import io.quarkus.prreview.report.summary.model.Summary;
 
 /**
  * The fixed summary used when Claude gives none: every question's answer in contribution order, e.g.

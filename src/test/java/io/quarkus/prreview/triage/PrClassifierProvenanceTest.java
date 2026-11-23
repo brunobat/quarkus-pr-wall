@@ -15,10 +15,10 @@ import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.model.decision.DecisionModel;
 import dev.langchain4j.model.decision.request.DecisionRequest;
-import io.quarkus.prreview.classification.github.size.SizeService;
+import io.quarkus.prreview.classification.github.SizeService;
 import io.quarkus.prreview.classification.model.JevResult;
+import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.ProvenanceService;
-import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.it.support.FakeGh;
 import io.quarkus.prreview.triage.model.PrOutcome;
 import io.quarkus.test.InjectMock;

@@ -17,16 +17,16 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.quarkus.prreview.classification.github.model.PrSize;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
 import io.quarkus.prreview.clients.gh.model.GhCheckSuite;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
-import io.quarkus.prreview.clients.gh.model.GhSize;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.it.support.FakeGh;
-import io.quarkus.prreview.pr.model.PullRequest;
+import io.quarkus.prreview.triage.model.PullRequest;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Runs the real {@link GhClient} against the fake {@code gh} script in {@code src/test/resources/fake-gh}. */
@@ -78,12 +78,12 @@ public class GhClientTest {
 
     @Test
     void fetchesSizeCounts() {
-        assertEquals(new GhSize(12, 3, 2), client.size(101));
+        assertEquals(new PrSize(2, 12, 3), client.size(101));
     }
 
     @Test
     void sizeCountsAreKnownWhenTheDiffIsRefused() {
-        assertEquals(new GhSize(17, 19751, 1244), client.size(406));
+        assertEquals(new PrSize(1244, 17, 19751), client.size(406));
     }
 
     @Test
@@ -457,7 +457,7 @@ public class GhClientTest {
         gh.toFile().setExecutable(true);
         GhClient bulk = new GhClient(config(gh.toString(), Duration.ofSeconds(10)), JsonMapper.builder().build());
 
-        assertEquals(Map.of(1, new GhSize(5, 2, 1)), bulk.sizes(List.of(1, 2, 3)));
+        assertEquals(Map.of(1, new PrSize(1, 5, 2)), bulk.sizes(List.of(1, 2, 3)));
         assertEquals(Map.of(3, new GhChecks("abc", List.of())), bulk.checks(List.of(1, 2, 3)));
         assertEquals(Map.of(3, List.of(new GhComment("x", "hi", "2026-01-01T00:00:00Z"))),
                 bulk.comments(List.of(1, 2, 3)));

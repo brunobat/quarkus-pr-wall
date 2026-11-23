@@ -11,9 +11,9 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.model.decision.DecisionModel;
-import io.quarkus.prreview.classification.github.size.model.PrSize;
+import io.quarkus.prreview.classification.github.model.PrSize;
 import io.quarkus.prreview.classification.model.JevResult;
-import io.quarkus.prreview.classification.source.model.SourceResult;
+import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.it.support.FakeGh;
 import io.quarkus.prreview.triage.model.PrOutcome;

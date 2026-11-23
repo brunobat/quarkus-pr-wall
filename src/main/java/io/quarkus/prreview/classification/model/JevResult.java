@@ -1,6 +1,6 @@
 package io.quarkus.prreview.classification.model;
 
-import io.quarkus.prreview.report.summary.model.Summary;
+import io.quarkus.prreview.report.summary.Summary;
 
 /**
  * What {@code jev} gave for one PR: its answers with their summary, or why it gave none. {@code jev} gives none when

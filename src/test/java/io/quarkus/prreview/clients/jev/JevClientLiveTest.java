@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.decision.DecisionModel;
 import dev.langchain4j.model.typesafe.TypeSafeDecisionModel;
-import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyService;
+import io.quarkus.prreview.classification.checks.TestAdequacyService;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.ProjectContext;
@@ -28,13 +28,13 @@ import io.quarkus.prreview.classification.submission.JevSubmission;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhClientTest;
 import io.quarkus.prreview.clients.jev.model.JevDecision;
-import io.quarkus.prreview.pr.DiffFiles;
-import io.quarkus.prreview.pr.model.PrContext;
-import io.quarkus.prreview.pr.model.PullRequest;
 import io.quarkus.prreview.report.ReportWriter;
+import io.quarkus.prreview.report.TerminalRenderer;
 import io.quarkus.prreview.report.summary.FallbackSummary;
-import io.quarkus.prreview.report.terminal.TerminalRenderer;
+import io.quarkus.prreview.triage.DiffFiles;
+import io.quarkus.prreview.triage.model.PrContext;
 import io.quarkus.prreview.triage.model.PrOutcome;
+import io.quarkus.prreview.triage.model.PullRequest;
 import tools.jackson.databind.json.JsonMapper;
 
 /**

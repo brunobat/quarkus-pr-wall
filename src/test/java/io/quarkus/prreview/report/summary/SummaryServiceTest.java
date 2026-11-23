@@ -20,16 +20,15 @@ import org.mockito.ArgumentCaptor;
 import dev.langchain4j.service.Result;
 
 import dev.langchain4j.model.output.TokenUsage;
-import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyService;
+import io.quarkus.prreview.classification.checks.TestAdequacyService;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.model.QuestionResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
-import io.quarkus.prreview.pr.model.ChangedFile;
-import io.quarkus.prreview.pr.model.PrContext;
-import io.quarkus.prreview.pr.model.PullRequest;
-import io.quarkus.prreview.report.summary.model.Summary;
+import io.quarkus.prreview.triage.model.ChangedFile;
+import io.quarkus.prreview.triage.model.PrContext;
+import io.quarkus.prreview.triage.model.PullRequest;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 
