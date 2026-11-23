@@ -31,8 +31,9 @@ README's top section lists the planned classifications and decisions.
 - There is one `jev` call per PR. Every check adds its questions to the single submission
   (`classification/api`, `JevSubmission`); don't use `@Decide` services.
 - Questions are PR-level only. Per-file questions belong to the later deep-analysis stage.
-- Each question asks about one thing, and each choice option is one situation. When a question doesn't apply,
-  its own option says why (`no-runtime-change`, `no-test-changes`, ...). Never use a combined "not applicable".
+- Each question asks about one thing, and each choice option is one situation. When a measure has nothing to
+  measure, its own option says so (`no-runtime-change`, `nothing-executed`, ...). Never use a combined "not
+  applicable", and don't repeat in one question a fact another question already asks.
 - The input starts with the project context (`JEV_PROJECT_CONTEXT`, default
   `src/main/resources/project-context/quarkusio-quarkus.txt`), then the changed-file list and the diff. The PR
   title and body are never sent.

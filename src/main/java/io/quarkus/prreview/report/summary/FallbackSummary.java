@@ -11,8 +11,7 @@ import io.quarkus.prreview.report.summary.model.Summary;
 
 /**
  * The fixed summary used when Claude gives none: every question's answer in contribution order, e.g.
- * {@code jev classification: behaviour 0.88; tests-changed 0.08; reach no-test-changes 0.83; assert no-test-changes
- * 0.88.}
+ * {@code jev classification: behaviour 0.88; tests-changed 0.08; reach none 0.83; assert nothing-executed 0.88.}
  */
 public final class FallbackSummary {
 

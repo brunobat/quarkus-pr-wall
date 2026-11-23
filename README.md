@@ -138,12 +138,13 @@ toward the submission size.
 |---|---|---|---|
 | `behaviour` | yes/no | Does this PR change the runtime behaviour of the software? | |
 | `tests-changed` | yes/no | Does this PR add or modify tests? | yes when it adds or modifies files under a `src/test/` directory |
-| `reach` | choice | How much of the changed runtime code do the tests this PR adds or modifies execute? | `all`, `some`, `none`, `no-runtime-change`, `no-test-changes`, `undetermined` |
-| `assert` | choice | Do the tests this PR adds or modifies assert the outcome of the changed code they execute? | `all`, `some`, `none`, `no-runtime-change`, `no-test-changes`, `no-changed-code-reached`, `undetermined` |
+| `reach` | choice | Of the runtime code this PR changes, how much do the tests this PR adds or modifies execute? | `all`, `some`, `none`, `no-runtime-change`, `undetermined` |
+| `assert` | choice | Of the changed runtime code that the tests this PR adds or modifies execute, how much has its outcome asserted by those tests? | `all`, `some`, `none`, `nothing-executed`, `undetermined` |
 
-For a choice, `jev` picks one option and gives a probability for each. Every option is one situation: when a
-question does not apply, its own option says why (`no-runtime-change`, `no-test-changes`,
-`no-changed-code-reached`).
+For a choice, `jev` picks one option and gives a probability for each. Every option is one situation. `reach` and
+`assert` each measure one thing, and a measure with nothing to measure has its own option: `reach: no-runtime-change`
+when the PR changes no runtime code, `assert: nothing-executed` when the changed tests execute none of it. A PR that
+changes no tests reads `reach: none`; that it changes no tests is `tests-changed`'s answer.
 
 The four answers are independent and are **never combined** into a single label. `jev` may give a combination
 that looks inconsistent, such as a low `tests-changed` with `reach: all`; it is shown as returned.
@@ -159,8 +160,8 @@ could not be read and the message; its stack trace is logged only at debug level
 
 ```
 PR #57088 - test adequacy
-  behaviour 0.96  tests-changed 0.11  reach: no-test-changes 0.96  assert: no-test-changes 0.91
-Summary (Claude): jev judged it very likely that this PR changes runtime behaviour and unlikely that it adds or modifies tests, so for both reach and assert it chose no-test-changes.
+  behaviour 0.96  tests-changed 0.11  reach: none 0.96  assert: nothing-executed 0.91
+Summary (Claude): jev judged it very likely that this PR changes runtime behaviour and unlikely that it adds or modifies tests, so it chose none for reach and nothing-executed for assert.
 Size: 3 files changed, +40 -12
 CI: all 67 passed, skipped or neutral
 Author: some-member (team) · AI: none declared
@@ -194,7 +195,7 @@ Report: reports/review-57715.md
 - Probabilities are rounded to 2 decimals in the terminal, for display only.
 - `Summary (fallback template): …` replaces the Claude summary when there is no key, the call fails, it takes
   longer than `ANTHROPIC_TIMEOUT`, or the text is blank. The template lists every answer, e.g.
-  `jev classification: behaviour 0.96; tests-changed 0.11; reach no-test-changes 0.96; assert no-test-changes 0.91.`
+  `jev classification: behaviour 0.96; tests-changed 0.11; reach none 0.96; assert nothing-executed 0.91.`
 
 **The report** (`review-<pr>.md`) has, in order:
 1. the title, link and state, e.g. `Link: <url> · State: OPEN · CI on commit ba9690a`: ` (draft)` follows a

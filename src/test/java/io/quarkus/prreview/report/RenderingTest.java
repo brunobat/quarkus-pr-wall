@@ -48,7 +48,7 @@ class RenderingTest {
 
     /**
      * The four test-adequacy answers: {@code behaviour} and {@code reach} vary; {@code tests-changed} (0.12) and
-     * {@code assert} (no-test-changes 0.77) are fixed at values no varied number contains.
+     * {@code assert} (nothing-executed 0.77) are fixed at values no varied number contains.
      */
     static Classification classification(String title, String path, double behaviour, String chosen,
             Map<String, Double> options) {
@@ -62,8 +62,8 @@ class RenderingTest {
                 new QuestionResult("reach", TestAdequacyCheck.REACH.text(),
                         new QuestionResult.Choice(chosen, TestAdequacyCheck.REACH.options(), options)),
                 new QuestionResult("assert", TestAdequacyCheck.ASSERTS.text(),
-                        new QuestionResult.Choice("no-test-changes", TestAdequacyCheck.ASSERTS.options(),
-                                probs("no-test-changes", 0.77, "none", 0.23)))));
+                        new QuestionResult.Choice("nothing-executed", TestAdequacyCheck.ASSERTS.options(),
+                                probs("nothing-executed", 0.77, "none", 0.23)))));
         return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,
                 1667, 60000, CONTEXT);
     }
@@ -93,12 +93,12 @@ class RenderingTest {
 
     @Test
     void terminalBlockMatchesTheSpecLayout() {
-        String block = terminal(sample(0.88, "no-test-changes",
-                probs("no-test-changes", 0.83, "some", 0.17)), CLAUDE);
+        String block = terminal(sample(0.88, "none",
+                probs("none", 0.83, "some", 0.17)), CLAUDE);
 
         assertEquals("""
                 PR #57720 - test adequacy
-                  behaviour 0.88  tests-changed 0.12  reach: no-test-changes 0.83  assert: no-test-changes 0.77
+                  behaviour 0.88  tests-changed 0.12  reach: none 0.83  assert: nothing-executed 0.77
                 Summary (Claude): Runtime behaviour changes; no tests were changed.
                 Size: unavailable
                 CI: unavailable
@@ -111,7 +111,7 @@ class RenderingTest {
     void probabilitiesAreOnlyShownNeverInterpreted() {
         String reference = null;
         for (double p : new double[] { 0.0, 0.4999, 0.5, 1.0, 0.88 }) {
-            Classification c = sample(p, "no-test-changes", probs("no-test-changes", p));
+            Classification c = sample(p, "none", probs("none", p));
             String terminal = terminal(c, CLAUDE);
             String report = MarkdownReport.render(c, CLAUDE);
 
@@ -146,13 +146,13 @@ class RenderingTest {
         Classification c = sample(0.5, "some", Map.of());
 
         assertTrue(terminal(c, CLAUDE).contains("  reach: some  assert:"));
-        assertEquals("jev classification: behaviour 0.50; tests-changed 0.12; reach some; assert no-test-changes 0.77.",
+        assertEquals("jev classification: behaviour 0.50; tests-changed 0.12; reach some; assert nothing-executed 0.77.",
                 FallbackSummary.of(c).text());
     }
 
     @Test
     void reportSectionsAppearInOrderWithEveryOption() {
-        String report = MarkdownReport.render(sample(0.88, "no-test-changes", probs("no-test-changes", 0.83)), CLAUDE);
+        String report = MarkdownReport.render(sample(0.88, "none", probs("none", 0.83)), CLAUDE);
 
         assertTrue(report.startsWith("# PR #57720: Bump jackson-bom\n\nLink: https://github.com/quarkusio/quarkus/pull/57720"
                 + " · State: OPEN\n"), report);
@@ -187,7 +187,7 @@ class RenderingTest {
 
     @Test
     void reportFooterSaysWhenClaudeWasNotCalledOrReportedNoTokens() {
-        Classification c = sample(0.88, "no-test-changes", probs("no-test-changes", 0.83));
+        Classification c = sample(0.88, "none", probs("none", 0.83));
         String notSent = MarkdownReport.render(c, FallbackSummary.of(c));
         assertTrue(notSent.endsWith("- Summary: fallback template\n- Claude submission: not sent\n"
                 + "- Claude tokens: not reported\n"), notSent);
@@ -201,7 +201,7 @@ class RenderingTest {
     @Test
     void untrustedTextCannotChangeTheStructure() {
         Classification c = classification("Fix | pipes\n## Injected\n| a | b |", "docs/a|b `x`.adoc", 0.5,
-                "no-test-changes", probs("no-test-changes", 0.5));
+                "none", probs("none", 0.5));
         Summary summary = new Summary("Line one.\n# Heading\n| x |", "model|x");
 
         String report = MarkdownReport.render(c, summary);
@@ -245,12 +245,12 @@ class RenderingTest {
 
     @Test
     void fallbackTemplateListsEveryAnswerInOrder() {
-        Summary fallback = FallbackSummary.of(sample(0.88, "no-test-changes", probs("no-test-changes", 0.83)));
+        Summary fallback = FallbackSummary.of(sample(0.88, "none", probs("none", 0.83)));
 
-        assertEquals("jev classification: behaviour 0.88; tests-changed 0.12; reach no-test-changes 0.83;"
-                + " assert no-test-changes 0.77.", fallback.text());
+        assertEquals("jev classification: behaviour 0.88; tests-changed 0.12; reach none 0.83;"
+                + " assert nothing-executed 0.77.", fallback.text());
         assertEquals("fallback template", fallback.source());
-        assertTrue(terminal(sample(0.88, "no-test-changes", probs("no-test-changes", 0.83)), fallback).contains("Summary (fallback template): jev classification: behaviour 0.88;"));
+        assertTrue(terminal(sample(0.88, "none", probs("none", 0.83)), fallback).contains("Summary (fallback template): jev classification: behaviour 0.88;"));
     }
 
     @Test
@@ -278,8 +278,8 @@ class RenderingTest {
 
     @Test
     void reportNotWrittenAlsoEndsAClassifiedBlock() {
-        String block = TerminalRenderer.render(PrOutcome.answered(sample(0.88, "no-test-changes",
-                probs("no-test-changes", 0.83)), CLAUDE), new ReportWriter.Failed("AccessDeniedException: x"));
+        String block = TerminalRenderer.render(PrOutcome.answered(sample(0.88, "none",
+                probs("none", 0.83)), CLAUDE), new ReportWriter.Failed("AccessDeniedException: x"));
 
         assertTrue(block.endsWith("Summary (Claude): Runtime behaviour changes; no tests were changed.\n"
                 + "Size: unavailable\n" + "CI: unavailable\n" + "Author: unavailable\n" + "Report: not written: AccessDeniedException: x\n"), block);
@@ -386,7 +386,7 @@ class RenderingTest {
     @Test
     void sizeIsShownForClassifiedAndNotClassifiedPrs() {
         PrSize size = new PrSize(61, 933, 197);
-        PrOutcome classified = PrOutcome.answered(sample(0.88, "no-test-changes", probs("no-test-changes", 0.83)),
+        PrOutcome classified = PrOutcome.answered(sample(0.88, "none", probs("none", 0.83)),
                 CLAUDE);
         classified = new PrOutcome(classified.number(), classified.checks(), classified.pullRequest(), classified.jev(),
                 new SourceResult.Available<>(size), classified.ci(), classified.provenance());
@@ -451,8 +451,8 @@ class RenderingTest {
         Provenance provenance = new Provenance(Person.of("app/copilot-swe-agent", Who.BOT),
                 List.of(Person.of("alice", Who.COMMUNITY), Person.other("bob", "lookup limit")),
                 new AiLabel(AiLabel.Kind.AGENT, "app/copilot-swe-agent"), READ_AT);
-        PrOutcome outcome = withProvenance(PrOutcome.answered(sample(0.88, "no-test-changes",
-                probs("no-test-changes", 0.83)), CLAUDE), provenance);
+        PrOutcome outcome = withProvenance(PrOutcome.answered(sample(0.88, "none",
+                probs("none", 0.83)), CLAUDE), provenance);
 
         assertTrue(TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)).endsWith("""
                 CI: unavailable

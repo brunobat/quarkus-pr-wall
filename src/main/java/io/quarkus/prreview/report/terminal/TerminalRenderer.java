@@ -27,7 +27,7 @@ import io.quarkus.prreview.triage.model.PrOutcome;
  *
  * <pre>
  * PR #57720 - test adequacy
- *   behaviour 0.88  tests-changed 0.08  reach: no-test-changes 0.83  assert: no-test-changes 0.88
+ *   behaviour 0.88  tests-changed 0.08  reach: none 0.83  assert: nothing-executed 0.88
  * Summary (Claude): ...
  * Report: reports/review-57720.md
  *

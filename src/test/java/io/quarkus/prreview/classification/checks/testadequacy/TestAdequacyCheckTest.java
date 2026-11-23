@@ -32,38 +32,36 @@ class TestAdequacyCheckTest {
 
     @Test
     void reach() {
-        assertEquals("How much of the changed runtime code do the tests this PR adds or modifies execute?",
+        assertEquals("Of the runtime code this PR changes, how much do the tests this PR adds or modifies execute?",
                 TestAdequacyCheck.REACH.text());
         assertEquals(options(
                 "all", "Every changed runtime code path is executed by a changed test.",
                 "some", "Some changed runtime code paths are executed by a changed test; others are not.",
-                "none", "The PR changes runtime behaviour and adds or modifies tests, but they execute none of the"
-                        + " changed runtime code.",
-                "no-runtime-change", "The PR changes no runtime behaviour, whether or not it changes tests.",
-                "no-test-changes", "The PR changes runtime behaviour but adds or modifies no tests.",
+                "none", "No changed test executes any of the changed runtime code, including when the PR adds or"
+                        + " modifies no tests.",
+                "no-runtime-change", "The PR changes no runtime behaviour, so there is no changed runtime code to"
+                        + " execute.",
                 "undetermined", "The diff does not give enough to tell, e.g. binary or generated changes, behaviour"
                         + " too indirect to trace, or tests that depend on code outside the diff."),
                 TestAdequacyCheck.REACH.options());
         assertEquals(List.copyOf(TestAdequacyCheck.REACH.options().keySet()),
-                List.of("all", "some", "none", "no-runtime-change", "no-test-changes", "undetermined"));
+                List.of("all", "some", "none", "no-runtime-change", "undetermined"));
     }
 
     @Test
     void asserts() {
-        assertEquals("Do the tests this PR adds or modifies assert the outcome of the changed code they execute?",
-                TestAdequacyCheck.ASSERTS.text());
+        assertEquals("Of the changed runtime code that the tests this PR adds or modifies execute, how much has its"
+                + " outcome asserted by those tests?", TestAdequacyCheck.ASSERTS.text());
         assertEquals(options(
-                "all", "Every changed path the changed tests execute has its outcome asserted.",
+                "all", "Every changed runtime path the changed tests execute has its outcome asserted.",
                 "some", "Some executed changed paths are asserted; others are only called, built or smoke-run.",
-                "none", "The changed tests execute changed code but assert none of its outcomes.",
-                "no-runtime-change", "The PR changes no runtime behaviour, whether or not it changes tests.",
-                "no-test-changes", "The PR changes runtime behaviour but adds or modifies no tests.",
-                "no-changed-code-reached", "The PR changes runtime behaviour and tests, but the changed tests execute"
-                        + " none of the changed runtime code.",
+                "none", "The changed tests execute changed runtime code but assert none of its outcomes.",
+                "nothing-executed", "The changed tests execute none of the changed runtime code, so there is nothing"
+                        + " to assert.",
                 "undetermined", "The diff does not give enough to tell."),
                 TestAdequacyCheck.ASSERTS.options());
-        assertEquals(List.copyOf(TestAdequacyCheck.ASSERTS.options().keySet()), List.of("all", "some", "none",
-                "no-runtime-change", "no-test-changes", "no-changed-code-reached", "undetermined"));
+        assertEquals(List.copyOf(TestAdequacyCheck.ASSERTS.options().keySet()),
+                List.of("all", "some", "none", "nothing-executed", "undetermined"));
     }
 
     private static Map<String, String> options(String... pairs) {
