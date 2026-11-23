@@ -1,16 +1,14 @@
 package io.quarkus.prreview.classification.provenance;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 
 import org.jboss.logging.Logger;
+
+import io.quarkus.prreview.util.FileOrResource;
 
 /**
  * A curated list kept outside the code: one entry per line, stripped and lower-cased, with blank lines and lines
@@ -24,8 +22,6 @@ public record SignalList(String source, List<String> entries) {
 
     private static final Logger LOG = Logger.getLogger(SignalList.class);
 
-    static final String CLASSPATH = "classpath:";
-
     public SignalList {
         entries = List.copyOf(entries);
     }
@@ -38,8 +34,7 @@ public record SignalList(String source, List<String> entries) {
     public static SignalList load(String source, String setting) {
         String text;
         try {
-            text = source.startsWith(CLASSPATH) ? resource(source.substring(CLASSPATH.length()))
-                    : Files.readString(Path.of(source));
+            text = FileOrResource.read(source);
         } catch (IOException | InvalidPathException | UncheckedIOException e) {
             LOG.warnf("%s: cannot read %s (%s); using an empty list", setting, source, e.getMessage());
             return new SignalList(source, List.of());
@@ -54,13 +49,5 @@ public record SignalList(String source, List<String> entries) {
     static List<String> parse(String text) {
         return text.lines().map(String::strip).filter(l -> !l.isEmpty() && !l.startsWith("#"))
                 .map(l -> l.toLowerCase(Locale.ROOT)).toList();
-    }
-
-    private static String resource(String name) throws IOException {
-        // Class loader resource names have no leading slash.
-        String resource = name.startsWith("/") ? name.substring(1) : name;
-        try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(resource)) {
-            return in == null ? null : new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        }
     }
 }

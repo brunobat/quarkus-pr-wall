@@ -1,16 +1,13 @@
 package io.quarkus.prreview.classification.submission;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
 import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.config.ReviewConfig;
+import io.quarkus.prreview.util.FileOrResource;
 
 /**
  * Reads the project context on first use and keeps it. The command asks for it before the first PR, so a bad
@@ -19,8 +16,6 @@ import io.quarkus.prreview.config.ReviewConfig;
  */
 @ApplicationScoped
 public class ProjectContextService {
-
-    static final String CLASSPATH = "classpath:";
 
     private final String source;
     private volatile ProjectContext context;
@@ -43,8 +38,7 @@ public class ProjectContextService {
     static ProjectContext load(String source) {
         String text;
         try {
-            text = source.startsWith(CLASSPATH) ? resource(source.substring(CLASSPATH.length()))
-                    : Files.readString(Path.of(source));
+            text = FileOrResource.read(source);
         } catch (IOException | InvalidPathException e) {
             throw new IllegalArgumentException("JEV_PROJECT_CONTEXT: cannot read " + source + ": " + e, e);
         }
@@ -55,13 +49,5 @@ public class ProjectContextService {
             throw new IllegalArgumentException("JEV_PROJECT_CONTEXT: " + source + " is blank");
         }
         return new ProjectContext(source, text.strip());
-    }
-
-    private static String resource(String name) throws IOException {
-        // Class loader resource names have no leading slash.
-        String resource = name.startsWith("/") ? name.substring(1) : name;
-        try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(resource)) {
-            return in == null ? null : new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        }
     }
 }
