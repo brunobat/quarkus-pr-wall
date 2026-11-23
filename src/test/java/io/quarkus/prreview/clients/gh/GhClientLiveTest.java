@@ -11,6 +11,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.prreview.classification.provenance.LoginMemoService;
 import io.quarkus.prreview.classification.provenance.WhoService;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Who;
@@ -39,7 +40,8 @@ class GhClientLiveTest {
         GhAuthorship authorship = gh.authorship(MEMBER_PR);
 
         assertEquals("MEMBER", gh.association(MEMBER_PR));
-        assertEquals(Person.of(authorship.login(), Who.TEAM), new WhoService(gh).prAuthor(MEMBER_PR, authorship));
+        assertEquals(Person.of(authorship.login(), Who.TEAM),
+                new WhoService(gh, new LoginMemoService()).prAuthor(MEMBER_PR, authorship));
     }
 
     @Test

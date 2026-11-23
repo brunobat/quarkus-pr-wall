@@ -41,7 +41,7 @@ public class AiService {
 
     public AiService(SignalList signals, SignalList automation) {
         this.signals = signals.entries().stream().map(AiService::normalize).filter(s -> !s.isEmpty()).toList();
-        this.automation = automation.entries().stream().map(AiService::normalizeLogin).toList();
+        this.automation = automation.entries().stream().map(WhoService::account).toList();
     }
 
     /**
@@ -50,7 +50,7 @@ public class AiService {
      */
     public AiLabel label(GhAuthorship authorship, Person prAuthor, List<Person> commitAuthors) {
         for (Person person : Stream.concat(Stream.of(prAuthor), commitAuthors.stream()).toList()) {
-            if (person.who() == Who.BOT && !automation.contains(normalizeLogin(person.login()))) {
+            if (person.who() == Who.BOT && !automation.contains(WhoService.account(person.login()))) {
                 return new AiLabel(AiLabel.Kind.AGENT, person.login());
             }
         }
@@ -80,10 +80,5 @@ public class AiService {
     /** Lower-cased, with every whitespace run as one space, so a double space or a line break still matches. */
     static String normalize(String text) {
         return WHITESPACE.matcher(text.toLowerCase(Locale.ROOT)).replaceAll(" ").strip();
-    }
-
-    /** The same account arrives as {@code dependabot}, {@code dependabot[bot]} or {@code app/dependabot}. */
-    static String normalizeLogin(String login) {
-        return WhoService.account(login);
     }
 }

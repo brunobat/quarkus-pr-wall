@@ -27,7 +27,7 @@ class WhoServiceTest {
     static final String BASE = "3cde8c894156969db35001fe9f26051c3c81fd22";
 
     final GhClient gh = mock(GhClient.class);
-    final WhoService rules = new WhoService(gh);
+    final WhoService rules = new WhoService(gh, new LoginMemoService());
 
     static GhAuthorship authorship(String login, boolean bot) {
         return new GhAuthorship(login, "Name", bot, "", BASE, List.of());
@@ -102,7 +102,7 @@ class WhoServiceTest {
         when(other.isMember("alice")).thenReturn(false);
         when(other.hasCommitsBefore("alice", BASE)).thenThrow(new GhException("timed out"));
         assertEquals(Person.other("alice", "commit history lookup failed: timed out"),
-                new WhoService(other).commitAuthor(ALICE, BASE));
+                new WhoService(other, new LoginMemoService()).commitAuthor(ALICE, BASE));
     }
 
     @Test

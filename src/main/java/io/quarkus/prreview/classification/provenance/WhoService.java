@@ -25,9 +25,11 @@ public class WhoService {
     public static final String GHOST = "ghost";
 
     private final GhClient gh;
+    private final LoginMemoService memo;
 
-    public WhoService(GhClient gh) {
+    public WhoService(GhClient gh, LoginMemoService memo) {
         this.gh = gh;
+        this.memo = memo;
     }
 
     /**
@@ -65,35 +67,35 @@ public class WhoService {
      * A commit's git author: a bot by the shape of its login or name ({@code app/...} or {@code ...[bot]}), since
      * GitHub reports no bot flag for commit authors; then team when a member of the org; then community or
      * first-time by whether they have a commit reachable from the PR's base. A 404 on membership is "not a member",
-     * not a failure.
+     * not a failure. That answer is kept for the run as soon as it comes, so a failed history lookup is retried
+     * later without asking for membership again.
      */
     public Person commitAuthor(GhCommit.Author author, String baseSha) {
         String login = author.login();
         if (isBotShaped(author)) {
             return Person.of(login, Who.BOT);
         }
-        return byMembership(author).orElseGet(() -> nonMemberCommitAuthor(author, baseSha));
+        if (!memo.knownNonMember(login)) {
+            Optional<Person> member = byMembership(author);
+            if (member.isPresent()) {
+                return member.get();
+            }
+            memo.markNonMember(login);
+        }
+        return byCommitsBefore(login, baseSha);
     }
 
     /**
      * A commit author labelled by org membership alone: team when a member, other when the lookup failed, empty when
      * GitHub answered that they are not a member (a 404).
      */
-    public Optional<Person> byMembership(GhCommit.Author author) {
+    private Optional<Person> byMembership(GhCommit.Author author) {
         String login = author.login();
         try {
             return gh.isMember(login) ? Optional.of(Person.of(login, Who.TEAM)) : Optional.empty();
         } catch (GhException e) {
             return Optional.of(Person.other(login, "membership lookup failed: " + PlainText.oneLine(e.getMessage())));
         }
-    }
-
-    /**
-     * A commit author already known not to be a member of the org: community or first-time by the PR's base, with no
-     * second membership call.
-     */
-    public Person nonMemberCommitAuthor(GhCommit.Author author, String baseSha) {
-        return byCommitsBefore(author.login(), baseSha);
     }
 
     /** Community when the person has a commit reachable from the PR's base, first-time when not. */

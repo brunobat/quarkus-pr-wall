@@ -31,8 +31,7 @@ class ProvenanceServiceTest {
             new SignalList("test", List.of("dependabot")));
 
     final GhClient gh = mock(GhClient.class);
-    final ProvenanceService source = new ProvenanceService(gh, new GitHubFactsService(gh), new WhoService(gh), new LoginMemoService(),
-            AI, 10);
+    final ProvenanceService source = provenance(gh, new LoginMemoService(), 10);
 
     @Test
     void labelsThePrAuthorAndStampsTheReadTime() {
@@ -116,7 +115,7 @@ class ProvenanceServiceTest {
     @Test
     void aCommitAuthorAlreadyLabelledInThisRunIsNotLookedUpAgain() {
         LoginMemoService memo = new LoginMemoService();
-        ProvenanceService withMemo = new ProvenanceService(gh, new GitHubFactsService(gh), new WhoService(gh), memo, AI, 10);
+        ProvenanceService withMemo = provenance(gh, memo, 10);
         for (int pr : new int[] { 7, 8 }) {
             when(gh.authorship(pr)).thenReturn(new GhAuthorship("pr-author", "", false, "", "abc",
                     List.of(commit("1", author("alice")))));
@@ -144,7 +143,12 @@ class ProvenanceServiceTest {
                 List.of(commit("2", author(login)))));
         when(gh.association(7)).thenReturn("CONTRIBUTOR");
         when(gh.association(8)).thenReturn("CONTRIBUTOR");
-        return new ProvenanceService(gh, new GitHubFactsService(gh), new WhoService(gh), new LoginMemoService(), AI, 10);
+        return provenance(gh, new LoginMemoService(), 10);
+    }
+
+    /** As the app wires it: the source and its who-rules share one run's memo. */
+    static ProvenanceService provenance(GhClient gh, LoginMemoService memo, int maxPeople) {
+        return new ProvenanceService(gh, new GitHubFactsService(gh), new WhoService(gh, memo), memo, AI, maxPeople);
     }
 
     List<Person> commitAuthors(ProvenanceService source, int pr) {
@@ -220,9 +224,8 @@ class ProvenanceServiceTest {
         when(gh.association(7)).thenReturn("CONTRIBUTOR");
         when(gh.isMember(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
 
-        Provenance provenance = ((SourceResult.Available<Provenance>) new ProvenanceService(gh, new GitHubFactsService(gh),
-                new WhoService(gh),
-                new LoginMemoService(), AI, 3).gather(7)).facts();
+        Provenance provenance = ((SourceResult.Available<Provenance>) provenance(gh, new LoginMemoService(), 3)
+                .gather(7)).facts();
 
         assertEquals(List.of(Person.of("person1", Who.TEAM), Person.of("dependabot[bot]", Who.BOT),
                 Person.of("person2", Who.TEAM), Person.of("person3", Who.TEAM),
