@@ -64,6 +64,10 @@ public class GitHubFacts {
                 into.putAll(call.apply(batch));
             } catch (GhException e) {
                 FailureLog.warn(LOG, "bulk %s for PRs %s failed; each is read on its own: gh".formatted(fact, batch), e);
+            } catch (RuntimeException e) {
+                // Not a gh failure but a bug: it is treated the same way, and named by its class.
+                FailureLog.warn(LOG, "bulk %s for PRs %s failed; each is read on its own: unexpected error: %s"
+                        .formatted(fact, batch, e.getClass().getSimpleName()), e);
             }
         }
     }

@@ -115,6 +115,20 @@ class GitHubFactsTest {
     }
 
     @Test
+    void anUnexpectedErrorInABulkReadIsHandledLikeAFailedBulkCall() {
+        when(gh.sizes(List.of(1))).thenThrow(new NullPointerException("bug"));
+        when(gh.checks(List.of(1))).thenReturn(Map.of(1, CHECKS));
+        when(gh.comments(List.of(1))).thenReturn(Map.of(1, COMMENTS));
+        stubPerPr(1);
+
+        facts.prefetch(List.of(1));
+
+        assertEquals(List.of(perPr(1)), List.of(gather(1)));
+        verify(gh).size(1);
+        verify(gh, never()).checks(anyInt());
+    }
+
+    @Test
     void aFailingFallbackMakesTheFactUnavailable() {
         when(gh.sizes(List.of(1))).thenReturn(Map.of());
         when(gh.checks(List.of(1))).thenReturn(Map.of());

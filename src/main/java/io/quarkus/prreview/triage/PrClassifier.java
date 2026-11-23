@@ -173,7 +173,8 @@ public class PrClassifier {
                 e.getMessage(), null, null, null, null);
     }
 
-    private List<String> checkIds() {
+    /** The ids of {@code jev}'s checks, in the order their questions are asked. */
+    public List<String> checkIds() {
         return checks.stream().map(ClassificationCheck::id).toList();
     }
 

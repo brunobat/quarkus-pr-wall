@@ -238,6 +238,29 @@ class ReviewListTest {
     }
 
     @Test
+    void anUnexpectedErrorEndsOnlyItsPr(QuarkusMainLauncher launcher) {
+        // 160's check rollup holds a null entry.
+        LaunchResult result = launcher.launch("review", "101", "160", "102", "--output-dir", out.toString());
+
+        assertEquals(0, result.exitCode(), result.getOutput());
+        List<String> stdout = result.getOutputStream();
+        assertEquals("PR #160 - test adequacy\n"
+                + "  failed: unexpected error: NullPointerException: Cannot invoke \"io.quarkus.prreview.clients.gh.model"
+                + ".GhCheck.typename()\" because \"check\" is null\n"
+                + "Report: not written: unexpected error\n", throughReport(block(stdout, 160)));
+        assertTrue(block(stdout, 101).contains("Report: " + out.resolve("review-101.md")), result.getOutput());
+        assertTrue(block(stdout, 102).contains("Report: " + out.resolve("review-102.md")), result.getOutput());
+        assertTrue(Files.exists(out.resolve("review-101.md")));
+        assertTrue(Files.exists(out.resolve("review-102.md")));
+        assertFalse(Files.exists(out.resolve("review-160.md")));
+        // One ERROR record, with its stack trace.
+        List<String> lines = result.getOutput().lines().toList();
+        assertEquals(1, lines.stream().filter(l -> l.contains(" ERROR ") && l.contains("PR #160: unexpected error"))
+                .count(), result.getOutput());
+        assertTrue(lines.stream().anyMatch(l -> l.startsWith("\tat io.quarkus.prreview.")), result.getOutput());
+    }
+
+    @Test
     void commentsAreReadInBulkForGreenPrsToo(QuarkusMainLauncher launcher) throws IOException {
         long before = ghCalls();
         launcher.launch("review", "140", "144", "145", "--output-dir", out.toString());

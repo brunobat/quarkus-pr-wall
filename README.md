@@ -327,6 +327,19 @@ block is one line, `PR #58521: not a pull request in quarkusio/quarkus`. Nothing
 report is written, and nothing is logged at the default level (at debug level, `gh`'s message and stack trace). It
 counts as an error.
 
+An **unexpected error** (a bug, such as a `NullPointerException` on data GitHub returned in an unforeseen shape) ends
+only its PR. Its block is
+
+```
+PR #160 - test adequacy
+  failed: unexpected error: NullPointerException: <message>
+Report: not written: unexpected error
+```
+
+No report is written, one ERROR record with its stack trace is logged, and it counts as an error; the run goes on
+with the next number. In a run-wide bulk read it is handled like a failed bulk call: one warning line, then each PR
+is read on its own.
+
 | Run | Exit code |
 |---|---|
 | At least one PR without an error | 0, whatever `jev`'s answers are |

@@ -49,6 +49,16 @@ public final class TerminalRenderer {
         return "PR #" + number + ": not a pull request in " + PlainText.oneLine(repo) + "\n";
     }
 
+    /**
+     * The whole block for a PR whose processing ended with an unexpected exception: the header, the exception's class
+     * and one-line message, and no report.
+     */
+    public static String unexpectedError(int number, List<String> checkIds, Throwable error) {
+        String message = error.getMessage() == null ? "" : ": " + PlainText.oneLine(error.getMessage());
+        return header(number, checkIds, "") + "  failed: unexpected error: " + error.getClass().getSimpleName()
+                + message + "\n" + "Report: not written: unexpected error\n";
+    }
+
     /** The whole block: the header, then each classification source's part in a fixed order, then the report line. */
     public static String render(PrOutcome outcome, ReportWriter.Result report) {
         return header(outcome) + jev(outcome.jev()) + size(outcome.size()) + ci(outcome.ci())
@@ -168,8 +178,12 @@ public final class TerminalRenderer {
 
     /** The PR line; a draft's carries its state, so it stands out in a list. */
     private static String header(PrOutcome outcome) {
-        String checks = String.join(", ", outcome.checks().stream().map(id -> id.replace('-', ' ')).toList());
         String draft = outcome.draft() ? " · State: " + PlainText.oneLine(outcome.pullRequest().state()) + " (draft)" : "";
-        return "PR #" + outcome.number() + " - " + checks + draft + "\n";
+        return header(outcome.number(), outcome.checks(), draft);
+    }
+
+    private static String header(int number, List<String> checkIds, String state) {
+        String checks = String.join(", ", checkIds.stream().map(id -> id.replace('-', ' ')).toList());
+        return "PR #" + number + " - " + checks + state + "\n";
     }
 }

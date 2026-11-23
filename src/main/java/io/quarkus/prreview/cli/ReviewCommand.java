@@ -10,6 +10,8 @@ import java.util.concurrent.Callable;
 import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
 
+import org.jboss.logging.Logger;
+
 import io.quarkus.arc.Unremovable;
 import io.quarkus.prreview.classification.github.GitHubFacts;
 import io.quarkus.prreview.classification.provenance.who.LoginMemo;
@@ -29,6 +31,8 @@ import picocli.CommandLine;
         defaultValueProvider = ReviewCommand.ConfiguredDefaults.class,
         description = "Classify one or more PRs and write a markdown report for each.")
 public class ReviewCommand implements Callable<Integer> {
+
+    private static final Logger LOG = Logger.getLogger(ReviewCommand.class);
 
     @CommandLine.Spec
     CommandLine.Model.CommandSpec spec;
@@ -79,20 +83,26 @@ public class ReviewCommand implements Callable<Integer> {
             if (pr != uniquePrs.getFirst()) {
                 out.println();
             }
-            PrOutcome outcome;
+            String block;
+            boolean failed;
             try {
-                outcome = classifier.classify(pr);
+                PrOutcome outcome = classifier.classify(pr);
+                ReportWriter.Result report = ReportWriter.write(dir, pr, MarkdownReport.render(outcome));
+                block = TerminalRenderer.render(outcome, report);
+                failed = !(outcome.jev() instanceof JevResult.Answered) || !(report instanceof ReportWriter.Written);
             } catch (NotAPullRequestException e) {
-                out.print(TerminalRenderer.notAPullRequest(pr, config.gh().repo()));
-                out.flush();
-                errors++;
-                continue;
+                block = TerminalRenderer.notAPullRequest(pr, config.gh().repo());
+                failed = true;
+            } catch (RuntimeException e) {
+                // A bug, not a lookup failure: it ends this PR only, and its stack trace is logged.
+                LOG.errorf(e, "PR #%d: unexpected error", pr);
+                block = TerminalRenderer.unexpectedError(pr, classifier.checkIds(), e);
+                failed = true;
             }
-            ReportWriter.Result report = ReportWriter.write(dir, pr, MarkdownReport.render(outcome));
             // Each block is printed as soon as its PR is done.
-            out.print(TerminalRenderer.render(outcome, report));
+            out.print(block);
             out.flush();
-            if (!(outcome.jev() instanceof JevResult.Answered) || !(report instanceof ReportWriter.Written)) {
+            if (failed) {
                 errors++;
             }
         }
