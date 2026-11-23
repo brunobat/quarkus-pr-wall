@@ -1,6 +1,8 @@
 package io.quarkus.prreview.cli;
 
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.LinkedHashSet;
@@ -26,6 +28,7 @@ import io.quarkus.prreview.report.TerminalRenderer;
 import io.quarkus.prreview.triage.NotAPullRequestException;
 import io.quarkus.prreview.triage.PrClassifierService;
 import io.quarkus.prreview.triage.model.PrOutcome;
+import io.quarkus.prreview.util.FailureLog;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "review", mixinStandardHelpOptions = true, versionProvider = PrReviewCommand.Version.class,
@@ -91,9 +94,10 @@ public class ReviewCommand implements Callable<Integer> {
             }
             String block;
             boolean failed;
+            ReportWriter.Result report = null;
             try {
                 PrOutcome outcome = classifier.classify(pr);
-                ReportWriter.Result report = ReportWriter.write(dir, pr, MarkdownReport.render(outcome));
+                report = ReportWriter.write(dir, pr, MarkdownReport.render(outcome));
                 block = TerminalRenderer.render(outcome, report);
                 failed = !(outcome.jev() instanceof JevResult.Answered) || !(report instanceof ReportWriter.Written);
                 drafts += outcome.draft() ? 1 : 0;
@@ -105,6 +109,10 @@ public class ReviewCommand implements Callable<Integer> {
             } catch (RuntimeException e) {
                 // A bug, not a lookup failure: it ends this PR only, and its stack trace is logged.
                 LOG.errorf(e, "PR #%d: unexpected error", pr);
+                if (report instanceof ReportWriter.Written written) {
+                    // The terminal says no report was written, so none is left behind.
+                    discard(written.path());
+                }
                 block = TerminalRenderer.unexpectedError(pr, classifier.checkIds(), e);
                 failed = true;
             }
@@ -123,6 +131,14 @@ public class ReviewCommand implements Callable<Integer> {
         out.print(summary.render(Duration.ofNanos(System.nanoTime() - start), dir));
         out.flush();
         return exitCode(uniquePrs.size(), errors);
+    }
+
+    private static void discard(Path report) {
+        try {
+            Files.deleteIfExists(report);
+        } catch (IOException e) {
+            FailureLog.warn(LOG, "cannot remove " + report, e);
+        }
     }
 
     /** Prints a one-line {@code error: <message>} and returns exit code 1. */

@@ -78,12 +78,19 @@ class ReviewConfigEnvironmentTest {
     }
 
     @Test
-    void onlyTheLiveProfileLetsTheJevKeyThroughAndNoProfileTheClaudeKey() throws IOException {
+    void onlyTheLiveProfileLetsTheJevSettingsThroughAndNoProfileTheClaudeKey() throws IOException {
         String pom = Files.readString(Path.of("pom.xml"));
 
         assertTrue(pom.contains("<excludedEnvironmentVariable>${live.typesafeKeyVariable}</excludedEnvironmentVariable>"));
         assertTrue(pom.contains("<live.typesafeKeyVariable>TYPESAFE_API_KEY</live.typesafeKeyVariable>"));
         assertTrue(pom.contains("<live.typesafeKeyVariable>KEEP_TYPESAFE_API_KEY</live.typesafeKeyVariable>"));
+        for (String name : new String[] { "Url", "Model" }) {
+            String variable = "JEV_" + name.toUpperCase();
+            String property = "live.jev" + name + "Variable";
+            assertTrue(pom.contains("<excludedEnvironmentVariable>${" + property + "}</excludedEnvironmentVariable>"));
+            assertTrue(pom.contains("<" + property + ">" + variable + "</" + property + ">"));
+            assertTrue(pom.contains("<" + property + ">KEEP_" + variable + "</" + property + ">"));
+        }
         assertTrue(pom.contains("<excludedEnvironmentVariable>ANTHROPIC_API_KEY</excludedEnvironmentVariable>"));
     }
 }

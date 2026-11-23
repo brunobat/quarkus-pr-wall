@@ -66,7 +66,7 @@ class FailureDetailsTest {
     }
 
     @Test
-    void aFlakyTestInAJobThatPassedIsNotShown() {
+    void aFlakyTestInAJobThatPassedIsNotAFailure() {
         CiChecks ci = CiService.of(checks(HEAD), COMMENTS, Approval.NOT_WAITING);
 
         assertFalse(ci.notPassed().stream().anyMatch(f -> f.check().name().equals("JVM Tests - JDK 17 Windows")));

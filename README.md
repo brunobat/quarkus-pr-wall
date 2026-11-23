@@ -404,8 +404,8 @@ Tests never reach a real service unless they are tagged `live`, and live tests r
 calls Claude. Live tests read GitHub with the installed `gh` (read-only calls). The `jev` live test sends the
 question set for PR 58508 and any PRs given with `-Dlive.prs=<n>,<n>,...`, and prints each PR's answers for you to
 judge. It checks only that every question is answered. A PR over the submission limit is printed as not sent.
-It is skipped without `TYPESAFE_API_KEY`, which `-Plive` passes through; every other setting, `ANTHROPIC_API_KEY`
-included, is still kept out of tests:
+It is skipped without `TYPESAFE_API_KEY`. `-Plive` passes that key, `JEV_URL` and `JEV_MODEL` through; every other
+setting, `ANTHROPIC_API_KEY` included, is still kept out of tests:
 
 ```shell
 TYPESAFE_API_KEY=... ./mvnw verify -Plive -Dtest=JevClientLiveTest -Dlive.prs=58115,57350
