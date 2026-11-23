@@ -15,9 +15,9 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.prreview.classification.SourceResult;
 import io.quarkus.prreview.classification.github.ci.CiService;
 import io.quarkus.prreview.classification.github.model.PrSize;
-import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;

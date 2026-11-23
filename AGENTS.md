@@ -47,8 +47,9 @@ Base package `io.quarkus.prreview`:
 
 - `clients/{gh,jev,claude}` holds the only code that talks to external systems. Business code goes through it,
   and clients return our model types.
-- `classification/{checks,submission,model,github,github/ci,provenance}`, `triage/` and `report/{,summary}` hold
-  the business logic; results go in the `model/` beside them.
+- `classification/{checks,jev,github,github/ci,provenance}`, `triage/` and `report/{,summary}` hold
+  the business logic; results go in the `model/` beside them. `SourceResult`, which every source returns, sits in
+  `classification/` itself.
 - `util/` holds only helpers that know nothing about PRs, `jev` or GitHub and are used from at least two domains.
 - Place a class by what it is: results go in `model`, check contracts and checks in `classification/checks`, and
   anything that only presents a classification goes under `report/`. Prefer an existing package to a new one,

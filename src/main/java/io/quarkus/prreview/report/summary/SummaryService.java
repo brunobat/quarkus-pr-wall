@@ -17,9 +17,9 @@ import org.jboss.logging.Logger;
 
 import dev.langchain4j.model.output.TokenUsage;
 import dev.langchain4j.service.Result;
-import io.quarkus.prreview.classification.model.CheckResult;
-import io.quarkus.prreview.classification.model.Classification;
-import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.jev.model.CheckResult;
+import io.quarkus.prreview.classification.jev.model.Classification;
+import io.quarkus.prreview.classification.jev.model.QuestionResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.config.ApiKey;
 import io.quarkus.prreview.report.AnswerFormat;

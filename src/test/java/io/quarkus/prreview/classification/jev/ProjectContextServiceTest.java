@@ -1,4 +1,4 @@
-package io.quarkus.prreview.classification.submission;
+package io.quarkus.prreview.classification.jev;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -11,7 +11,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import io.quarkus.prreview.classification.model.ProjectContext;
+import io.quarkus.prreview.classification.jev.model.ProjectContext;
 
 class ProjectContextServiceTest {
 

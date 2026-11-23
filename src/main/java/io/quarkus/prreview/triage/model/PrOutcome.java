@@ -2,11 +2,11 @@ package io.quarkus.prreview.triage.model;
 
 import java.util.List;
 
+import io.quarkus.prreview.classification.SourceResult;
 import io.quarkus.prreview.classification.github.model.Approval;
 import io.quarkus.prreview.classification.github.model.CiChecks;
 import io.quarkus.prreview.classification.github.model.PrSize;
-import io.quarkus.prreview.classification.model.JevResult;
-import io.quarkus.prreview.classification.model.SourceResult;
+import io.quarkus.prreview.classification.jev.model.JevResult;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 
 /**

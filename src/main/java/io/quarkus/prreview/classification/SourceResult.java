@@ -1,4 +1,4 @@
-package io.quarkus.prreview.classification.model;
+package io.quarkus.prreview.classification;
 
 /**
  * What one classification source found for a PR: its facts, or that they could not be obtained. Every PR has a

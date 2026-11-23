@@ -4,8 +4,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import org.jboss.logging.Logger;
 
+import io.quarkus.prreview.classification.SourceResult;
 import io.quarkus.prreview.classification.github.model.PrSize;
-import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.util.FailureLog;

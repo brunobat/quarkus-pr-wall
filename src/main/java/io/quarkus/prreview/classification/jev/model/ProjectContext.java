@@ -1,4 +1,4 @@
-package io.quarkus.prreview.classification.model;
+package io.quarkus.prreview.classification.jev.model;
 
 /**
  * The fixed prose that starts every {@code jev} input: what the repository is and its layout conventions. It is the

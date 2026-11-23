@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.jev.model.Classification;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.it.support.ClaudeWireMock;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;

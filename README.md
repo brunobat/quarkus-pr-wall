@@ -418,8 +418,8 @@ Layout (base package `io.quarkus.prreview`):
 - `util/`: helpers that know nothing about PRs, `jev` or GitHub, such as `FailureLog`;
 - `clients/{gh,jev,claude}/`: the only code that talks to `gh`, `jev` and Claude, each with its `model/`;
 - `triage/`: one PR from fetch to outcome, and diff parsing; `triage/model/`, the PR and its outcome;
-- `classification/checks/`: the check contract and the test-adequacy check; `classification/submission/`, the
-  single `jev` submission; `classification/model/`, `jev`'s results and `SourceResult`;
+- `classification/`: `SourceResult`, what each source returns; `classification/checks/`, the check contract and the
+  test-adequacy check; `classification/jev/`, the single `jev` submission, with `jev`'s results in its `model/`;
 - `classification/github/`: the facts read from GitHub (the bulk read, size, and CI in `ci/`), with their
   `model/`;
 - `classification/provenance/`: who wrote a PR, with its `model/`;

@@ -12,6 +12,8 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.prreview.classification.jev.model.QuestionResult;
+
 /**
  * Classify, don't decide (Clarifications #26, #32): no code compares a {@code jev} probability with a number, and
  * no code is about thresholds, cut-offs or verdicts.

@@ -11,8 +11,8 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
+import io.quarkus.prreview.classification.SourceResult;
 import io.quarkus.prreview.classification.github.GitHubFactsService;
-import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.clients.gh.GhClient;

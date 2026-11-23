@@ -2,8 +2,6 @@ package io.quarkus.prreview.util;
 
 import org.jboss.logging.Logger;
 
-import io.quarkus.prreview.util.PlainText;
-
 /**
  * Expected failures (a {@code gh} or {@code jev} call that failed) logged as one warning line: what failed and the
  * failure's message on one line. The stack trace is added only when the logger is at debug level, so a normal run

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 
+import io.quarkus.prreview.classification.jev.model.Classification;
 import io.quarkus.prreview.it.support.ClaudeWireMock;
 import io.quarkus.prreview.it.support.FakeGh;
 import io.quarkus.prreview.it.support.JevWireMock;

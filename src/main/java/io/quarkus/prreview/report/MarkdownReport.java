@@ -6,17 +6,17 @@ import java.util.regex.Pattern;
 
 import dev.langchain4j.model.output.TokenUsage;
 
+import io.quarkus.prreview.classification.SourceResult;
 import io.quarkus.prreview.classification.github.model.CiCheck;
 import io.quarkus.prreview.classification.github.model.CiChecks;
 import io.quarkus.prreview.classification.github.model.FailedCheck;
 import io.quarkus.prreview.classification.github.model.FailureRow;
 import io.quarkus.prreview.classification.github.model.FlakyTest;
 import io.quarkus.prreview.classification.github.model.PrSize;
-import io.quarkus.prreview.classification.model.CheckResult;
-import io.quarkus.prreview.classification.model.Classification;
-import io.quarkus.prreview.classification.model.JevResult;
-import io.quarkus.prreview.classification.model.QuestionResult;
-import io.quarkus.prreview.classification.model.SourceResult;
+import io.quarkus.prreview.classification.jev.model.CheckResult;
+import io.quarkus.prreview.classification.jev.model.Classification;
+import io.quarkus.prreview.classification.jev.model.JevResult;
+import io.quarkus.prreview.classification.jev.model.QuestionResult;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.report.summary.Summary;

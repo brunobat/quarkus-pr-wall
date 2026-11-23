@@ -2,10 +2,10 @@ package io.quarkus.prreview.triage.model;
 
 import java.util.List;
 
-import io.quarkus.prreview.classification.model.CheckResult;
-import io.quarkus.prreview.classification.model.Classification;
-import io.quarkus.prreview.classification.model.JevResult;
-import io.quarkus.prreview.classification.model.SourceResult;
+import io.quarkus.prreview.classification.SourceResult;
+import io.quarkus.prreview.classification.jev.model.CheckResult;
+import io.quarkus.prreview.classification.jev.model.Classification;
+import io.quarkus.prreview.classification.jev.model.JevResult;
 import io.quarkus.prreview.report.summary.Summary;
 
 /** Outcomes for rendering tests: {@code jev}'s result alone, with every GitHub source unavailable. */

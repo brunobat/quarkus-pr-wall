@@ -15,9 +15,9 @@ import org.jboss.logging.Logger;
 
 import io.quarkus.arc.Unremovable;
 import io.quarkus.prreview.classification.github.GitHubFactsService;
-import io.quarkus.prreview.classification.model.JevResult;
+import io.quarkus.prreview.classification.jev.ProjectContextService;
+import io.quarkus.prreview.classification.jev.model.JevResult;
 import io.quarkus.prreview.classification.provenance.LoginMemoService;
-import io.quarkus.prreview.classification.submission.ProjectContextService;
 import io.quarkus.prreview.clients.jev.JevClient;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.report.MarkdownReport;

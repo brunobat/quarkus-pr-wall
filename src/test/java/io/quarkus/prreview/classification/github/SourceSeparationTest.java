@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.jev.model.QuestionResult;
 
 /**
  * GitHub's facts and {@code jev}'s answers are separate results: no GitHub record holds a {@code jev} answer type,
@@ -28,7 +28,7 @@ import io.quarkus.prreview.classification.model.QuestionResult;
 class SourceSeparationTest {
 
     static final String GITHUB = "io.quarkus.prreview.classification.github";
-    static final String JEV = "io.quarkus.prreview.classification.model";
+    static final String JEV = "io.quarkus.prreview.classification.jev";
 
     @Test
     void noGitHubRecordReferencesAJevAnswerType() throws IOException {

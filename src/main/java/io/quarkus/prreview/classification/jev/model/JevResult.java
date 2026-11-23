@@ -1,4 +1,4 @@
-package io.quarkus.prreview.classification.model;
+package io.quarkus.prreview.classification.jev.model;
 
 import io.quarkus.prreview.report.summary.Summary;
 

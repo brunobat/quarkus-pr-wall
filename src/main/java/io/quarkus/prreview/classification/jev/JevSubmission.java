@@ -1,4 +1,4 @@
-package io.quarkus.prreview.classification.submission;
+package io.quarkus.prreview.classification.jev;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,9 +14,9 @@ import dev.langchain4j.model.decision.response.ChoiceAnswer;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import io.quarkus.prreview.classification.checks.CheckQuestions;
 import io.quarkus.prreview.classification.checks.ClassificationCheck;
-import io.quarkus.prreview.classification.model.CheckResult;
-import io.quarkus.prreview.classification.model.ProjectContext;
-import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.jev.model.CheckResult;
+import io.quarkus.prreview.classification.jev.model.ProjectContext;
+import io.quarkus.prreview.classification.jev.model.QuestionResult;
 import io.quarkus.prreview.triage.model.ChangedFile;
 import io.quarkus.prreview.triage.model.PrContext;
 

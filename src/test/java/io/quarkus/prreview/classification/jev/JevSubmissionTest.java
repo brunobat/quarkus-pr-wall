@@ -1,4 +1,4 @@
-package io.quarkus.prreview.classification.submission;
+package io.quarkus.prreview.classification.jev;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,9 +19,9 @@ import dev.langchain4j.model.decision.response.YesNoAnswer;
 import io.quarkus.prreview.classification.checks.CheckQuestions;
 import io.quarkus.prreview.classification.checks.ClassificationCheck;
 import io.quarkus.prreview.classification.checks.TestAdequacyService;
-import io.quarkus.prreview.classification.model.CheckResult;
-import io.quarkus.prreview.classification.model.ProjectContext;
-import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.jev.model.CheckResult;
+import io.quarkus.prreview.classification.jev.model.ProjectContext;
+import io.quarkus.prreview.classification.jev.model.QuestionResult;
 import io.quarkus.prreview.triage.DiffFiles;
 import io.quarkus.prreview.triage.model.PrContext;
 import io.quarkus.prreview.triage.model.PullRequest;

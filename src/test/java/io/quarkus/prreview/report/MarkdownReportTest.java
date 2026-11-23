@@ -8,9 +8,9 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.prreview.classification.SourceResult;
 import io.quarkus.prreview.classification.github.model.Approval;
 import io.quarkus.prreview.classification.github.model.CiChecks;
-import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.triage.model.PrOutcome;
 import io.quarkus.prreview.triage.model.PullRequest;
 import io.quarkus.prreview.triage.model.TestOutcomes;

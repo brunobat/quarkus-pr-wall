@@ -16,7 +16,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.service.Result;
-import io.quarkus.prreview.classification.model.Classification;
+import io.quarkus.prreview.classification.jev.model.Classification;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;

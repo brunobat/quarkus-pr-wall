@@ -14,8 +14,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import io.quarkus.prreview.classification.SourceResult;
 import io.quarkus.prreview.classification.github.GitHubFactsService;
-import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.model.AiLabel;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;

@@ -21,10 +21,10 @@ import dev.langchain4j.service.Result;
 
 import dev.langchain4j.model.output.TokenUsage;
 import io.quarkus.prreview.classification.checks.TestAdequacyService;
-import io.quarkus.prreview.classification.model.CheckResult;
-import io.quarkus.prreview.classification.model.Classification;
-import io.quarkus.prreview.classification.model.ProjectContext;
-import io.quarkus.prreview.classification.model.QuestionResult;
+import io.quarkus.prreview.classification.jev.model.CheckResult;
+import io.quarkus.prreview.classification.jev.model.Classification;
+import io.quarkus.prreview.classification.jev.model.ProjectContext;
+import io.quarkus.prreview.classification.jev.model.QuestionResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.triage.model.ChangedFile;
 import io.quarkus.prreview.triage.model.PrContext;

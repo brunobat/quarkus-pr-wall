@@ -23,7 +23,7 @@ import dev.langchain4j.model.decision.DecisionModel;
 import dev.langchain4j.model.decision.request.DecisionRequest;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import dev.langchain4j.model.decision.response.YesNoAnswer;
-import io.quarkus.prreview.classification.model.JevResult;
+import io.quarkus.prreview.classification.jev.model.JevResult;
 import io.quarkus.prreview.clients.claude.ClassificationSummarizer;
 import io.quarkus.prreview.it.support.FakeGh;
 import io.quarkus.prreview.triage.model.PrOutcome;

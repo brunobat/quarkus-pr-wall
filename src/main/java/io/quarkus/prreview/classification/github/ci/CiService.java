@@ -7,12 +7,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import org.jboss.logging.Logger;
 
+import io.quarkus.prreview.classification.SourceResult;
 import io.quarkus.prreview.classification.github.GitHubFactsService;
 import io.quarkus.prreview.classification.github.model.Approval;
 import io.quarkus.prreview.classification.github.model.CiCheck;
 import io.quarkus.prreview.classification.github.model.CiChecks;
 import io.quarkus.prreview.classification.github.model.FailedCheck;
-import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhCheck;

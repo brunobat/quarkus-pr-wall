@@ -1,11 +1,11 @@
-package io.quarkus.prreview.classification.submission;
+package io.quarkus.prreview.classification.jev;
 
 import java.io.IOException;
 import java.nio.file.InvalidPathException;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
-import io.quarkus.prreview.classification.model.ProjectContext;
+import io.quarkus.prreview.classification.jev.model.ProjectContext;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.util.FileOrResource;
 
