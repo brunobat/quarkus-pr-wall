@@ -48,6 +48,17 @@ class GhClientTest {
     }
 
     @Test
+    void theMetadataReadAsksForTheDraftFlag() throws IOException {
+        assertFalse(client.metadata(101).draft());
+        PullRequest draft = client.withDiff(client.metadata(121));
+
+        assertTrue(draft.draft());
+        assertFalse(draft.diff().isEmpty());
+        List<String> log = Files.readAllLines(FakeGh.CALLS_LOG);
+        assertEquals("pr view 121 --json number,title,url,state,isDraft -R quarkusio/quarkus", log.get(log.size() - 2));
+    }
+
+    @Test
     void unknownPrCarriesGhMessage() {
         GhException e = assertThrows(GhException.class, () -> client.metadata(404));
         assertTrue(e.getMessage().contains("Could not resolve to a PullRequest with the number of 404"), e.getMessage());

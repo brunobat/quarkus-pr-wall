@@ -104,7 +104,7 @@ class JevClientTest {
     @Test
     void everyChecksQuestionsCountTowardTheLimit() {
         String diff = "diff --git a/a.java b/a.java\n--- a/a.java\n+++ b/a.java\n@@ -1 +1 @@\n-x\n+y\n";
-        PrContext pr = new PrContext(new PullRequest(1, "t", "u", "OPEN", diff), DiffFiles.parse(diff));
+        PrContext pr = new PrContext(new PullRequest(1, "t", "u", "OPEN", false, diff), DiffFiles.parse(diff));
         ClassificationCheck other = new ClassificationCheck() {
             @Override
             public String id() {

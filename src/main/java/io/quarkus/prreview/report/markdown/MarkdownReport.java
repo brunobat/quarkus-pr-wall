@@ -226,7 +226,8 @@ public final class MarkdownReport {
             return;
         }
         md.append("# PR #").append(number).append(": ").append(inline(pr.title())).append("\n\n");
-        md.append("Link: ").append(inline(pr.url())).append(" · State: ").append(inline(pr.state())).append("\n\n");
+        md.append("Link: ").append(inline(pr.url())).append(" · State: ").append(inline(pr.state()))
+                .append(pr.draft() ? " (draft)" : "").append("\n\n");
     }
 
     private static void appendYesNo(StringBuilder md, CheckResult check) {

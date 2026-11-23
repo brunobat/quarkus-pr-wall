@@ -44,7 +44,7 @@ class SummaryServiceTest {
 
     static Classification classification() {
         PullRequest pr = new PullRequest(57720, "Fix the thing", "https://github.com/quarkusio/quarkus/pull/57720",
-                "OPEN", "diff --git a/SECRET-DIFF b/SECRET-DIFF");
+                "OPEN", false, "diff --git a/SECRET-DIFF b/SECRET-DIFF");
         List<ChangedFile> files = List.of(
                 new ChangedFile("core/src/main/java/Foo.java", ChangedFile.Kind.MODIFIED, null, false),
                 new ChangedFile("core/src/test/java/FooTest.java", ChangedFile.Kind.ADDED, null, false));

@@ -177,13 +177,15 @@ Author: newcomer (first-time) · AI: declared (commit 0123abc: "co-authored-by: 
 Report: reports/review-57715.md
 ```
 
+- A draft PR's line carries its state, e.g. `PR #57720 - test adequacy · State: OPEN (draft)`; other PR lines
+  are as above.
 - Probabilities are rounded to 2 decimals in the terminal, for display only.
 - `Summary (fallback template): …` replaces the Claude summary when there is no key, the call fails, it takes
   longer than `ANTHROPIC_TIMEOUT`, or the text is blank. The template lists every answer, e.g.
   `jev classification: behaviour 0.96; tests-changed 0.11; reach no-test-changes 0.96; assert no-test-changes 0.91.`
 
 **The report** (`review-<pr>.md`) has, in order:
-1. the title, link and state;
+1. the title, link and state, e.g. `Link: <url> · State: OPEN`, with ` (draft)` after a draft's state;
 2. **Size (GitHub)**, **CI checks (GitHub)** and **Provenance (GitHub)**: the same facts as the terminal, with each
    check linked to its run, each failing test linked to its Develocity history, the job's build scan when there is
    one, and the time GitHub was read for who wrote the PR;

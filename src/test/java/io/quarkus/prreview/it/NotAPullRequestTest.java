@@ -74,7 +74,7 @@ class NotAPullRequestTest {
         assertTrue(calls.subList(status + 1, calls.size()).stream().noneMatch(c -> c.contains("58521")),
                 calls.toString());
         // Before it, only the run-wide bulk reads and the metadata read named it.
-        assertEquals(List.of("pr view 58521 --json number,title,url,state -R quarkusio/quarkus"),
+        assertEquals(List.of("pr view 58521 --json number,title,url,state,isDraft -R quarkusio/quarkus"),
                 calls.subList(0, status).stream().filter(c -> c.contains("58521") && !c.startsWith("pr list "))
                         .toList());
     }

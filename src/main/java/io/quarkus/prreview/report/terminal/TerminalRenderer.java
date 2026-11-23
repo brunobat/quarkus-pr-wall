@@ -50,7 +50,7 @@ public final class TerminalRenderer {
 
     /** The whole block: the header, then each classification source's part in a fixed order, then the report line. */
     public static String render(PrOutcome outcome, ReportWriter.Result report) {
-        return header(outcome.number(), outcome.checks()) + jev(outcome.jev()) + size(outcome.size()) + ci(outcome.ci())
+        return header(outcome) + jev(outcome.jev()) + size(outcome.size()) + ci(outcome.ci())
                 + provenance(outcome.provenance()) + switch (report) {
                     case ReportWriter.Written written -> "Report: " + written.path() + "\n";
                     case ReportWriter.Failed failed ->
@@ -141,8 +141,10 @@ public final class TerminalRenderer {
                 + "Summary (" + summary.shortSource() + "): " + PlainText.oneLine(summary.text()) + "\n";
     }
 
-    private static String header(int number, List<String> checkIds) {
-        return "PR #" + number + " - " + String.join(", ", checkIds.stream().map(id -> id.replace('-', ' ')).toList())
-                + "\n";
+    /** The PR line; a draft's carries its state, so it stands out in a list. */
+    private static String header(PrOutcome outcome) {
+        String checks = String.join(", ", outcome.checks().stream().map(id -> id.replace('-', ' ')).toList());
+        String draft = outcome.draft() ? " · State: " + PlainText.oneLine(outcome.pullRequest().state()) + " (draft)" : "";
+        return "PR #" + outcome.number() + " - " + checks + draft + "\n";
     }
 }

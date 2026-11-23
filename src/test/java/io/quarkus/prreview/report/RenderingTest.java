@@ -50,7 +50,7 @@ class RenderingTest {
      */
     static Classification classification(String title, String path, double behaviour, String chosen,
             Map<String, Double> options) {
-        PullRequest pr = new PullRequest(57720, title, "https://github.com/quarkusio/quarkus/pull/57720", "OPEN", "");
+        PullRequest pr = new PullRequest(57720, title, "https://github.com/quarkusio/quarkus/pull/57720", "OPEN", false, "");
         List<ChangedFile> files = List.of(new ChangedFile(path, ChangedFile.Kind.MODIFIED, null, false));
         CheckResult check = new CheckResult("test-adequacy", List.of(
                 new QuestionResult("behaviour", TestAdequacyCheck.BEHAVIOUR.text(),
@@ -221,7 +221,7 @@ class RenderingTest {
 
     @Test
     void untrustedTextNeverStartsALine() {
-        PullRequest pr = new PullRequest(1, "t", "> quote", "- list", "");
+        PullRequest pr = new PullRequest(1, "t", "> quote", "- list", false, "");
         Classification c = new Classification(new PrContext(pr, List.of()), sample(0.5, "undetermined",
                 probs("undetermined", 0.5)).checks(), "jev", null, 1, 1, 2, CONTEXT);
         for (String text : List.of("# Heading", "```", "> quote", "- item", "1. item", "| a | b |", "~~~")) {
@@ -286,7 +286,7 @@ class RenderingTest {
     @Test
     void errorReportWithATitle() {
         PullRequest pr = new PullRequest(57715, "Big | change", "https://github.com/quarkusio/quarkus/pull/57715",
-                "OPEN", "");
+                "OPEN", false, "");
         String report = MarkdownReport.render(notAnswered(pr,
                 "submission estimated at 71757 tokens + 1000 for the answer exceeds limit 60000",
                 "submission is 215269 characters, estimated at 71757 tokens (3.0 characters per token);\nwith 1000"
@@ -323,6 +323,30 @@ class RenderingTest {
                 """, report);
         assertFalse(report.contains("## Classification"));
         assertFalse(report.contains("## Summary"));
+    }
+
+    @Test
+    void aDraftShowsItsStateInTheReportAndOnThePrLine() {
+        PullRequest pr = new PullRequest(57715, "Big | change", "https://github.com/quarkusio/quarkus/pull/57715",
+                "OPEN", true, "");
+        PrOutcome outcome = notAnswered(pr, "gh: x", "x");
+
+        assertTrue(MarkdownReport.render(outcome).contains(
+                "\nLink: https://github.com/quarkusio/quarkus/pull/57715 · State: OPEN (draft)\n"),
+                MarkdownReport.render(outcome));
+        String block = TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT));
+        assertTrue(block.startsWith("PR #57715 - test adequacy · State: OPEN (draft)\n"), block);
+    }
+
+    @Test
+    void aPrThatIsNotADraftKeepsItsPrLine() {
+        PullRequest pr = new PullRequest(57715, "Big | change", "https://github.com/quarkusio/quarkus/pull/57715",
+                "OPEN", false, "");
+
+        String block = TerminalRenderer.render(notAnswered(pr, "gh: x", "x"), new ReportWriter.Written(REPORT));
+        assertTrue(block.startsWith("PR #57715 - test adequacy\n"), block);
+        String unread = TerminalRenderer.render(notAnswered(null, "gh: x", "x"), new ReportWriter.Written(REPORT));
+        assertTrue(unread.startsWith("PR #57715 - test adequacy\n"), unread);
     }
 
     @Test

@@ -65,16 +65,17 @@ public class GhClient {
         this.mapper = mapper;
     }
 
-    /** Fetches the PR's metadata: number, title, URL and state, with an empty diff. */
+    /** Fetches the PR's metadata: number, title, URL, state and draft flag, with an empty diff. */
     public PullRequest metadata(int pr) {
-        String json = run(List.of("pr", "view", Integer.toString(pr), "--json", "number,title,url,state"));
+        String json = run(List.of("pr", "view", Integer.toString(pr), "--json", "number,title,url,state,isDraft"));
         View view;
         try {
             view = mapper.readValue(json, View.class);
         } catch (JacksonException e) {
             throw new GhException("unexpected output from gh pr view " + pr + ": " + e.getOriginalMessage(), e);
         }
-        return new PullRequest(view.number(), view.title(), view.url(), view.state(), "");
+        return new PullRequest(view.number(), view.title(), view.url(), view.state(), Boolean.TRUE.equals(view.isDraft()),
+                "");
     }
 
     /**
@@ -88,10 +89,11 @@ public class GhClient {
         } catch (GhException e) {
             throw new GhException(e.getMessage(), metadata, e);
         }
-        return new PullRequest(metadata.number(), metadata.title(), metadata.url(), metadata.state(), diff);
+        return new PullRequest(metadata.number(), metadata.title(), metadata.url(), metadata.state(), metadata.draft(),
+                diff);
     }
 
-    private record View(int number, String title, String url, String state) {
+    private record View(int number, String title, String url, String state, @JsonProperty("isDraft") Boolean isDraft) {
     }
 
     /**

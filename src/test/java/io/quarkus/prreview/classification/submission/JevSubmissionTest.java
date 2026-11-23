@@ -68,7 +68,7 @@ class JevSubmissionTest {
             """;
 
     static PrContext pr(String diff) {
-        return new PrContext(new PullRequest(7, "Secret title", "https://example/pull/7", "OPEN", diff),
+        return new PrContext(new PullRequest(7, "Secret title", "https://example/pull/7", "OPEN", false, diff),
                 DiffFiles.parse(diff));
     }
 

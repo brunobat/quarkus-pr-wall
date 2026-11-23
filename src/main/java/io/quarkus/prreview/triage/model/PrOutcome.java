@@ -29,6 +29,11 @@ import io.quarkus.prreview.report.summary.model.Summary;
 public record PrOutcome(int number, List<String> checks, PullRequest pullRequest, JevResult jev,
         SourceResult<PrSize> size, SourceResult<CiChecks> ci, SourceResult<Provenance> provenance) {
 
+    /** Whether GitHub marks the PR as a draft; {@code false} when its metadata was not read. */
+    public boolean draft() {
+        return pullRequest != null && pullRequest.draft();
+    }
+
     /** The reason given by a GitHub source that was not asked. */
     public static final String NOT_GATHERED = "not gathered";
 

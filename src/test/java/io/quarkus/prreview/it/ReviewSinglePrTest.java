@@ -217,6 +217,17 @@ class ReviewSinglePrTest {
     }
 
     @Test
+    void aDraftIsMarkedOnItsPrLineAndInItsReport(QuarkusMainLauncher launcher) throws IOException {
+        LaunchResult result = launcher.launch("review", "121", "--output-dir", out.toString());
+
+        assertEquals(0, result.exitCode(), result.getOutput());
+        assertTrue(result.getOutputStream().contains("PR #121 - test adequacy · State: OPEN (draft)"), result.getOutput());
+        String markdown = Files.readString(out.resolve("review-121.md"));
+        assertTrue(markdown.contains("\nLink: https://github.com/quarkusio/quarkus/pull/121 · State: OPEN (draft)"),
+                markdown);
+    }
+
+    @Test
     void testsOnlyPrIsAlsoOneJevCall(QuarkusMainLauncher launcher) {
         LaunchResult result = launcher.launch("review", "102", "--output-dir", out.toString());
 
