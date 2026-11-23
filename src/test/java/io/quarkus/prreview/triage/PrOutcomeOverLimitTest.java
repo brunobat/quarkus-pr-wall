@@ -31,7 +31,7 @@ class PrOutcomeOverLimitTest {
     public static class LowLimit implements QuarkusTestProfile {
         @Override
         public Map<String, String> getConfigOverrides() {
-            return Map.of("pr-review.jev.max-submission-chars", "1000");
+            return Map.of("pr-review.jev.max-submission-tokens", "1000");
         }
     }
 

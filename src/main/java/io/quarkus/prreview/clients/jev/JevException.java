@@ -7,11 +7,13 @@ package io.quarkus.prreview.clients.jev;
 public class JevException extends RuntimeException {
 
     private final int submissionChars;
+    private final int estimatedTokens;
     private final int limit;
 
-    public JevException(String message, int submissionChars, int limit, Throwable cause) {
+    public JevException(String message, int submissionChars, int estimatedTokens, int limit, Throwable cause) {
         super(message, cause);
         this.submissionChars = submissionChars;
+        this.estimatedTokens = estimatedTokens;
         this.limit = limit;
     }
 
@@ -20,7 +22,12 @@ public class JevException extends RuntimeException {
         return submissionChars;
     }
 
-    /** The configured size limit, in characters. */
+    /** The submission's estimated tokens, without the share kept for the answer. */
+    public int estimatedTokens() {
+        return estimatedTokens;
+    }
+
+    /** The configured size limit, in tokens. */
     public int limit() {
         return limit;
     }

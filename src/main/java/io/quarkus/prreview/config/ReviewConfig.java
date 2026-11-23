@@ -78,12 +78,22 @@ public interface ReviewConfig {
     interface Jev {
 
         /**
-         * The largest {@code jev} submission, in characters of the serialized request body, that is sent.
-         * Larger submissions are noted as not classified before sending, instead of being rejected by
-         * {@code jev} or sent partially.
+         * Characters per token used to estimate a submission's tokens from its serialized request body.
+         * {@code jev} offers no token count before sending; 3.0 is below every ratio seen on real submissions,
+         * so the estimate errs on the high side.
          */
-        @WithDefault("${JEV_MAX_SUBMISSION_CHARS:60000}")
-        int maxSubmissionChars();
+        double CHARS_PER_TOKEN = 3.0;
+
+        /** Tokens kept for {@code jev}'s answer, since its limit covers the submission and the answer together. */
+        int ANSWER_TOKENS = 1000;
+
+        /**
+         * The largest {@code jev} submission, in tokens, that is sent: the estimated tokens of the serialized
+         * request body plus {@link #ANSWER_TOKENS} must not exceed it. Larger submissions are noted as not
+         * classified before sending, instead of being rejected by {@code jev} or sent partially.
+         */
+        @WithDefault("${JEV_MAX_SUBMISSION_TOKENS:60000}")
+        int maxSubmissionTokens();
 
         /**
          * The project context sent at the start of every {@code jev} submission: a file path, or

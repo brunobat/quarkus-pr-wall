@@ -12,8 +12,9 @@ import io.quarkus.prreview.config.ApiKey;
 import io.quarkus.prreview.config.ReviewConfig;
 
 /**
- * The only access to {@code jev}. Each submission is measured before sending; one over the configured limit is
- * refused with a {@link SubmissionTooLargeException}, without an HTTP call. Otherwise it is sent once, with no retry, and any failure becomes a
+ * The only access to {@code jev}. Each submission is measured before sending and its tokens estimated; one whose
+ * estimate, with the tokens kept for the answer, is over the configured limit is refused with a
+ * {@link SubmissionTooLargeException}, without an HTTP call. Otherwise it is sent once, with no retry, and any failure becomes a
  * {@link JevException}.
  */
 @ApplicationScoped
@@ -50,14 +51,16 @@ public class JevClient {
                         .overrideWith(request.parameters()))
                 .build();
         int size = SubmissionSize.of(sent);
-        int limit = config.jev().maxSubmissionChars();
-        if (size > limit) {
-            throw new SubmissionTooLargeException(size, limit);
+        int tokens = SubmissionSize.estimatedTokens(size);
+        int limit = config.jev().maxSubmissionTokens();
+        if (tokens + ReviewConfig.Jev.ANSWER_TOKENS > limit) {
+            throw new SubmissionTooLargeException(size, tokens, limit);
         }
         try {
-            return new JevDecision(model.decide(sent), size, limit);
+            return new JevDecision(model.decide(sent), size, tokens, limit);
         } catch (RuntimeException e) {
-            throw new JevException(e.getMessage() == null ? e.getClass().getName() : e.getMessage(), size, limit, e);
+            throw new JevException(e.getMessage() == null ? e.getClass().getName() : e.getMessage(), size, tokens,
+                    limit, e);
         }
     }
 }

@@ -179,11 +179,11 @@ class ReviewSinglePrTest {
             assertGitHubSections(report406);
 
             // The same PR over jev's submission limit still shows GitHub's facts.
-            System.setProperty("pr-review.jev.max-submission-chars", "1000");
+            System.setProperty("pr-review.jev.max-submission-tokens", "1000");
             try {
                 result = launcher.launch("review", "101");
             } finally {
-                System.clearProperty("pr-review.jev.max-submission-chars");
+                System.clearProperty("pr-review.jev.max-submission-tokens");
             }
             assertTrue(result.getOutput().contains("exceeds limit 1000"), result.getOutput());
             assertTrue(result.getOutputStream().contains("Size: 2 files changed, +12 -3"), result.getOutput());

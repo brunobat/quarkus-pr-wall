@@ -69,12 +69,15 @@ class JevClientTest {
         DecisionResponse response = DecisionResponse.builder().answer("c.q", YesNoAnswer.of(0.5)).build();
         when(model.decide(any(DecisionRequest.class))).thenReturn(response);
         int size = sizeWithModel("jev-latest");
+        int tokens = SubmissionSize.estimatedTokens(size);
+        int limit = tokens + ReviewConfig.Jev.ANSWER_TOKENS;
 
-        JevDecision decision = new JevClient(model, config(size), "jev-latest", "test-key").decide(REQUEST);
+        JevDecision decision = new JevClient(model, config(limit), "jev-latest", "test-key").decide(REQUEST);
 
         assertSame(response, decision.response());
         assertEquals(size, decision.submissionChars());
-        assertEquals(size, decision.limit());
+        assertEquals(tokens, decision.estimatedTokens());
+        assertEquals(limit, decision.limit());
         ArgumentCaptor<DecisionRequest> sent = ArgumentCaptor.forClass(DecisionRequest.class);
         verify(model).decide(sent.capture());
         assertEquals("jev-latest", sent.getValue().modelName());
@@ -84,13 +87,17 @@ class JevClientTest {
     void submissionOverTheLimitIsNotSent() {
         DecisionModel model = mock(DecisionModel.class);
         int size = sizeWithModel("jev-latest");
+        int tokens = SubmissionSize.estimatedTokens(size);
+        int limit = tokens + ReviewConfig.Jev.ANSWER_TOKENS - 1;
 
         JevException e = assertThrows(SubmissionTooLargeException.class,
-                () -> new JevClient(model, config(size - 1), "jev-latest", "test-key").decide(REQUEST));
+                () -> new JevClient(model, config(limit), "jev-latest", "test-key").decide(REQUEST));
 
-        assertEquals("submission is %d characters, over the limit of %d".formatted(size, size - 1), e.getMessage());
+        assertEquals(("submission is %d characters, estimated at %d tokens (3.0 characters per token); with 1000 tokens"
+                + " kept for the answer it is over the limit of %d tokens").formatted(size, tokens, limit), e.getMessage());
         assertEquals(size, e.submissionChars());
-        assertEquals(size - 1, e.limit());
+        assertEquals(tokens, e.estimatedTokens());
+        assertEquals(limit, e.limit());
         verify(model, never()).decide(any(DecisionRequest.class));
     }
 
@@ -115,14 +122,24 @@ class JevClientTest {
         DecisionModel model = mock(DecisionModel.class);
         when(model.decide(any(DecisionRequest.class)))
                 .thenReturn(DecisionResponse.builder().answer("c.q", YesNoAnswer.of(0.5)).build());
-        JevClient client = new JevClient(model, config(sizeWithModel(oneCheck, "jev-latest")), "jev-latest",
-                "test-key");
+        JevClient client = new JevClient(model,
+                config(SubmissionSize.estimatedTokens(sizeWithModel(oneCheck, "jev-latest")) + ReviewConfig.Jev.ANSWER_TOKENS),
+                "jev-latest", "test-key");
 
         client.decide(oneCheck);
         JevException e = assertThrows(JevException.class, () -> client.decide(twoChecks));
 
-        assertTrue(e.submissionChars() > e.limit(), e.getMessage());
+        assertTrue(e.estimatedTokens() + ReviewConfig.Jev.ANSWER_TOKENS > e.limit(), e.getMessage());
         verify(model).decide(any(DecisionRequest.class));
+    }
+
+    @Test
+    void tokensAreEstimatedAtThreeCharactersEachRoundedUp() {
+        assertEquals(0, SubmissionSize.estimatedTokens(0));
+        assertEquals(1, SubmissionSize.estimatedTokens(1));
+        assertEquals(1, SubmissionSize.estimatedTokens(3));
+        assertEquals(2, SubmissionSize.estimatedTokens(4));
+        assertEquals(71_757, SubmissionSize.estimatedTokens(215_269));
     }
 
     @Test
@@ -181,7 +198,7 @@ class JevClientTest {
             public Jev jev() {
                 return new Jev() {
                     @Override
-                    public int maxSubmissionChars() {
+                    public int maxSubmissionTokens() {
                         return limit;
                     }
 

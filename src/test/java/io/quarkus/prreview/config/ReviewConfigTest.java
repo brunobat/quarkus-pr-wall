@@ -27,7 +27,7 @@ class ReviewConfigTest {
         // The test profile points both lists at minimal bundled copies.
         assertEquals("classpath:provenance/ai-provenance-signals.txt", config.provenance().aiSignals());
         assertEquals("classpath:provenance/automation-accounts.txt", config.provenance().automationAccounts());
-        assertEquals(60_000, config.jev().maxSubmissionChars());
+        assertEquals(60_000, config.jev().maxSubmissionTokens());
         assertEquals("classpath:project-context/quarkusio-quarkus.txt", config.jev().projectContext());
         assertEquals(Path.of("reports"), config.outputDir());
     }

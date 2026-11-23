@@ -1,7 +1,12 @@
 package io.quarkus.prreview.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 
@@ -32,7 +37,7 @@ class ReviewConfigEnvironmentTest {
                         "GH_CACHE_TTL", "10m",
                         "PROVENANCE_MAX_PEOPLE", "3",
                         "PROVENANCE_AI_SIGNALS", "/etc/signals.txt",
-                        "JEV_MAX_SUBMISSION_CHARS", "1234"), "env", 300))
+                        "JEV_MAX_SUBMISSION_TOKENS", "1234"), "env", 300))
                 .build();
 
         ReviewConfig mapped = config.getConfigMapping(ReviewConfig.class);
@@ -45,6 +50,30 @@ class ReviewConfigEnvironmentTest {
         assertEquals("/etc/signals.txt", mapped.provenance().aiSignals());
         // Without the variable, the default points into resource-files/.
         assertEquals("resource-files/automation-accounts.txt", mapped.provenance().automationAccounts());
-        assertEquals(1234, mapped.jev().maxSubmissionChars());
+        assertEquals(1234, mapped.jev().maxSubmissionTokens());
+    }
+
+    /** The character limit was replaced by a token limit, with no alias: its old variable is ignored. */
+    @Test
+    void theOldCharacterLimitVariableMapsToNothing() {
+        SmallRyeConfig config = new SmallRyeConfigBuilder()
+                .addDefaultInterceptors()
+                .withConverter(Duration.class, 100, new DurationConverter())
+                .withMapping(ReviewConfig.class)
+                .withSources(new PropertiesConfigSource(Map.of("JEV_MAX_SUBMISSION_CHARS", "1234"), "env", 300))
+                .build();
+
+        assertEquals(60_000, config.getConfigMapping(ReviewConfig.class).jev().maxSubmissionTokens());
+    }
+
+    /** Tests assert the default, so a developer's own token limit must not reach them. */
+    @Test
+    void theBuildKeepsTheTokenLimitOutOfTests() throws IOException {
+        String pom = Files.readString(Path.of("pom.xml"));
+
+        assertTrue(pom.contains("<excludedEnvironmentVariable>JEV_MAX_SUBMISSION_TOKENS</excludedEnvironmentVariable>"));
+        assertTrue(pom.contains(
+                "<excludedEnvironmentVariable>PR_REVIEW_JEV_MAX_SUBMISSION_TOKENS</excludedEnvironmentVariable>"));
+        assertFalse(pom.contains("JEV_MAX_SUBMISSION_CHARS"));
     }
 }

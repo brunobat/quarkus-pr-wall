@@ -124,7 +124,7 @@ class ReviewListTest {
 
     @Test
     void aSinglePrOverTheConfiguredLimitIsAnError(QuarkusMainLauncher launcher) throws IOException {
-        System.setProperty("pr-review.jev.max-submission-chars", "1000");
+        System.setProperty("pr-review.jev.max-submission-tokens", "1000");
         try {
             LaunchResult result = launcher.launch("review", "101", "--output-dir", out.toString());
 
@@ -139,7 +139,7 @@ class ReviewListTest {
             assertTrue(report.contains("## Size (GitHub)\n\n- Changed files: 2\n"), report);
             assertEquals(0, jev.posts().size());
         } finally {
-            System.clearProperty("pr-review.jev.max-submission-chars");
+            System.clearProperty("pr-review.jev.max-submission-tokens");
         }
     }
 

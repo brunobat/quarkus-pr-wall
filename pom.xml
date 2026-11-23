@@ -128,7 +128,7 @@
                         <excludedEnvironmentVariable>PROVENANCE_MAX_PEOPLE</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PROVENANCE_AI_SIGNALS</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PROVENANCE_AUTOMATION_ACCOUNTS</excludedEnvironmentVariable>
-                        <excludedEnvironmentVariable>JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>JEV_MAX_SUBMISSION_TOKENS</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_URL</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_TIMEOUT</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JEV_MODEL</excludedEnvironmentVariable>
@@ -146,7 +146,7 @@
                         <excludedEnvironmentVariable>PR_REVIEW_PROVENANCE_MAX_PEOPLE</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_PROVENANCE_AI_SIGNALS</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_PROVENANCE_AUTOMATION_ACCOUNTS</excludedEnvironmentVariable>
-                        <excludedEnvironmentVariable>PR_REVIEW_JEV_MAX_SUBMISSION_CHARS</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>PR_REVIEW_JEV_MAX_SUBMISSION_TOKENS</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>PR_REVIEW_JEV_PROJECT_CONTEXT</excludedEnvironmentVariable>
                     </excludedEnvironmentVariables>
                     <systemPropertyVariables>
