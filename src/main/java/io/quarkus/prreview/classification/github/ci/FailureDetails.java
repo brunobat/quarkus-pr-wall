@@ -39,8 +39,7 @@ final class FailureDetails {
         BotStatusComment found = comment.get();
         String scan = found.scanLinks().get(check.name());
         return entries.stream().map(e -> e.test() == null ? new FailureRow(null, null, e.text(), null, scan)
-                : new FailureRow(e.test(), found.flaky().contains(new BotStatusComment.FlakyTest(check.name(),
-                        e.test())), e.text(), e.historyLink(), scan))
+                : new FailureRow(e.test(), found.isFlaky(check.name(), e.test()), e.text(), e.historyLink(), scan))
                 .toList();
     }
 

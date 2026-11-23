@@ -60,11 +60,15 @@ public class BotCommentParserTest {
                 + ":3.5.4:test (default-test) on project quarkus-integration-test-kubernetes-client-devservices: See "),
                 build.text());
         assertTrue(build.text().endsWith("There was an error in the forked process"), build.text());
-        assertEquals(Set.of(
-                new FlakyTest("JVM Tests - JDK 21", "io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test"),
-                new FlakyTest("JVM Tests - JDK 17 Windows",
+        assertEquals(List.of(
+                List.of("JVM Tests - JDK 21", "io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test"),
+                List.of("JVM Tests - JDK 17 Windows",
                         "io.quarkus.undertow.test.compress.CompressionEnabledTestCase.testCompressed")),
-                comment.flaky());
+                pairs(comment.flaky()));
+        assertEquals(List.of("extensions/vertx-http/deployment", "extensions/undertow/deployment"),
+                comment.flaky().stream().map(FlakyTest::module).toList());
+        assertTrue(comment.isFlaky("JVM Tests - JDK 21", "io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test"));
+        assertEquals("39751658302", comment.runId());
         // No build scan was produced for JVM Integration Tests - JDK 17 (":construction:").
         assertEquals(Map.of("JVM Tests - JDK 21", "https://develocity.quarkus.io/s/hzvs2pygcxpvk",
                 "JVM Integration Tests - JDK 17 Windows", "https://develocity.quarkus.io/s/gfir72xr56l32"),
@@ -80,6 +84,60 @@ public class BotCommentParserTest {
         assertEquals(Map.of(), comment.failures());
         assertEquals(Set.of("JVM Tests - JDK 21 Windows", "JVM Integration Tests - JDK 25 Semeru"),
                 Set.copyOf(comment.flaky().stream().map(FlakyTest::job).toList()));
+        assertEquals(new FlakyTest("JVM Tests - JDK 21 Windows",
+                "io.quarkus.micrometer.deployment.binder.VertxTcpMetricsNoClientMetricsTest.testTcpMetricsWithoutClientMetrics",
+                "extensions/micrometer/deployment",
+                "https://ge.quarkus.io/scans/tests?tests.container=io.quarkus.micrometer.deployment.binder"
+                        + ".VertxTcpMetricsNoClientMetricsTest&tests.test=testTcpMetricsWithoutClientMetrics"),
+                comment.flaky().getFirst());
+        assertEquals("36064596652", comment.runId());
+    }
+
+    @Test
+    void eachFlakyTestIsListedOncePerJobWithItsModule() {
+        BotStatusComment comment = BotCommentParser.parse(bot("2026-flaky-edge-cases.md", "2026-11-20T10:00:00Z"))
+                .orElseThrow();
+
+        String large = "io.quarkus.resteasy.reactive.jackson.deployment.test.LargeDtoReflectionFreeTest";
+        // Repeated under one job, and followed by several error blocks: once. Under three jobs: three times.
+        assertEquals(List.of(List.of("JVM Tests - JDK 21", large), List.of("JVM Tests - JDK 25", large),
+                List.of("JVM Tests - JDK 21 Windows", large),
+                List.of("JVM Tests - JDK 21 Windows", "io.quarkus.vertx.http.filters.GracefulShutdownFilterTest.test"),
+                List.of("Native Tests - gRPC", "io.quarkus.grpc.client.InstanceInjectionTest")),
+                pairs(comment.flaky()));
+        assertEquals(List.of("extensions/resteasy-reactive/rest-jackson/deployment",
+                "extensions/resteasy-reactive/rest-jackson/deployment",
+                "extensions/resteasy-reactive/rest-jackson/deployment", "extensions/vertx-http/deployment", ""),
+                comment.flaky().stream().map(FlakyTest::module).toList());
+        assertEquals("41878251737", comment.runId());
+    }
+
+    @Test
+    void aClassOnlyEntryLosesItsTrailingDot() {
+        BotStatusComment comment = BotCommentParser.parse(bot("2026-flaky-edge-cases.md", "2026-11-20T10:00:00Z"))
+                .orElseThrow();
+
+        Entry entry = comment.failures().get("JVM Tests - JDK 17").getFirst();
+        assertEquals("io.quarkus.grpc.client.InstanceInjectionTest", entry.test());
+        // A failure with only a <details> block gives the stack trace's first line.
+        assertEquals("java.lang.RuntimeException: Failed to start quarkus", entry.text());
+    }
+
+    @Test
+    void aBulletIsReadWithOrWithoutLeadingSpaces() {
+        String entry = "<p>:x: <code>a.B.c</code> - <a href=\"https://ge.quarkus.io/h\">History</a></p>\n\n";
+        for (String bullet : List.of("- `msg`", " - `msg`", "   - `msg`")) {
+            String body = "# Status for workflow `Quarkus CI`\n\nThis is the status report for running `Quarkus CI` on"
+                    + " commit " + "1".repeat(40) + ".\n\n## Failures\n\n### :gear: JVM Tests\n\n" + entry + bullet
+                    + "\n";
+            BotStatusComment comment = BotCommentParser.parse(new GhComment("quarkus-bot", body, "x")).orElseThrow();
+            assertEquals("msg", comment.failures().get("JVM Tests").getFirst().text(), bullet);
+            assertEquals(null, comment.runId());
+        }
+    }
+
+    static List<List<String>> pairs(List<FlakyTest> flaky) {
+        return flaky.stream().map(f -> List.of(f.job(), f.test())).toList();
     }
 
     @Test
@@ -92,9 +150,9 @@ public class BotCommentParserTest {
         assertEquals("Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.11.0:compile "
                 + "(default-compile) on project security-webauthn-quickstart: Compilation failure",
                 entries.getFirst().text());
-        assertEquals(Set.of(new FlakyTest("JVM Tests - JDK 21",
+        assertEquals(List.of(List.of("JVM Tests - JDK 21",
                 "io.quarkus.smallrye.reactivemessaging.hotreload.ConnectorChangeTest.testUpdatingConnector")),
-                comment.flaky());
+                pairs(comment.flaky()));
     }
 
     @Test

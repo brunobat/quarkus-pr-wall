@@ -3,11 +3,9 @@ package io.quarkus.prreview.classification.github.ci.botcomment;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,6 +30,8 @@ public final class BotCommentParser {
     private static final Pattern JOB = Pattern.compile("### :gear: (.+?)(?:\\s*<a [^>]*>#</a>)?");
     private static final Pattern HISTORY = Pattern.compile("<a href=\"([^\"]*)\">History</a>");
     private static final Pattern SCAN = Pattern.compile("\\[:mag:]\\(([^)\\s]+)\\)");
+    private static final Pattern MODULE = Pattern.compile("#### :package: (.+)");
+    private static final Pattern RUN_ID = Pattern.compile("<!-- Build-Reporter/workflow-run-id:([0-9]+) -->");
 
     private enum Section {
         OTHER,
@@ -84,7 +84,9 @@ public final class BotCommentParser {
         }
 
         Map<String, List<BotStatusComment.Entry>> failures = new LinkedHashMap<>();
-        Set<BotStatusComment.FlakyTest> flaky = new LinkedHashSet<>();
+        Map<List<String>, BotStatusComment.FlakyTest> flaky = new LinkedHashMap<>();
+        String runId = null;
+        String module = "";
         Map<String, String> scanLinks = new LinkedHashMap<>();
         Section section = Section.OTHER;
         String job = null;
@@ -93,6 +95,12 @@ public final class BotCommentParser {
         boolean fenced = false;
         for (i = i + 1; i < lines.length; i++) {
             String line = lines[i];
+            // The run id marker closes the comment; it is read even after a code block the comment left open.
+            Matcher run = RUN_ID.matcher(line.strip());
+            if (run.matches()) {
+                runId = run.group(1);
+                continue;
+            }
             if (line.startsWith("```")) {
                 fenced = !fenced;
                 continue;
@@ -105,11 +113,18 @@ public final class BotCommentParser {
                         : line.strip().equals("## Failures") ? Section.FAILURES
                                 : line.startsWith("## Flaky tests") ? Section.FLAKY : Section.OTHER;
                 job = null;
+                module = "";
                 continue;
             }
             Matcher jobLine = JOB.matcher(line.strip());
             if (line.startsWith("### ") && jobLine.matches()) {
                 job = jobLine.group(1).strip();
+                module = "";
+                continue;
+            }
+            Matcher moduleLine = MODULE.matcher(line.strip());
+            if (line.startsWith("#### ") && moduleLine.matches()) {
+                module = moduleLine.group(1).strip();
                 continue;
             }
             if (section == Section.FAILING_JOBS && line.startsWith("|")) {
@@ -144,27 +159,36 @@ public final class BotCommentParser {
                 i = next[0];
                 if (section == Section.FLAKY) {
                     if (historyLink != null) {
-                        flaky.add(new BotStatusComment.FlakyTest(job, oneLine(code)));
+                        String test = testName(code);
+                        flaky.putIfAbsent(List.of(job, test),
+                                new BotStatusComment.FlakyTest(job, test, module, historyLink));
                     }
                 } else {
                     failures.computeIfAbsent(job, j -> new ArrayList<>()).add(historyLink == null
                             ? new BotStatusComment.Entry(null, oneLine(code), null)
-                            : new BotStatusComment.Entry(oneLine(code), error, historyLink));
+                            : new BotStatusComment.Entry(testName(code), error, historyLink));
                 }
             }
         }
-        return Optional.of(new BotStatusComment(heading.group(1), sentence.group(2), comment.createdAt(), failures,
-                flaky, scanLinks));
+        return Optional.of(new BotStatusComment(heading.group(1), sentence.group(2), comment.createdAt(), runId,
+                failures, List.copyOf(flaky.values()), scanLinks));
+    }
+
+    /** A test's name on one line; a class-only entry, which the bot writes with a trailing dot, loses the dot. */
+    private static String testName(String code) {
+        String name = oneLine(code);
+        return name.endsWith(".") ? name.substring(0, name.length() - 1) : name;
     }
 
     /**
-     * The error after a test entry ending at {@code at[0]}: the {@code - `message` - `exception`} bullet, or else the
-     * first line of the stack trace in the {@code <details>} block. Moves {@code at[0]} past a bullet it reads.
+     * The error after a test entry ending at {@code at[0]}: the {@code - `message` - `exception`} bullet, with or
+     * without leading spaces, or else the first line of the stack trace in the {@code <details>} block. Moves
+     * {@code at[0]} past a bullet it reads.
      */
     private static String error(String[] lines, int[] at) {
         int i = skipBlank(lines, at[0] + 1);
-        if (i < lines.length && lines[i].startsWith("- `")) {
-            StringBuilder bullet = new StringBuilder(lines[i].substring(2));
+        if (i < lines.length && lines[i].stripLeading().startsWith("- `")) {
+            StringBuilder bullet = new StringBuilder(lines[i].stripLeading().substring(2));
             while (i + 1 < lines.length && !lines[i + 1].strip().equals("<details>")
                     && !ENTRY.matcher(lines[i + 1]).matches() && !lines[i + 1].startsWith("#")) {
                 bullet.append('\n').append(lines[++i]);
