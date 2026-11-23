@@ -1,8 +1,8 @@
-package io.quarkus.prreview.report;
+package io.quarkus.prreview.util;
 
 import java.util.regex.Pattern;
 
-/** Text from GitHub, jev or Claude made safe to show on one line in the terminal or the report. */
+/** Text from outside the app (GitHub, jev, Claude, error messages) cleaned to one line, safe to show or log. */
 public final class PlainText {
 
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");

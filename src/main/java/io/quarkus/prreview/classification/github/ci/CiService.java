@@ -20,6 +20,7 @@ import io.quarkus.prreview.clients.gh.model.GhCheckSuite;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 import io.quarkus.prreview.util.FailureLog;
+import io.quarkus.prreview.util.PlainText;
 
 /**
  * The CI classification source: the checks on a PR's head commit, with those that did not pass listed with their
@@ -49,7 +50,7 @@ public class CiService {
             checks = facts.checks(pr).orElseGet(() -> gh.checks(pr));
         } catch (GhException e) {
             FailureLog.warn(LOG, "PR #" + pr + ": checks unavailable: gh", e);
-            return SourceResult.unavailable("gh: " + e.getMessage().strip().replaceAll("\\s+", " "));
+            return SourceResult.unavailable("gh: " + PlainText.oneLine(e.getMessage()));
         }
         List<GhComment> comments = null;
         try {

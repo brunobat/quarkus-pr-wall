@@ -11,6 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.quarkus.prreview.clients.gh.model.GhComment;
+import io.quarkus.prreview.util.PlainText;
 
 /**
  * Reads quarkus-bot's workflow status comments: plain line-by-line string handling of the layout the bot has used
@@ -169,7 +170,7 @@ public final class BotCommentParser {
                     }
                 } else {
                     failures.computeIfAbsent(job, j -> new ArrayList<>()).add(historyLink == null
-                            ? new BotStatusComment.Entry(null, oneLine(code), null)
+                            ? new BotStatusComment.Entry(null, PlainText.oneLine(code), null)
                             : new BotStatusComment.Entry(testName(code), error, historyLink));
                 }
             }
@@ -180,7 +181,7 @@ public final class BotCommentParser {
 
     /** A test's name on one line; a class-only entry, which the bot writes with a trailing dot, loses the dot. */
     private static String testName(String code) {
-        String name = oneLine(code);
+        String name = PlainText.oneLine(code);
         return name.endsWith(".") ? name.substring(0, name.length() - 1) : name;
     }
 
@@ -201,14 +202,14 @@ public final class BotCommentParser {
             String text = bullet.toString().strip();
             text = text.startsWith("`") ? text.substring(1) : text;
             text = text.endsWith("`") ? text.substring(0, text.length() - 1) : text;
-            return oneLine(text.replace("` - `", " - "));
+            return PlainText.oneLine(text.replace("` - `", " - "));
         }
         if (i < lines.length && lines[i].strip().equals("<details>")) {
             int fence = skipBlank(lines, i + 1);
             if (fence < lines.length && lines[fence].startsWith("```")) {
                 int first = skipBlank(lines, fence + 1);
                 if (first < lines.length && !lines[first].startsWith("```")) {
-                    return oneLine(lines[first]);
+                    return PlainText.oneLine(lines[first]);
                 }
             }
         }
@@ -239,7 +240,4 @@ public final class BotCommentParser {
                 .replace("&amp;", "&");
     }
 
-    private static String oneLine(String text) {
-        return text.strip().replaceAll("\\s+", " ");
-    }
 }

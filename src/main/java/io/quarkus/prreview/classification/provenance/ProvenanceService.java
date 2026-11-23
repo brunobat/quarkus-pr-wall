@@ -20,8 +20,8 @@ import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.config.ReviewConfig;
-import io.quarkus.prreview.report.PlainText;
 import io.quarkus.prreview.util.FailureLog;
+import io.quarkus.prreview.util.PlainText;
 
 /**
  * The authorship-provenance classification source: who wrote a PR, from GitHub's facts only, or why that could not be

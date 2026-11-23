@@ -11,7 +11,7 @@ import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
-import io.quarkus.prreview.report.PlainText;
+import io.quarkus.prreview.util.PlainText;
 
 /**
  * Who each person of a PR is to the repository. The first matching rule wins and later lookups are not made. A

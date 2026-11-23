@@ -16,6 +16,7 @@ import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.report.summary.Summary;
 import io.quarkus.prreview.triage.model.PrOutcome;
+import io.quarkus.prreview.util.PlainText;
 
 /**
  * The terminal block for one PR, classified or not:

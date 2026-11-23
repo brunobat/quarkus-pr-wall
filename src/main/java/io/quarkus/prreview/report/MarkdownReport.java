@@ -23,6 +23,7 @@ import io.quarkus.prreview.report.summary.Summary;
 import io.quarkus.prreview.triage.model.ChangedFile;
 import io.quarkus.prreview.triage.model.PrOutcome;
 import io.quarkus.prreview.triage.model.PullRequest;
+import io.quarkus.prreview.util.PlainText;
 
 /**
  * The markdown report for one PR. Classified: title, Classification, Summary, Changed files, Run, with probabilities

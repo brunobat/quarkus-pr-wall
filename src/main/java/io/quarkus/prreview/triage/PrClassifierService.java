@@ -27,12 +27,12 @@ import io.quarkus.prreview.clients.jev.JevException;
 import io.quarkus.prreview.clients.jev.SubmissionTooLargeException;
 import io.quarkus.prreview.clients.jev.model.JevDecision;
 import io.quarkus.prreview.config.ReviewConfig;
-import io.quarkus.prreview.report.PlainText;
 import io.quarkus.prreview.report.summary.SummaryService;
 import io.quarkus.prreview.triage.model.PrContext;
 import io.quarkus.prreview.triage.model.PrOutcome;
 import io.quarkus.prreview.triage.model.PullRequest;
 import io.quarkus.prreview.util.FailureLog;
+import io.quarkus.prreview.util.PlainText;
 
 /**
  * Classifies one PR: read its metadata, fetch its diff, let every check ask its questions, send them to {@code jev}
@@ -168,7 +168,7 @@ public class PrClassifierService {
 
     private PrOutcome notFetched(int number, GhException e) {
         FailureLog.warn(LOG, "PR #" + number + ": not classified: gh", e);
-        return PrOutcome.notAnswered(number, checkIds(), e.pullRequest(), "gh: " + oneLine(e.getMessage()),
+        return PrOutcome.notAnswered(number, checkIds(), e.pullRequest(), "gh: " + PlainText.oneLine(e.getMessage()),
                 e.getMessage(), null, null, null, null);
     }
 
@@ -179,11 +179,8 @@ public class PrClassifierService {
 
     private PrOutcome jevFailure(int number, PullRequest pr, String message, String model,
             int submissionChars, int estimatedTokens, int limit) {
-        return PrOutcome.notAnswered(number, checkIds(), pr, "jev: " + oneLine(message), message, model,
+        return PrOutcome.notAnswered(number, checkIds(), pr, "jev: " + PlainText.oneLine(message), message, model,
                 submissionChars, estimatedTokens, limit);
     }
 
-    private static String oneLine(String text) {
-        return text.strip().replaceAll("\\s+", " ");
-    }
 }
