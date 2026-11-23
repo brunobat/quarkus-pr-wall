@@ -1,5 +1,6 @@
 package io.quarkus.prreview.cli;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ class ReviewCommandArgsTest {
     @Launch(value = { "review", "0" }, exitCode = 2)
     void nonPositivePrIsAUsageError(LaunchResult result) {
         assertTrue(result.getErrorOutput().contains("Invalid PR number: 0"), result.getErrorOutput());
+        assertFalse(result.getOutput().contains("Done: "), result.getOutput());
     }
 
     @Test

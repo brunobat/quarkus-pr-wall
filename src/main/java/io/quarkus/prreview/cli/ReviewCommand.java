@@ -2,6 +2,7 @@ package io.quarkus.prreview.cli;
 
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.SequencedSet;
@@ -64,6 +65,7 @@ public class ReviewCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
+        long start = System.nanoTime();
         SequencedSet<Integer> uniquePrs = uniquePrs();
         Path dir = reportDir();
         if (!jev.keyConfigured()) {
@@ -77,6 +79,10 @@ public class ReviewCommand implements Callable<Integer> {
         }
         PrintWriter out = spec.commandLine().getOut();
         int errors = 0;
+        int reviewed = 0;
+        int notPullRequests = 0;
+        int drafts = 0;
+        int waiting = 0;
         loginMemo.clear();
         githubFacts.prefetch(List.copyOf(uniquePrs));
         for (int pr : uniquePrs) {
@@ -90,9 +96,12 @@ public class ReviewCommand implements Callable<Integer> {
                 ReportWriter.Result report = ReportWriter.write(dir, pr, MarkdownReport.render(outcome));
                 block = TerminalRenderer.render(outcome, report);
                 failed = !(outcome.jev() instanceof JevResult.Answered) || !(report instanceof ReportWriter.Written);
+                drafts += outcome.draft() ? 1 : 0;
+                waiting += outcome.waitingForApproval() ? 1 : 0;
             } catch (NotAPullRequestException e) {
                 block = TerminalRenderer.notAPullRequest(pr, config.gh().repo());
                 failed = true;
+                notPullRequests++;
             } catch (RuntimeException e) {
                 // A bug, not a lookup failure: it ends this PR only, and its stack trace is logged.
                 LOG.errorf(e, "PR #%d: unexpected error", pr);
@@ -104,8 +113,15 @@ public class ReviewCommand implements Callable<Integer> {
             out.flush();
             if (failed) {
                 errors++;
+            } else {
+                reviewed++;
             }
         }
+        RunSummary summary = new RunSummary(uniquePrs.size(), reviewed, notPullRequests,
+                uniquePrs.size() - reviewed - notPullRequests, drafts, waiting);
+        out.println();
+        out.print(summary.render(Duration.ofNanos(System.nanoTime() - start), dir));
+        out.flush();
         return exitCode(uniquePrs.size(), errors);
     }
 

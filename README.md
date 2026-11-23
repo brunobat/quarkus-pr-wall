@@ -177,6 +177,18 @@ Author: newcomer (first-time) · AI: declared (commit 0123abc: "co-authored-by: 
 Report: reports/review-57715.md
 ```
 
+- After the last block, a blank line and the run's summary:
+
+  ```
+  Done: 23 numbers in 4m 12s — 18 reviewed, 3 not PRs, 2 failed (1 draft, 1 waiting for approval)
+  Reports: reports
+  ```
+
+  The numbers are the unique ones given. `reviewed` means classified with the report written, `not PRs` are numbers
+  GitHub says are not pull requests, and `failed` is every other one, so the three add up to the numbers. The
+  parenthesis counts the drafts and the PRs waiting for approval among the others, and is left out when both are
+  zero. The duration runs from the start of the command (after its arguments are read), so it includes the bulk
+  reads from GitHub but not the JVM's startup. A setup or usage error stops before any PR, with no summary.
 - A draft PR's line carries its state, e.g. `PR #57720 - test adequacy · State: OPEN (draft)`; other PR lines
   are as above.
 - Probabilities are rounded to 2 decimals in the terminal, for display only.

@@ -197,6 +197,8 @@ class ReviewListTest {
             assertEquals(List.of("error: no jev API key; set TYPESAFE_API_KEY"), result.getErrorStream(),
                     result.getErrorOutput());
             assertEquals(0, jev.posts().size());
+            // A setup error stops before any PR, so there is no summary.
+            assertTrue(result.getOutputStream().stream().noneMatch(l -> l.startsWith("Done: ")), result.getOutput());
         } finally {
             System.clearProperty("%test.quarkus.langchain4j.typesafe.api-key");
             System.clearProperty("TYPESAFE_API_KEY");
@@ -258,6 +260,26 @@ class ReviewListTest {
         assertEquals(1, lines.stream().filter(l -> l.contains(" ERROR ") && l.contains("PR #160: unexpected error"))
                 .count(), result.getOutput());
         assertTrue(lines.stream().anyMatch(l -> l.startsWith("\tat io.quarkus.prreview.")), result.getOutput());
+        // The run's summary still follows.
+        assertTrue(stdout.stream().anyMatch(l -> l.matches("Done: 3 numbers in \\S+ — 2 reviewed, 0 not PRs, 1 failed")),
+                result.getOutput());
+    }
+
+    @Test
+    void theRunEndsWithASummaryOfHowEachNumberEnded(QuarkusMainLauncher launcher) {
+        // 101 reviewed, 58521 not a PR, 406 failed (diff refused), 121 a reviewed draft, 140 reviewed and waiting for
+        // approval; 101 is given twice.
+        LaunchResult result = launcher.launch("review", "101", "58521", "406", "121", "101", "140", "--output-dir",
+                out.toString());
+
+        assertEquals(0, result.exitCode(), result.getOutput());
+        List<String> stdout = result.getOutputStream().stream().filter(l -> !l.matches("^\\d{4}-\\d\\d-\\d\\d .*"))
+                .toList();
+        int done = stdout.size() - 2;
+        assertEquals("", stdout.get(done - 1), result.getOutput());
+        assertTrue(stdout.get(done).matches("Done: 5 numbers in [0-9]+\\.[0-9]s — 3 reviewed, 1 not a PR, 1 failed"
+                + " \\(1 draft, 1 waiting for approval\\)"), stdout.get(done));
+        assertEquals("Reports: " + out, stdout.get(done + 1));
     }
 
     @Test

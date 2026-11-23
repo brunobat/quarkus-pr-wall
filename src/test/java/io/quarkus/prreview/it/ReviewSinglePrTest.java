@@ -166,6 +166,10 @@ class ReviewSinglePrTest {
 
             assertEquals(0, result.exitCode(), result.getErrorOutput());
             assertTrue(result.getOutputStream().contains("Report: " + report), result.getOutput());
+            assertTrue(Files.readString(report).contains("\nLink: https://github.com/quarkusio/quarkus/pull/101 · State: OPEN"
+                    + " · CI on commit ba9690a\n"));
+            assertEquals("Reports: reports", result.getOutputStream().stream()
+                    .filter(l -> l.startsWith("Reports: ")).reduce((a, b) -> b).orElseThrow(), result.getOutput());
             assertTrue(Files.readString(report).startsWith("# PR #101: Fix the frobnicator"));
             assertTrue(result.getOutputStream().contains("Size: 2 files changed, +12 -3"), result.getOutput());
             assertTrue(Files.readString(report).contains("## Size (GitHub)\n\n- Changed files: 2\n"));
