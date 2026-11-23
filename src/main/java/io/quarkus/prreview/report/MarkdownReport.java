@@ -197,7 +197,7 @@ public final class MarkdownReport {
 
         md.append("\n## Changed files\n\n");
         for (ChangedFile file : classification.pr().changedFiles()) {
-            md.append("- ").append(code(file.path())).append(" (").append(inline(file.describe())).append(")\n");
+            md.append(file.listLine(MarkdownReport::code, MarkdownReport::inline)).append("\n");
         }
 
         md.append("\n## Run\n\n");

@@ -139,7 +139,7 @@ public class SummaryService {
     static String changedFiles(Classification classification) {
         List<String> lines = new ArrayList<>();
         for (ChangedFile file : classification.pr().changedFiles()) {
-            lines.add("- " + file.path() + " (" + file.describe() + ")");
+            lines.add(file.listLine());
         }
         return lines.isEmpty() ? "(none)" : String.join("\n", lines);
     }

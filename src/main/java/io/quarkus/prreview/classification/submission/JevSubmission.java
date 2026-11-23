@@ -51,7 +51,7 @@ public final class JevSubmission {
     static String input(PrContext pr, ProjectContext context) {
         StringBuilder text = new StringBuilder(context.text()).append("\n\nChanged files:\n");
         for (ChangedFile file : pr.changedFiles()) {
-            text.append("- ").append(file.path()).append(" (").append(file.describe()).append(")\n");
+            text.append(file.listLine()).append("\n");
         }
         text.append("\nUnified diff:\n").append(pr.pullRequest().diff());
         return text.toString();

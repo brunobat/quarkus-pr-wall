@@ -185,4 +185,12 @@ class DiffFilesTest {
         assertEquals("renamed from x/Old.java", new ChangedFile("x/New.java", Kind.RENAMED, "x/Old.java", false).describe());
         assertEquals("added, binary", new ChangedFile("logo.png", Kind.ADDED, null, true).describe());
     }
+
+    @Test
+    void aListLineNamesThePathThenHowItChanged() {
+        ChangedFile renamed = new ChangedFile("x/New.java", Kind.RENAMED, "x/Old.java", false);
+
+        assertEquals("- x/New.java (renamed from x/Old.java)", renamed.listLine());
+        assertEquals("- [x/New.java] (<renamed from x/Old.java>)", renamed.listLine(t -> "[" + t + "]", t -> "<" + t + ">"));
+    }
 }
