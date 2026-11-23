@@ -94,7 +94,8 @@ labels or merges anything: the only `gh` commands it runs are `gh pr view`, `gh 
 ## Prerequisites
 
 - Java 21.
-- [`gh`](https://cli.github.com/) installed and authenticated, ideally with a read-only token.
+- [`gh`](https://cli.github.com/) v2.63.0 or later, installed and authenticated, ideally with a read-only token. The
+  version is not checked at run time; older releases lack fields the tool reads.
 - `TYPESAFE_API_KEY`: the `jev` API key. Required: without it the run stops before any PR.
 - `ANTHROPIC_API_KEY`: the Claude API key. Optional: without it every summary uses the fallback template.
 
@@ -139,11 +140,11 @@ toward the submission size.
 | `behaviour` | yes/no | Does this PR change the runtime behaviour of the software? | |
 | `tests-changed` | yes/no | Does this PR add or modify tests? | yes when it adds or modifies files under a `src/test/` directory |
 | `reach` | choice | Of the runtime code this PR changes, how much do the tests this PR adds or modifies execute? | `all`, `some`, `none`, `no-runtime-change`, `undetermined` |
-| `assert` | choice | Of the changed runtime code that the tests this PR adds or modifies execute, how much has its outcome asserted by those tests? | `all`, `some`, `none`, `nothing-executed`, `undetermined` |
+| `assert` | choice | Of the changed runtime code in test classes on this PR, how extensive are the test assertion changes outcome asserted by those tests? | `all`, `some`, `none`, `nothing-executed`, `undetermined` |
 
 For a choice, `jev` picks one option and gives a probability for each. Every option is one situation. `reach` and
 `assert` each measure one thing, and a measure with nothing to measure has its own option: `reach: no-runtime-change`
-when the PR changes no runtime code, `assert: nothing-executed` when the changed tests execute none of it. A PR that
+when the PR changes no runtime code, `assert: nothing-executed` when there is nothing to assert. A PR that
 changes no tests reads `reach: none`; that it changes no tests is `tests-changed`'s answer.
 
 The four answers are independent and are **never combined** into a single label. `jev` may give a combination
@@ -391,10 +392,6 @@ An exported but empty variable counts as unset. Each setting can also be set und
 `PR_REVIEW_JEV_PROJECT_CONTEXT` or `QUARKUS_LANGCHAIN4J_TYPESAFE_API_KEY`. An empty API-key property means no key,
 but an empty `PR_REVIEW_*` variable is not supported: it would hide the default and startup fails. Use the names
 above.
-
-The character limit `JEV_MAX_SUBMISSION_CHARS` was replaced by `JEV_MAX_SUBMISSION_TOKENS`, with no alias. An
-exported `JEV_MAX_SUBMISSION_CHARS` is ignored. A leftover `pr-review.jev.max-submission-chars` property in a
-property source makes startup fail, because it maps to no setting.
 
 ## Development
 
