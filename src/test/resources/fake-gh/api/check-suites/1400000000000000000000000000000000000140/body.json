@@ -1,0 +1,4 @@
+{"total_count":2,"check_suites":[
+{"id":40001,"head_sha":"1400000000000000000000000000000000000140","status":"completed","conclusion":"action_required","latest_check_runs_count":0,"app":{"slug":"github-actions"}},
+{"id":40002,"head_sha":"1400000000000000000000000000000000000140","status":"completed","conclusion":"success","latest_check_runs_count":2,"app":{"slug":"quarkus-bot"}}
+]}

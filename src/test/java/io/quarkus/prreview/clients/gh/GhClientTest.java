@@ -19,6 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
+import io.quarkus.prreview.clients.gh.model.GhCheckSuite;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
@@ -337,11 +338,48 @@ class GhClientTest {
                 client.command(List.of("api", commits, "--cache", "1h")));
         assertEquals(List.of(FAKE_GH, "api", "orgs/quarkusio/members/dependabot[bot]"),
                 client.command(List.of("api", "orgs/quarkusio/members/dependabot[bot]")));
+        String suites = "repos/quarkusio/quarkus/commits/" + SHA + "/check-suites?per_page=100";
+        assertEquals(List.of(FAKE_GH, "api", suites), client.command(List.of("api", suites)));
+    }
+
+    @Test
+    void checkSuitesAreReadForTheCommitAsGitHubListsThem() throws IOException {
+        String sha = "1400000000000000000000000000000000000140";
+
+        List<GhCheckSuite> suites = client.checkSuites(sha);
+
+        assertEquals(List.of(new GhCheckSuite("completed", "action_required", 0),
+                new GhCheckSuite("completed", "success", 2)), suites);
+        List<String> log = Files.readAllLines(FakeGh.CALLS_LOG);
+        assertEquals("api repos/quarkusio/quarkus/commits/" + sha + "/check-suites?per_page=100", log.getLast());
+        // A commit without suites is an empty list; a failed call keeps gh's message.
+        assertEquals(List.of(), client.checkSuites(SHA));
+        GhException e = assertThrows(GhException.class,
+                () -> client.checkSuites("1450000000000000000000000000000000000145"));
+        assertTrue(e.getMessage().startsWith("gh: HTTP 502: Bad Gateway"), e.getMessage());
+    }
+
+    @Test
+    void aCheckSuitesReadForSomethingThatIsNotAFullShaStartsNoProcess() throws IOException {
+        long before = Files.exists(FakeGh.CALLS_LOG) ? Files.readAllLines(FakeGh.CALLS_LOG).size() : 0;
+
+        for (String sha : java.util.Arrays.asList(null, "", "ba9690a", SHA.toUpperCase(), SHA + "0", "main",
+                SHA.substring(1) + "g", "../../actions/runs/1")) {
+            assertThrows(GhException.class, () -> client.checkSuites(sha), String.valueOf(sha));
+        }
+
+        assertEquals(before, Files.exists(FakeGh.CALLS_LOG) ? Files.readAllLines(FakeGh.CALLS_LOG).size() : 0);
     }
 
     @Test
     void apiFlagsThatCouldWriteOrSendABodyAreRefused() {
-        String pulls = "repos/quarkusio/quarkus/pulls/1";
+        for (String path : List.of("repos/quarkusio/quarkus/pulls/1",
+                "repos/quarkusio/quarkus/commits/" + SHA + "/check-suites?per_page=100")) {
+            refusesWritingFlags(path);
+        }
+    }
+
+    private void refusesWritingFlags(String pulls) {
         for (List<String> flags : List.of(List.of("-X", "GET"), List.of("-XPOST"), List.of("--method", "GET"),
                 List.of("-f", "a=b"), List.of("--raw-field", "a=b"), List.of("-F", "a=b"), List.of("--field", "a=b"),
                 List.of("--input", "file"), List.of("-H", "Accept: x"), List.of("--paginate"), List.of("--cache"),
@@ -362,6 +400,18 @@ class GhClientTest {
                 "repos/quarkusio/quarkus/commits?author=a?b&sha=" + SHA + "&per_page=1",
                 "repos/quarkusio/quarkus/commits?author=a&sha=main&per_page=1",
                 "repos/quarkusio/quarkus/commits?author=a&sha=" + SHA + "&per_page=100",
+                "repos/quarkusio/quarkus/commits/" + SHA + "/check-suites",
+                "repos/quarkusio/quarkus/commits/" + SHA + "/check-suites?per_page=50",
+                "repos/quarkusio/quarkus/commits/" + SHA + "/check-runs?per_page=100",
+                "repos/quarkusio/quarkus/commits/" + SHA + "/check-suites?per_page=100&x=1",
+                "repos/quarkusio/quarkus/commits/ba9690a/check-suites?per_page=100",
+                "repos/quarkusio/quarkus/commits/" + SHA.toUpperCase() + "/check-suites?per_page=100",
+                "repos/quarkusio/quarkus/commits/main/check-suites?per_page=100",
+                "repos/x/y/commits/" + SHA + "/check-suites?per_page=100",
+                "repos/quarkusio/quarkus/actions/runs/39914638446",
+                "repos/quarkusio/quarkus/actions/runs/39914638446/approve",
+                "repos/quarkusio/quarkus/actions/workflows",
+                "repos/quarkusio/quarkus/check-suites/40001",
                 "repos/quarkusio/quarkusXio/pulls/1", "/repos/quarkusio/quarkus/pulls/1")) {
             assertThrows(IllegalArgumentException.class, () -> client.command(List.of("api", path)), path);
         }

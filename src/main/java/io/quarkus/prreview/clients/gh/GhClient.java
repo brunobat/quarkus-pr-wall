@@ -19,6 +19,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
+import io.quarkus.prreview.clients.gh.model.GhCheckSuite;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
@@ -296,6 +297,31 @@ public class GhClient {
     }
 
     /**
+     * The check suites on commit {@code sha}, as GitHub lists them (at most 100). A SHA that is not 40 hex characters
+     * is refused before any process starts; a missing list is a failure, so "none" and "could not be read" stay apart.
+     * Never cached: a suite's state changes as workflows are approved and run.
+     */
+    public List<GhCheckSuite> checkSuites(String sha) {
+        if (sha == null || !SHA.matcher(sha).matches()) {
+            throw new GhException("not a commit SHA: " + sha);
+        }
+        String json = run(List.of("api", "repos/" + apiRepo() + "/commits/" + sha + "/check-suites?per_page=100"));
+        CheckSuitesView view;
+        try {
+            view = mapper.readValue(json, CheckSuitesView.class);
+        } catch (JacksonException e) {
+            throw new GhException("unexpected output from gh api check-suites: " + e.getOriginalMessage(), e);
+        }
+        if (view == null || view.checkSuites() == null) {
+            throw new GhException("gh api check-suites returned no check_suites list");
+        }
+        return view.checkSuites();
+    }
+
+    private record CheckSuitesView(@JsonProperty("check_suites") List<GhCheckSuite> checkSuites) {
+    }
+
+    /**
      * {@code args} with {@code --cache <GH_CACHE_TTL>} in whole seconds, as {@code gh api --cache} reads it. A TTL
      * under one second, zero or negative included, means no caching, so the flag is left out.
      */
@@ -457,9 +483,10 @@ public class GhClient {
 
     /**
      * A GET request through {@code gh api}. {@code gh api} has no {@code -R}: the path names the configured repository
-     * or its owner itself, and must be one of the pull request, commits-by-author or org-membership paths. The only
-     * flags are {@code -i}, {@code --cache <duration>} and {@code --jq <expr>}, so nothing can change the method or
-     * send a body ({@code -X}, {@code -f}, {@code -F}, {@code --input}), and {@code graphql} is never a valid path.
+     * or its owner itself, and must be one of the pull request, commits-by-author, commit check-suites or
+     * org-membership paths. The only flags are {@code -i}, {@code --cache <duration>} and {@code --jq <expr>}, so
+     * nothing can change the method or send a body ({@code -X}, {@code -f}, {@code -F}, {@code --input}), and
+     * {@code graphql} and {@code actions/...} are never valid paths.
      */
     private List<String> apiCommand(List<String> args) {
         if (args.size() < 2 || !allowedApiPath(args.get(1))) {
@@ -491,6 +518,7 @@ public class GhClient {
         return path.matches("repos/" + repo + "/pulls/[1-9][0-9]*")
                 || path.matches(
                         "repos/" + repo + "/commits\\?author=" + login + "&sha=" + SHA.pattern() + "&per_page=1")
+                || path.matches("repos/" + repo + "/commits/" + SHA.pattern() + "/check-suites\\?per_page=100")
                 || path.matches("orgs/" + owner + "/members/" + login);
     }
 
