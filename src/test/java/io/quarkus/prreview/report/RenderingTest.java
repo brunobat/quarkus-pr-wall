@@ -13,7 +13,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import dev.langchain4j.model.output.TokenUsage;
-import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
+import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyService;
 import io.quarkus.prreview.classification.github.ci.model.CiCheck;
 import io.quarkus.prreview.classification.github.ci.model.Approval;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
@@ -55,14 +55,14 @@ class RenderingTest {
         PullRequest pr = new PullRequest(57720, title, "https://github.com/quarkusio/quarkus/pull/57720", "OPEN", false, "");
         List<ChangedFile> files = List.of(new ChangedFile(path, ChangedFile.Kind.MODIFIED, null, false));
         CheckResult check = new CheckResult("test-adequacy", List.of(
-                new QuestionResult("behaviour", TestAdequacyCheck.BEHAVIOUR.text(),
+                new QuestionResult("behaviour", TestAdequacyService.BEHAVIOUR.text(),
                         new QuestionResult.YesNo(behaviour)),
                 new QuestionResult("tests-changed",
-                        TestAdequacyCheck.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.12)),
-                new QuestionResult("reach", TestAdequacyCheck.REACH.text(),
-                        new QuestionResult.Choice(chosen, TestAdequacyCheck.REACH.options(), options)),
-                new QuestionResult("assert", TestAdequacyCheck.ASSERTS.text(),
-                        new QuestionResult.Choice("nothing-executed", TestAdequacyCheck.ASSERTS.options(),
+                        TestAdequacyService.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.12)),
+                new QuestionResult("reach", TestAdequacyService.REACH.text(),
+                        new QuestionResult.Choice(chosen, TestAdequacyService.REACH.options(), options)),
+                new QuestionResult("assert", TestAdequacyService.ASSERTS.text(),
+                        new QuestionResult.Choice("nothing-executed", TestAdequacyService.ASSERTS.options(),
                                 probs("nothing-executed", 0.77, "none", 0.23)))));
         return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,
                 1667, 60000, CONTEXT);
@@ -136,8 +136,8 @@ class RenderingTest {
         assertTrue(terminal(c, CLAUDE).contains("reach: undetermined 0.30"));
         String report = MarkdownReport.render(c, CLAUDE);
         assertTrue(report.contains("jev's choice: `undetermined`"), report);
-        assertTrue(report.contains("| `all` | " + TestAdequacyCheck.REACH.options().get("all") + " | 0.6 |"), report);
-        assertTrue(report.contains("| `none` | " + TestAdequacyCheck.REACH.options().get("none")
+        assertTrue(report.contains("| `all` | " + TestAdequacyService.REACH.options().get("all") + " | 0.6 |"), report);
+        assertTrue(report.contains("| `none` | " + TestAdequacyService.REACH.options().get("none")
                 + " | not reported |"), report);
     }
 
@@ -164,9 +164,9 @@ class RenderingTest {
         // Each choice question has its own table listing every option.
         String assertTable = report.substring(report.indexOf("\n### assert\n"));
         String reachTable = report.substring(report.indexOf("\n### reach\n"), report.indexOf("\n### assert\n"));
-        TestAdequacyCheck.REACH.options().keySet().forEach(
+        TestAdequacyService.REACH.options().keySet().forEach(
                 option -> assertTrue(reachTable.contains("| `" + option + "` |"), "reach " + option));
-        TestAdequacyCheck.ASSERTS.options().keySet().forEach(
+        TestAdequacyService.ASSERTS.options().keySet().forEach(
                 option -> assertTrue(assertTable.contains("| `" + option + "` |"), "assert " + option));
         assertTrue(report.contains("**Claude (claude-opus-5-5):** Runtime behaviour changes; no tests were changed.\n"),
                 report);

@@ -12,7 +12,7 @@ import io.quarkus.prreview.classification.provenance.model.AiLabel;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Who;
 import io.quarkus.prreview.classification.provenance.signals.SignalList;
-import io.quarkus.prreview.classification.provenance.who.WhoRules;
+import io.quarkus.prreview.classification.provenance.who.WhoService;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.config.ReviewConfig;
@@ -28,7 +28,7 @@ import io.quarkus.prreview.config.ReviewConfig;
  * Declaring AI assistance is reported, never held against a PR. The diff and the writing style are not inspected.
  */
 @ApplicationScoped
-public class AiRules {
+public class AiService {
 
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
@@ -36,14 +36,14 @@ public class AiRules {
     private final List<String> automation;
 
     @Inject
-    public AiRules(ReviewConfig config) {
+    public AiService(ReviewConfig config) {
         this(SignalList.load(config.provenance().aiSignals(), "PROVENANCE_AI_SIGNALS"),
                 SignalList.load(config.provenance().automationAccounts(), "PROVENANCE_AUTOMATION_ACCOUNTS"));
     }
 
-    public AiRules(SignalList signals, SignalList automation) {
-        this.signals = signals.entries().stream().map(AiRules::normalize).filter(s -> !s.isEmpty()).toList();
-        this.automation = automation.entries().stream().map(AiRules::normalizeLogin).toList();
+    public AiService(SignalList signals, SignalList automation) {
+        this.signals = signals.entries().stream().map(AiService::normalize).filter(s -> !s.isEmpty()).toList();
+        this.automation = automation.entries().stream().map(AiService::normalizeLogin).toList();
     }
 
     /**
@@ -86,6 +86,6 @@ public class AiRules {
 
     /** The same account arrives as {@code dependabot}, {@code dependabot[bot]} or {@code app/dependabot}. */
     static String normalizeLogin(String login) {
-        return WhoRules.account(login);
+        return WhoService.account(login);
     }
 }

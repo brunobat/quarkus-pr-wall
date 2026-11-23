@@ -19,14 +19,14 @@ import io.quarkus.prreview.report.PlainText;
  * label.
  */
 @ApplicationScoped
-public class WhoRules {
+public class WhoService {
 
     /** How GitHub shows a deleted account. */
     public static final String GHOST = "ghost";
 
     private final GhClient gh;
 
-    public WhoRules(GhClient gh) {
+    public WhoService(GhClient gh) {
         this.gh = gh;
     }
 

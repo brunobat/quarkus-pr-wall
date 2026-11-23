@@ -102,7 +102,7 @@ class NotAPullRequestTest {
         }
 
         String output = result.getOutput();
-        assertTrue(output.contains("DEBUG [io.quarkus.prreview.triage.PrClassifier] (main) PR #58521: not a pull request:"
+        assertTrue(output.contains("DEBUG [io.quarkus.prreview.triage.PrClassifierService] (main) PR #58521: not a pull request:"
                 + " gh: GraphQL: Could not resolve to a PullRequest with the number of 58521."), output);
         assertTrue(output.lines().anyMatch(l -> l.startsWith("\tat ")), output);
     }

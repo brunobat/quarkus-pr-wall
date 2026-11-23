@@ -11,12 +11,12 @@ import jakarta.inject.Inject;
 
 import org.jboss.logging.Logger;
 
-import io.quarkus.prreview.classification.github.GitHubFacts;
-import io.quarkus.prreview.classification.provenance.ai.AiRules;
+import io.quarkus.prreview.classification.github.GitHubFactsService;
+import io.quarkus.prreview.classification.provenance.ai.AiService;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
-import io.quarkus.prreview.classification.provenance.who.LoginMemo;
-import io.quarkus.prreview.classification.provenance.who.WhoRules;
+import io.quarkus.prreview.classification.provenance.who.LoginMemoService;
+import io.quarkus.prreview.classification.provenance.who.WhoService;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
@@ -33,24 +33,24 @@ import io.quarkus.prreview.report.PlainText;
  * authorship itself could not be read. Never throws for gh.
  */
 @ApplicationScoped
-public class ProvenanceSource {
+public class ProvenanceService {
 
-    private static final Logger LOG = Logger.getLogger(ProvenanceSource.class);
+    private static final Logger LOG = Logger.getLogger(ProvenanceService.class);
 
     private final GhClient gh;
-    private final GitHubFacts facts;
-    private final WhoRules who;
-    private final LoginMemo memo;
-    private final AiRules ai;
+    private final GitHubFactsService facts;
+    private final WhoService who;
+    private final LoginMemoService memo;
+    private final AiService ai;
     private final int maxPeople;
 
     @Inject
-    public ProvenanceSource(GhClient gh, GitHubFacts facts, WhoRules who, LoginMemo memo, AiRules ai,
+    public ProvenanceService(GhClient gh, GitHubFactsService facts, WhoService who, LoginMemoService memo, AiService ai,
             ReviewConfig config) {
         this(gh, facts, who, memo, ai, config.provenance().maxPeople());
     }
 
-    ProvenanceSource(GhClient gh, GitHubFacts facts, WhoRules who, LoginMemo memo, AiRules ai, int maxPeople) {
+    ProvenanceService(GhClient gh, GitHubFactsService facts, WhoService who, LoginMemoService memo, AiService ai, int maxPeople) {
         this.gh = gh;
         this.facts = facts;
         this.who = who;
@@ -72,7 +72,7 @@ public class ProvenanceSource {
         List<Person> commitAuthors = new ArrayList<>();
         int lookups = 0;
         for (GhCommit.Author subject : commitAuthorSubjects(authorship)) {
-            if (WhoRules.isBotShaped(subject)) {
+            if (WhoService.isBotShaped(subject)) {
                 commitAuthors.add(who.commitAuthor(subject, authorship.baseSha()));
                 continue;
             }
@@ -117,13 +117,13 @@ public class ProvenanceSource {
      */
     static List<GhCommit.Author> commitAuthorSubjects(GhAuthorship authorship) {
         Map<String, GhCommit.Author> subjects = new LinkedHashMap<>();
-        String prAuthor = authorship.login() == null ? null : WhoRules.account(authorship.login());
+        String prAuthor = authorship.login() == null ? null : WhoService.account(authorship.login());
         for (GhCommit commit : authorship.commits()) {
             if (commit.authors().isEmpty() || commit.authors().getFirst().login() == null) {
                 continue;
             }
             GhCommit.Author gitAuthor = commit.authors().getFirst();
-            String key = WhoRules.account(gitAuthor.login());
+            String key = WhoService.account(gitAuthor.login());
             if (!key.equals(prAuthor)) {
                 subjects.putIfAbsent(key, gitAuthor);
             }

@@ -15,7 +15,7 @@ import io.quarkus.prreview.pr.model.PrContext;
  * Each of {@code reach} and {@code assert} measures one thing; a measure with nothing to measure has its own option.
  */
 @ApplicationScoped
-public class TestAdequacyCheck implements ClassificationCheck {
+public class TestAdequacyService implements ClassificationCheck {
 
     public static final YesNoQuestion BEHAVIOUR = YesNoQuestion.builder()
             .text("Does this PR change the runtime behaviour of the software?")

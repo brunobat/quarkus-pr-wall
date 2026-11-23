@@ -18,24 +18,24 @@ import io.quarkus.prreview.classification.provenance.model.AiLabel;
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.classification.provenance.model.Who;
-import io.quarkus.prreview.classification.github.GitHubFacts;
-import io.quarkus.prreview.classification.provenance.ai.AiRules;
+import io.quarkus.prreview.classification.github.GitHubFactsService;
+import io.quarkus.prreview.classification.provenance.ai.AiService;
 import io.quarkus.prreview.classification.provenance.signals.SignalList;
-import io.quarkus.prreview.classification.provenance.who.LoginMemo;
-import io.quarkus.prreview.classification.provenance.who.WhoRules;
+import io.quarkus.prreview.classification.provenance.who.LoginMemoService;
+import io.quarkus.prreview.classification.provenance.who.WhoService;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 
-class ProvenanceSourceTest {
+class ProvenanceServiceTest {
 
-    static final AiRules AI = new AiRules(new SignalList("test", List.of("co-authored-by: claude")),
+    static final AiService AI = new AiService(new SignalList("test", List.of("co-authored-by: claude")),
             new SignalList("test", List.of("dependabot")));
 
     final GhClient gh = mock(GhClient.class);
-    final ProvenanceSource source = new ProvenanceSource(gh, new GitHubFacts(gh), new WhoRules(gh), new LoginMemo(),
+    final ProvenanceService source = new ProvenanceService(gh, new GitHubFactsService(gh), new WhoService(gh), new LoginMemoService(),
             AI, 10);
 
     @Test
@@ -87,7 +87,7 @@ class ProvenanceSourceTest {
                 commit("5"),
                 commit("6", author("carol"), author("alice"))));
 
-        assertEquals(List.of("alice", "carol"), ProvenanceSource.commitAuthorSubjects(authorship).stream()
+        assertEquals(List.of("alice", "carol"), ProvenanceService.commitAuthorSubjects(authorship).stream()
                 .map(GhCommit.Author::login).toList());
     }
 
@@ -119,8 +119,8 @@ class ProvenanceSourceTest {
 
     @Test
     void aCommitAuthorAlreadyLabelledInThisRunIsNotLookedUpAgain() {
-        LoginMemo memo = new LoginMemo();
-        ProvenanceSource withMemo = new ProvenanceSource(gh, new GitHubFacts(gh), new WhoRules(gh), memo, AI, 10);
+        LoginMemoService memo = new LoginMemoService();
+        ProvenanceService withMemo = new ProvenanceService(gh, new GitHubFactsService(gh), new WhoService(gh), memo, AI, 10);
         for (int pr : new int[] { 7, 8 }) {
             when(gh.authorship(pr)).thenReturn(new GhAuthorship("pr-author", "", false, "", "abc",
                     List.of(commit("1", author("alice")))));
@@ -141,23 +141,23 @@ class ProvenanceSourceTest {
     }
 
     /** Two PRs whose commits are by {@code login}, on different bases, as open PRs almost always are. */
-    ProvenanceSource twoPrsOnDifferentBases(String login) {
+    ProvenanceService twoPrsOnDifferentBases(String login) {
         when(gh.authorship(7)).thenReturn(new GhAuthorship("pr-author", "", false, "", "abc",
                 List.of(commit("1", author(login)))));
         when(gh.authorship(8)).thenReturn(new GhAuthorship("pr-author", "", false, "", "def",
                 List.of(commit("2", author(login)))));
         when(gh.association(7)).thenReturn("CONTRIBUTOR");
         when(gh.association(8)).thenReturn("CONTRIBUTOR");
-        return new ProvenanceSource(gh, new GitHubFacts(gh), new WhoRules(gh), new LoginMemo(), AI, 10);
+        return new ProvenanceService(gh, new GitHubFactsService(gh), new WhoService(gh), new LoginMemoService(), AI, 10);
     }
 
-    List<Person> commitAuthors(ProvenanceSource source, int pr) {
+    List<Person> commitAuthors(ProvenanceService source, int pr) {
         return ((SourceResult.Available<Provenance>) source.gather(pr)).facts().commitAuthors();
     }
 
     @Test
     void aTeamOrCommunityPersonIsLookedUpOncePerRunWhateverEachPrsBase() {
-        ProvenanceSource source = twoPrsOnDifferentBases("alice");
+        ProvenanceService source = twoPrsOnDifferentBases("alice");
         when(gh.isMember("alice")).thenReturn(false);
         when(gh.hasCommitsBefore("alice", "abc")).thenReturn(true);
 
@@ -170,7 +170,7 @@ class ProvenanceSourceTest {
 
     @Test
     void aFirstTimePersonIsCheckedAgainForAnotherBaseWhereTheirWorkMayHaveLanded() {
-        ProvenanceSource source = twoPrsOnDifferentBases("newbie");
+        ProvenanceService source = twoPrsOnDifferentBases("newbie");
         when(gh.isMember("newbie")).thenReturn(false);
         when(gh.hasCommitsBefore("newbie", "abc")).thenReturn(false);
         when(gh.hasCommitsBefore("newbie", "def")).thenReturn(true);
@@ -184,7 +184,7 @@ class ProvenanceSourceTest {
 
     @Test
     void aFailedLookupIsTriedAgainInTheNextPr() {
-        ProvenanceSource source = twoPrsOnDifferentBases("alice");
+        ProvenanceService source = twoPrsOnDifferentBases("alice");
         when(gh.isMember("alice")).thenThrow(new GhException("timed out")).thenReturn(true);
 
         assertEquals(List.of(Person.other("alice", "membership lookup failed: timed out")), commitAuthors(source, 7));
@@ -194,7 +194,7 @@ class ProvenanceSourceTest {
 
     @Test
     void aFailedHistoryLookupIsTriedAgainWithoutAskingForMembershipAgain() {
-        ProvenanceSource source = twoPrsOnDifferentBases("alice");
+        ProvenanceService source = twoPrsOnDifferentBases("alice");
         when(gh.isMember("alice")).thenReturn(false);
         when(gh.hasCommitsBefore("alice", "abc")).thenThrow(new GhException("HTTP 502"));
         when(gh.hasCommitsBefore("alice", "def")).thenReturn(true);
@@ -224,9 +224,9 @@ class ProvenanceSourceTest {
         when(gh.association(7)).thenReturn("CONTRIBUTOR");
         when(gh.isMember(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
 
-        Provenance provenance = ((SourceResult.Available<Provenance>) new ProvenanceSource(gh, new GitHubFacts(gh),
-                new WhoRules(gh),
-                new LoginMemo(), AI, 3).gather(7)).facts();
+        Provenance provenance = ((SourceResult.Available<Provenance>) new ProvenanceService(gh, new GitHubFactsService(gh),
+                new WhoService(gh),
+                new LoginMemoService(), AI, 3).gather(7)).facts();
 
         assertEquals(List.of(Person.of("person1", Who.TEAM), Person.of("dependabot[bot]", Who.BOT),
                 Person.of("person2", Who.TEAM), Person.of("person3", Who.TEAM),

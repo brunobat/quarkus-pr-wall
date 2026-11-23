@@ -20,7 +20,7 @@ import org.mockito.ArgumentCaptor;
 import dev.langchain4j.service.Result;
 
 import dev.langchain4j.model.output.TokenUsage;
-import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
+import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyService;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.ProjectContext;
@@ -52,14 +52,14 @@ class SummaryServiceTest {
         probabilities.put("some", 0.6123456789);
         probabilities.put("all", 0.3876543211);
         CheckResult check = new CheckResult("test-adequacy", List.of(
-                new QuestionResult("behaviour", TestAdequacyCheck.BEHAVIOUR.text(),
+                new QuestionResult("behaviour", TestAdequacyService.BEHAVIOUR.text(),
                         new QuestionResult.YesNo(0.876543219)),
                 new QuestionResult("tests-changed",
-                        TestAdequacyCheck.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.97)),
-                new QuestionResult("reach", TestAdequacyCheck.REACH.text(),
-                        new QuestionResult.Choice("some", TestAdequacyCheck.REACH.options(), probabilities)),
-                new QuestionResult("assert", TestAdequacyCheck.ASSERTS.text(),
-                        new QuestionResult.Choice("all", TestAdequacyCheck.ASSERTS.options(),
+                        TestAdequacyService.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.97)),
+                new QuestionResult("reach", TestAdequacyService.REACH.text(),
+                        new QuestionResult.Choice("some", TestAdequacyService.REACH.options(), probabilities)),
+                new QuestionResult("assert", TestAdequacyService.ASSERTS.text(),
+                        new QuestionResult.Choice("all", TestAdequacyService.ASSERTS.options(),
                                 Map.of("all", 0.66)))));
         return new Classification(new PrContext(pr, files), List.of(check), "jev-1", new TokenUsage(1200, 40), 5000,
                 1667, 60000, new ProjectContext("contexts/test.txt", "Project context: a test repository."));
@@ -82,9 +82,9 @@ class SummaryServiceTest {
         verify(summarizer).summarize(message.capture());
         String sent = message.getValue();
         assertTrue(sent.startsWith("jev's answers:\n"), sent);
-        assertTrue(sent.contains("behaviour (" + TestAdequacyCheck.BEHAVIOUR.text() + ")"), sent);
+        assertTrue(sent.contains("behaviour (" + TestAdequacyService.BEHAVIOUR.text() + ")"), sent);
         assertTrue(sent.contains("0.876543219"), sent);
-        assertTrue(sent.contains("tests-changed (" + TestAdequacyCheck.TESTS_CHANGED.text() + ")"), sent);
+        assertTrue(sent.contains("tests-changed (" + TestAdequacyService.TESTS_CHANGED.text() + ")"), sent);
         assertTrue(sent.contains("chosen option some"), sent);
         assertTrue(sent.contains("some 0.6123456789, all 0.3876543211"), sent);
         assertTrue(sent.contains("chosen option all"), sent);

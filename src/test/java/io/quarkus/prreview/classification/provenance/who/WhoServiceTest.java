@@ -22,12 +22,12 @@ import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 
-class WhoRulesTest {
+class WhoServiceTest {
 
     static final String BASE = "3cde8c894156969db35001fe9f26051c3c81fd22";
 
     final GhClient gh = mock(GhClient.class);
-    final WhoRules rules = new WhoRules(gh);
+    final WhoService rules = new WhoService(gh);
 
     static GhAuthorship authorship(String login, boolean bot) {
         return new GhAuthorship(login, "Name", bot, "", BASE, List.of());
@@ -102,7 +102,7 @@ class WhoRulesTest {
         when(other.isMember("alice")).thenReturn(false);
         when(other.hasCommitsBefore("alice", BASE)).thenThrow(new GhException("timed out"));
         assertEquals(Person.other("alice", "commit history lookup failed: timed out"),
-                new WhoRules(other).commitAuthor(ALICE, BASE));
+                new WhoService(other).commitAuthor(ALICE, BASE));
     }
 
     @Test

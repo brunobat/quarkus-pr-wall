@@ -24,13 +24,13 @@ class FailureDetailsTest {
 
     static GhChecks checks(String head) {
         return new GhChecks(head, List.of(
-                CiSourceTest.run("JVM Tests - JDK 21", "Quarkus CI", "COMPLETED", "FAILURE"),
-                CiSourceTest.run("JVM Integration Tests - JDK 17", "Quarkus CI", "COMPLETED", "FAILURE"),
+                CiServiceTest.run("JVM Tests - JDK 21", "Quarkus CI", "COMPLETED", "FAILURE"),
+                CiServiceTest.run("JVM Integration Tests - JDK 17", "Quarkus CI", "COMPLETED", "FAILURE"),
                 // Passed, though the bot lists a flaky test under it.
-                CiSourceTest.run("JVM Tests - JDK 17 Windows", "Quarkus CI", "COMPLETED", "SUCCESS"),
-                CiSourceTest.run("Native Tests - Security1", "Quarkus CI", "COMPLETED", "CANCELLED"),
-                CiSourceTest.run("Docs", "Quarkus Documentation CI", "COMPLETED", "FAILURE"),
-                CiSourceTest.status("CI Merge Gate", "FAILURE")));
+                CiServiceTest.run("JVM Tests - JDK 17 Windows", "Quarkus CI", "COMPLETED", "SUCCESS"),
+                CiServiceTest.run("Native Tests - Security1", "Quarkus CI", "COMPLETED", "CANCELLED"),
+                CiServiceTest.run("Docs", "Quarkus Documentation CI", "COMPLETED", "FAILURE"),
+                CiServiceTest.status("CI Merge Gate", "FAILURE")));
     }
 
     static List<List<FailureRow>> rows(CiChecks ci) {
@@ -41,7 +41,7 @@ class FailureDetailsTest {
 
     @Test
     void failingTestsComeFromTheHeadCommitsCommentWithFlakyAndLinks() {
-        List<List<FailureRow>> rows = rows(CiSource.of(checks(HEAD), COMMENTS, Approval.NOT_WAITING));
+        List<List<FailureRow>> rows = rows(CiService.of(checks(HEAD), COMMENTS, Approval.NOT_WAITING));
 
         String scan = "https://develocity.quarkus.io/s/hzvs2pygcxpvk";
         assertEquals(List.of(
@@ -68,7 +68,7 @@ class FailureDetailsTest {
 
     @Test
     void aFlakyTestInAJobThatPassedIsNotShown() {
-        CiChecks ci = CiSource.of(checks(HEAD), COMMENTS, Approval.NOT_WAITING);
+        CiChecks ci = CiService.of(checks(HEAD), COMMENTS, Approval.NOT_WAITING);
 
         assertFalse(ci.notPassed().stream().anyMatch(f -> f.check().name().equals("JVM Tests - JDK 17 Windows")));
         assertFalse(ci.notPassed().stream().flatMap(f -> f.rows().stream())
@@ -77,7 +77,7 @@ class FailureDetailsTest {
 
     @Test
     void aCommentForAnEarlierCommitIsNeverUsed() {
-        List<List<FailureRow>> rows = rows(CiSource.of(checks("ba9690af333f6fbc224371cb62200c3b47b7314a"), COMMENTS,
+        List<List<FailureRow>> rows = rows(CiService.of(checks("ba9690af333f6fbc224371cb62200c3b47b7314a"), COMMENTS,
                 Approval.NOT_WAITING));
 
         rows.forEach(r -> assertEquals(UNAVAILABLE, r));
@@ -85,7 +85,7 @@ class FailureDetailsTest {
 
     @Test
     void withoutAnyQuarkusBotCommentThereIsNoSource() {
-        List<List<FailureRow>> rows = rows(CiSource.of(checks(HEAD), List.of(new GhComment("someone", "hi", "x")),
+        List<List<FailureRow>> rows = rows(CiService.of(checks(HEAD), List.of(new GhComment("someone", "hi", "x")),
                 Approval.NOT_WAITING));
 
         rows.forEach(r -> assertEquals(List.of(FailureRow.withoutTest("no source for failure details")), r));
@@ -93,7 +93,7 @@ class FailureDetailsTest {
 
     @Test
     void commentsThatCouldNotBeReadLeaveTheChecksAndSayDetailsUnavailable() {
-        CiChecks ci = CiSource.of(checks(HEAD), null, Approval.NOT_WAITING);
+        CiChecks ci = CiService.of(checks(HEAD), null, Approval.NOT_WAITING);
 
         assertEquals(6, ci.checks().size());
         assertEquals(5, ci.notPassed().size());
@@ -111,13 +111,13 @@ class FailureDetailsTest {
                 new GhComment("quarkus-bot", newer, "2026-10-22T12:00:00Z"));
         GhCheck linked = new GhCheck(GhCheck.CHECK_RUN, "JVM Tests - JDK 21", "Quarkus CI", "COMPLETED", "FAILURE",
                 "https://github.com/quarkusio/quarkus/actions/runs/41878251737/job/1", null, null, null);
-        GhCheck unlinked = CiSourceTest.run("JVM Tests - JDK 21", "Quarkus CI", "COMPLETED", "FAILURE");
+        GhCheck unlinked = CiServiceTest.run("JVM Tests - JDK 21", "Quarkus CI", "COMPLETED", "FAILURE");
 
-        FailureRow first = CiSource.of(new GhChecks(HEAD, List.of(linked)), comments, Approval.NOT_WAITING).notPassed()
+        FailureRow first = CiService.of(new GhChecks(HEAD, List.of(linked)), comments, Approval.NOT_WAITING).notPassed()
                 .getFirst().rows().getFirst();
         assertEquals("io.quarkus.websockets.next.test.maxframesize.MaxFrameSizeTest.testMaxFrameSize", first.test());
         // Without a link to one of the runs, the latest comment is used, as before.
-        FailureRow latest = CiSource.of(new GhChecks(HEAD, List.of(unlinked)), comments, Approval.NOT_WAITING)
+        FailureRow latest = CiService.of(new GhChecks(HEAD, List.of(unlinked)), comments, Approval.NOT_WAITING)
                 .notPassed().getFirst().rows().getFirst();
         assertEquals("x.Y.z", latest.test());
     }

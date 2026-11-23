@@ -43,7 +43,7 @@ class PrOutcomeTest {
     ClassificationSummarizer summarizer;
 
     @Inject
-    PrClassifier classifier;
+    PrClassifierService classifier;
 
     @Test
     void aNumberGitHubSaysIsNotAPullRequestStopsThere() {

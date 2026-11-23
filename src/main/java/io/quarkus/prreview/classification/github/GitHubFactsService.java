@@ -28,9 +28,9 @@ import io.quarkus.prreview.log.FailureLog;
  * commits per PR in a bulk call, so exactly 100 is not trusted.
  */
 @ApplicationScoped
-public class GitHubFacts {
+public class GitHubFactsService {
 
-    private static final Logger LOG = Logger.getLogger(GitHubFacts.class);
+    private static final Logger LOG = Logger.getLogger(GitHubFactsService.class);
 
     /** The most checks or comments gh returns for one PR in a bulk call. */
     static final int BULK_LIST_CAP = 100;
@@ -41,7 +41,7 @@ public class GitHubFacts {
     private final Map<Integer, List<GhComment>> comments = new ConcurrentHashMap<>();
     private final Map<Integer, GhAuthorship> authorships = new ConcurrentHashMap<>();
 
-    public GitHubFacts(GhClient gh) {
+    public GitHubFactsService(GhClient gh) {
         this.gh = gh;
     }
 

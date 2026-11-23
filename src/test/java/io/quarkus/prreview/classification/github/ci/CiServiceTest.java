@@ -19,7 +19,7 @@ import io.quarkus.prreview.clients.gh.model.GhCheckSuite;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 
-class CiSourceTest {
+class CiServiceTest {
 
     static final String HEAD = "ba9690af0e8bdc5d1c0f7a6c2b6b1e7d3c9a4f21";
     /** quarkus-bot has commented, but there is no status comment for the head commit. */
@@ -54,7 +54,7 @@ class CiSourceTest {
         rollup.add(42, run("Odd", "Quarkus CI", "COMPLETED", "SOMETHING_NEW"));
         rollup.add(status("CI Merge Gate", "FAILURE"));
 
-        CiChecks ci = CiSource.of(new GhChecks(HEAD, rollup), WELCOME_ONLY, Approval.NOT_WAITING);
+        CiChecks ci = CiService.of(new GhChecks(HEAD, rollup), WELCOME_ONLY, Approval.NOT_WAITING);
 
         assertEquals(67, ci.checks().size());
         assertEquals(HEAD, ci.headCommit());
@@ -69,7 +69,7 @@ class CiSourceTest {
 
     @Test
     void successSkippedAndNeutralAreNotListed() {
-        CiChecks ci = CiSource.of(new GhChecks(HEAD, List.of(run("a", "W", "COMPLETED", "SUCCESS"),
+        CiChecks ci = CiService.of(new GhChecks(HEAD, List.of(run("a", "W", "COMPLETED", "SUCCESS"),
                 run("b", "W", "COMPLETED", "SKIPPED"), run("Build scans", "", "COMPLETED", "NEUTRAL"),
                 status("CI Merge Gate", "SUCCESS"))), List.of(), Approval.NOT_WAITING);
 
@@ -79,7 +79,7 @@ class CiSourceTest {
 
     @Test
     void noChecksIsAnEmptyList() {
-        CiChecks ci = CiSource.of(new GhChecks(HEAD, List.of()), List.of(), Approval.NOT_WAITING);
+        CiChecks ci = CiService.of(new GhChecks(HEAD, List.of()), List.of(), Approval.NOT_WAITING);
 
         assertEquals(List.of(), ci.checks());
         assertEquals(List.of(), ci.notPassed());
@@ -90,21 +90,21 @@ class CiSourceTest {
         GhCheckSuite awaiting = new GhCheckSuite("completed", "action_required", 0);
         GhCheckSuite passed = new GhCheckSuite("completed", "success", 2);
 
-        assertEquals(Approval.WAITING, CiSource.approval(List.of(passed, awaiting)));
-        assertEquals(Approval.NOT_WAITING, CiSource.approval(List.of()));
-        assertEquals(Approval.NOT_WAITING, CiSource.approval(List.of(passed)));
+        assertEquals(Approval.WAITING, CiService.approval(List.of(passed, awaiting)));
+        assertEquals(Approval.NOT_WAITING, CiService.approval(List.of()));
+        assertEquals(Approval.NOT_WAITING, CiService.approval(List.of(passed)));
         // Only that marking counts: a suite with runs, or one only queued, is not waiting for approval.
-        assertEquals(Approval.NOT_WAITING, CiSource.approval(List.of(new GhCheckSuite("completed", "action_required", 3))));
-        assertEquals(Approval.NOT_WAITING, CiSource.approval(List.of(new GhCheckSuite("queued", null, 0),
+        assertEquals(Approval.NOT_WAITING, CiService.approval(List.of(new GhCheckSuite("completed", "action_required", 3))));
+        assertEquals(Approval.NOT_WAITING, CiService.approval(List.of(new GhCheckSuite("queued", null, 0),
                 new GhCheckSuite("queued", null, 0))));
-        assertEquals(Approval.NOT_WAITING, CiSource.approval(List.of(new GhCheckSuite("completed", "action_required",
+        assertEquals(Approval.NOT_WAITING, CiService.approval(List.of(new GhCheckSuite("completed", "action_required",
                 null))));
     }
 
     @Test
     void theApprovalStateIsKeptWithTheChecks() {
         for (Approval approval : Approval.values()) {
-            assertEquals(approval, CiSource.of(new GhChecks(HEAD, List.of()), List.of(), approval).approval());
+            assertEquals(approval, CiService.of(new GhChecks(HEAD, List.of()), List.of(), approval).approval());
         }
     }
 
@@ -116,7 +116,7 @@ class CiSourceTest {
         GhChecks green = new GhChecks(head, List.of(run("JVM Tests - JDK 21 Windows", "Quarkus CI", "COMPLETED",
                 "SUCCESS")));
 
-        CiChecks ci = CiSource.of(green, comments, Approval.NOT_WAITING);
+        CiChecks ci = CiService.of(green, comments, Approval.NOT_WAITING);
 
         assertEquals(List.of(), ci.notPassed());
         assertEquals(2, ci.flaky().size());
@@ -127,9 +127,9 @@ class CiSourceTest {
                         + ".VertxTcpMetricsNoClientMetricsTest&tests.test=testTcpMetricsWithoutClientMetrics"),
                 ci.flaky().getFirst());
         // Only the head commit's comments count; without one there are no flaky tests; unreadable comments are null.
-        assertEquals(List.of(), CiSource.of(new GhChecks(HEAD, green.rollup()), comments, Approval.NOT_WAITING).flaky());
-        assertEquals(List.of(), CiSource.of(green, List.of(), Approval.NOT_WAITING).flaky());
-        CiChecks unreadable = CiSource.of(green, null, Approval.NOT_WAITING);
+        assertEquals(List.of(), CiService.of(new GhChecks(HEAD, green.rollup()), comments, Approval.NOT_WAITING).flaky());
+        assertEquals(List.of(), CiService.of(green, List.of(), Approval.NOT_WAITING).flaky());
+        CiChecks unreadable = CiService.of(green, null, Approval.NOT_WAITING);
         assertEquals(null, unreadable.flaky());
         assertEquals(1, unreadable.checks().size());
     }

@@ -13,7 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.quarkus.prreview.classification.model.ProjectContext;
 
-class ProjectContextLoaderTest {
+class ProjectContextServiceTest {
 
     static final String BUNDLED = "classpath:project-context/quarkusio-quarkus.txt";
 
@@ -22,7 +22,7 @@ class ProjectContextLoaderTest {
 
     @Test
     void theBundledContextDescribesQuarkusAndWhereTestsLive() {
-        ProjectContext context = ProjectContextLoader.load(BUNDLED);
+        ProjectContext context = ProjectContextService.load(BUNDLED);
 
         assertEquals(BUNDLED, context.source());
         for (String part : new String[] { "Quarkus", "Java", "Maven", "src/test/", "integration-tests/",
@@ -36,7 +36,7 @@ class ProjectContextLoaderTest {
     void aFilePathIsRead() throws IOException {
         Path file = Files.writeString(dir.resolve("context.txt"), "\n  Project context: another repository.\n");
 
-        ProjectContext context = ProjectContextLoader.load(file.toString());
+        ProjectContext context = ProjectContextService.load(file.toString());
 
         assertEquals(new ProjectContext(file.toString(), "Project context: another repository."), context);
     }
@@ -47,7 +47,7 @@ class ProjectContextLoaderTest {
         for (String source : new String[] { dir.resolve("missing.txt").toString(), blank.toString(),
                 "classpath:project-context/missing.txt" }) {
             IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
-                    () -> ProjectContextLoader.load(source));
+                    () -> ProjectContextService.load(source));
             assertTrue(e.getMessage().startsWith("JEV_PROJECT_CONTEXT: "), e.getMessage());
             assertTrue(e.getMessage().contains(source.replace("classpath:", "")), e.getMessage());
         }

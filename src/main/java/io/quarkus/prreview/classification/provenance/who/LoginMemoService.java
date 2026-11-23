@@ -22,7 +22,7 @@ import io.quarkus.prreview.classification.provenance.model.Person;
  * lookup is not kept: the next PR in which that person appears tries again only the part that failed.
  */
 @ApplicationScoped
-public class LoginMemo {
+public class LoginMemoService {
 
     private final Map<String, Person> people = new ConcurrentHashMap<>();
     private final Map<String, Person> firstTimers = new ConcurrentHashMap<>();

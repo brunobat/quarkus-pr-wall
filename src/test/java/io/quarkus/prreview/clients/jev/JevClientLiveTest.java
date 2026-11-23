@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.decision.DecisionModel;
 import dev.langchain4j.model.typesafe.TypeSafeDecisionModel;
-import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
+import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyService;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.Classification;
 import io.quarkus.prreview.classification.model.ProjectContext;
@@ -64,7 +64,7 @@ class JevClientLiveTest {
         JevClient jev = new JevClient(model, JevClientTest.config(DEFAULT_LIMIT), modelName, key);
         GhClient gh = new GhClient(GhClientTest.config("gh", Duration.ofSeconds(60)), JsonMapper.builder().build());
         ProjectContext context = projectContext();
-        TestAdequacyCheck check = new TestAdequacyCheck();
+        TestAdequacyService check = new TestAdequacyService();
 
         for (int number : prs()) {
             PullRequest pr = gh.withDiff(gh.metadata(number));

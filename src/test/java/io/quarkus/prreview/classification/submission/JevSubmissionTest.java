@@ -18,7 +18,7 @@ import dev.langchain4j.model.decision.response.DecisionResponse;
 import dev.langchain4j.model.decision.response.YesNoAnswer;
 import io.quarkus.prreview.classification.api.CheckQuestions;
 import io.quarkus.prreview.classification.api.ClassificationCheck;
-import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
+import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyService;
 import io.quarkus.prreview.classification.model.CheckResult;
 import io.quarkus.prreview.classification.model.ProjectContext;
 import io.quarkus.prreview.classification.model.QuestionResult;
@@ -74,7 +74,7 @@ class JevSubmissionTest {
 
     @Test
     void inputHasEveryFileOnceInTheListAndTheFullDiffButNoTitle() {
-        String input = JevSubmission.of(pr(MIXED_DIFF), CONTEXT, List.of(new TestAdequacyCheck())).toDecisionRequest()
+        String input = JevSubmission.of(pr(MIXED_DIFF), CONTEXT, List.of(new TestAdequacyService())).toDecisionRequest()
                 .input().toString();
 
         assertTrue(input.startsWith("Project context: a test repository.\n\nChanged files:\n"), input);
@@ -90,7 +90,7 @@ class JevSubmissionTest {
     @Test
     void sameFourQuestionsWhateverTheDiffContains() {
         for (String diff : List.of(MIXED_DIFF, TESTS_ONLY_DIFF, DOCS_ONLY_DIFF)) {
-            DecisionRequest request = JevSubmission.of(pr(diff), CONTEXT, List.of(new TestAdequacyCheck())).toDecisionRequest();
+            DecisionRequest request = JevSubmission.of(pr(diff), CONTEXT, List.of(new TestAdequacyService())).toDecisionRequest();
             assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests-changed", "test-adequacy.reach",
                     "test-adequacy.assert"), List.copyOf(request.questions().keySet()));
             assertEquals(request.input(), JevSubmission.input(pr(diff), CONTEXT));
@@ -106,7 +106,7 @@ class JevSubmissionTest {
     @Test
     void checksShareOneRequestAndEachGetsOnlyItsOwnAnswers() {
         JevSubmission submission = JevSubmission.of(pr(MIXED_DIFF), CONTEXT,
-                List.of(new TestAdequacyCheck(), new FixedCheck("other", "behaviour")));
+                List.of(new TestAdequacyService(), new FixedCheck("other", "behaviour")));
         DecisionRequest request = submission.toDecisionRequest();
 
         assertEquals(List.of("test-adequacy.behaviour", "test-adequacy.tests-changed", "test-adequacy.reach",
@@ -130,12 +130,12 @@ class JevSubmissionTest {
                                 "Does this PR change the runtime behaviour of the software?",
                                 new QuestionResult.YesNo(0.88)),
                         new QuestionResult("tests-changed",
-                                TestAdequacyCheck.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.08)),
-                        new QuestionResult("reach", TestAdequacyCheck.REACH.text(),
-                                new QuestionResult.Choice("none", TestAdequacyCheck.REACH.options(),
+                                TestAdequacyService.TESTS_CHANGED.text(), new QuestionResult.YesNo(0.08)),
+                        new QuestionResult("reach", TestAdequacyService.REACH.text(),
+                                new QuestionResult.Choice("none", TestAdequacyService.REACH.options(),
                                         ordered("some", 0.1, "none", 0.83, "undetermined", 0.07))),
-                        new QuestionResult("assert", TestAdequacyCheck.ASSERTS.text(),
-                                new QuestionResult.Choice("nothing-executed", TestAdequacyCheck.ASSERTS.options(),
+                        new QuestionResult("assert", TestAdequacyService.ASSERTS.text(),
+                                new QuestionResult.Choice("nothing-executed", TestAdequacyService.ASSERTS.options(),
                                         ordered("none", 0.12, "nothing-executed", 0.88))))),
                 new CheckResult("other", List.of(new QuestionResult("other behaviour", "Other?",
                         new QuestionResult.YesNo(0.5))))),
@@ -144,7 +144,7 @@ class JevSubmissionTest {
 
     @Test
     void choiceKeepsJevsValueAndDeclaredOptionOrder() {
-        JevSubmission submission = JevSubmission.of(pr(MIXED_DIFF), CONTEXT, List.of(new TestAdequacyCheck()));
+        JevSubmission submission = JevSubmission.of(pr(MIXED_DIFF), CONTEXT, List.of(new TestAdequacyService()));
         // jev's chosen value is kept even when another option has a higher probability: the app never picks.
         DecisionResponse response = DecisionResponse.builder()
                 .answer("test-adequacy.behaviour", YesNoAnswer.of(0.5))

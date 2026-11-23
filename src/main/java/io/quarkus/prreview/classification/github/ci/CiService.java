@@ -7,7 +7,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import org.jboss.logging.Logger;
 
-import io.quarkus.prreview.classification.github.GitHubFacts;
+import io.quarkus.prreview.classification.github.GitHubFactsService;
 import io.quarkus.prreview.classification.github.ci.model.Approval;
 import io.quarkus.prreview.classification.github.ci.model.CiCheck;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
@@ -28,17 +28,17 @@ import io.quarkus.prreview.log.FailureLog;
  * concluded from them. Never throws for gh.
  */
 @ApplicationScoped
-public class CiSource {
+public class CiService {
 
-    private static final Logger LOG = Logger.getLogger(CiSource.class);
+    private static final Logger LOG = Logger.getLogger(CiService.class);
 
     /** GitHub's values a check has when it passed, was skipped, or reported neutrally. */
     static final Set<String> PASSED = Set.of("SUCCESS", "SKIPPED", "NEUTRAL");
 
     private final GhClient gh;
-    private final GitHubFacts facts;
+    private final GitHubFactsService facts;
 
-    public CiSource(GhClient gh, GitHubFacts facts) {
+    public CiService(GhClient gh, GitHubFactsService facts) {
         this.gh = gh;
         this.facts = facts;
     }
@@ -87,7 +87,7 @@ public class CiSource {
      * @param approval the head commit's approval state
      */
     static CiChecks of(GhChecks gh, List<GhComment> comments, Approval approval) {
-        List<CiCheck> checks = gh.rollup().stream().map(CiSource::check).toList();
+        List<CiCheck> checks = gh.rollup().stream().map(CiService::check).toList();
         List<FailedCheck> notPassed = checks.stream().filter(c -> !PASSED.contains(c.value()))
                 .map(c -> new FailedCheck(c, FailureDetails.rows(c, comments, gh.headRefOid(), checks))).toList();
         return new CiChecks(gh.headRefOid(), checks, notPassed, approval,

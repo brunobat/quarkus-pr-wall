@@ -18,14 +18,14 @@ import io.quarkus.prreview.config.ReviewConfig;
  * {@code --help}.
  */
 @ApplicationScoped
-public class ProjectContextLoader {
+public class ProjectContextService {
 
     static final String CLASSPATH = "classpath:";
 
     private final String source;
     private volatile ProjectContext context;
 
-    public ProjectContextLoader(ReviewConfig config) {
+    public ProjectContextService(ReviewConfig config) {
         this.source = config.jev().projectContext();
     }
 

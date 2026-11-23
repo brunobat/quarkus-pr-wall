@@ -36,7 +36,7 @@ import dev.langchain4j.model.decision.response.YesNoAnswer;
 import dev.langchain4j.model.typesafe.TypeSafeDecisionModel;
 import io.quarkus.prreview.classification.api.CheckQuestions;
 import io.quarkus.prreview.classification.api.ClassificationCheck;
-import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
+import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyService;
 import io.quarkus.prreview.classification.submission.JevSubmission;
 import io.quarkus.prreview.clients.jev.model.JevDecision;
 import io.quarkus.prreview.classification.model.ProjectContext;
@@ -116,8 +116,8 @@ class JevClientTest {
                 questions.yesNo("q", "q", YesNoQuestion.of("Another question?"));
             }
         };
-        DecisionRequest oneCheck = JevSubmission.of(pr, CONTEXT, List.of(new TestAdequacyCheck())).toDecisionRequest();
-        DecisionRequest twoChecks = JevSubmission.of(pr, CONTEXT, List.of(new TestAdequacyCheck(), other))
+        DecisionRequest oneCheck = JevSubmission.of(pr, CONTEXT, List.of(new TestAdequacyService())).toDecisionRequest();
+        DecisionRequest twoChecks = JevSubmission.of(pr, CONTEXT, List.of(new TestAdequacyService(), other))
                 .toDecisionRequest();
         DecisionModel model = mock(DecisionModel.class);
         when(model.decide(any(DecisionRequest.class)))

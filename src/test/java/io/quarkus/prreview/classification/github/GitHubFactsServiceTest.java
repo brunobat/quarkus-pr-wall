@@ -15,8 +15,8 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import io.quarkus.prreview.classification.github.ci.CiSource;
-import io.quarkus.prreview.classification.github.size.SizeSource;
+import io.quarkus.prreview.classification.github.ci.CiService;
+import io.quarkus.prreview.classification.github.size.SizeService;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
@@ -26,7 +26,7 @@ import io.quarkus.prreview.clients.gh.model.GhComment;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.clients.gh.model.GhSize;
 
-class GitHubFactsTest {
+class GitHubFactsServiceTest {
 
     static final GhCheck FAILED = new GhCheck(GhCheck.CHECK_RUN, "JVM Tests", "Quarkus CI", "COMPLETED", "FAILURE",
             "https://github.com/q/q/actions/runs/1/job/2", null, null, null);
@@ -35,9 +35,9 @@ class GitHubFactsTest {
     static final GhSize SIZE = new GhSize(12, 3, 2);
 
     final GhClient gh = mock(GhClient.class);
-    final GitHubFacts facts = new GitHubFacts(gh);
-    final SizeSource size = new SizeSource(gh, facts);
-    final CiSource ci = new CiSource(gh, facts);
+    final GitHubFactsService facts = new GitHubFactsService(gh);
+    final SizeService size = new SizeService(gh, facts);
+    final CiService ci = new CiService(gh, facts);
 
     /** What the sources return with no bulk results at all: today's per-PR calls only. */
     List<Object> perPr(int pr) {
@@ -45,8 +45,8 @@ class GitHubFactsTest {
         when(perPr.size(pr)).thenReturn(SIZE);
         when(perPr.checks(pr)).thenReturn(CHECKS);
         when(perPr.comments(pr)).thenReturn(COMMENTS);
-        GitHubFacts none = new GitHubFacts(perPr);
-        return List.of(new SizeSource(perPr, none).gather(pr), new CiSource(perPr, none).gather(pr));
+        GitHubFactsService none = new GitHubFactsService(perPr);
+        return List.of(new SizeService(perPr, none).gather(pr), new CiService(perPr, none).gather(pr));
     }
 
     List<Object> gather(int pr) {

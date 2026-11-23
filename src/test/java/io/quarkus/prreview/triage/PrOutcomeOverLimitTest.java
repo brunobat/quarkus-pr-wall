@@ -42,7 +42,7 @@ class PrOutcomeOverLimitTest {
     ClassificationSummarizer summarizer;
 
     @Inject
-    PrClassifier classifier;
+    PrClassifierService classifier;
 
     @Test
     void aSubmissionOverTheLimitIsNotSent() {

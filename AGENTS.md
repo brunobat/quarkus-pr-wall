@@ -37,8 +37,9 @@ README's top section lists the planned classifications and decisions.
 - The input starts with the project context (`JEV_PROJECT_CONTEXT`, default
   `src/main/resources/project-context/quarkusio-quarkus.txt`), then the changed-file list and the diff. The PR
   title and body are never sent.
-- `TestAdequacyCheckTest` pins the question wording. Changing what `jev` is asked is a deliberate change: update
-  the spec, that test and the README's question table together, then confirm with a manual live run.
+- `TestAdequacyServiceTest` pins only the questions asked and their option ids, never the wording, so wording can be
+  tried against `jev` freely; judge it with the live run (`JevClientLiveTest`). Renaming or removing an option id is
+  a deliberate change: update that test, the `jev` stub and the README's question table together.
 
 ### Package layout
 
@@ -50,6 +51,8 @@ Base package `io.quarkus.prreview`:
   `report/{terminal,markdown,summary}` hold the business logic.
 - Place a class by what it is: results go in `model`, contracts in `api`, and anything that only presents a
   classification goes under `report/`. Don't make packages flat.
+- Every `@ApplicationScoped` class outside `clients/` is named `...Service` (`ServiceSuffixTest`); clients keep the
+  name of the system they talk to.
 - Tests mirror the main packages. Test support (WireMock stubs, the fake `gh`) lives in `it/support`.
 
 ### Configuration and defaults

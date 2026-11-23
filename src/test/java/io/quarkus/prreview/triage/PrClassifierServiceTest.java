@@ -33,7 +33,7 @@ import io.quarkus.test.junit.QuarkusTest;
 
 @QuarkusTest
 @WithTestResource(FakeGh.class)
-class PrClassifierTest {
+class PrClassifierServiceTest {
 
     @InjectMock
     DecisionModel model;
@@ -42,7 +42,7 @@ class PrClassifierTest {
     ClassificationSummarizer summarizer;
 
     @Inject
-    PrClassifier classifier;
+    PrClassifierService classifier;
 
     @Test
     void onePrIsOneJevCallAndAnswersPassThroughUnchanged() {

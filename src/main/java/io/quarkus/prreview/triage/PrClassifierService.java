@@ -12,14 +12,14 @@ import org.jboss.logging.Logger;
 import dev.langchain4j.model.decision.response.DecisionResponse;
 import io.quarkus.arc.All;
 import io.quarkus.prreview.classification.api.ClassificationCheck;
-import io.quarkus.prreview.classification.github.ci.CiSource;
-import io.quarkus.prreview.classification.github.size.SizeSource;
+import io.quarkus.prreview.classification.github.ci.CiService;
+import io.quarkus.prreview.classification.github.size.SizeService;
 import io.quarkus.prreview.classification.model.Classification;
-import io.quarkus.prreview.classification.provenance.ProvenanceSource;
+import io.quarkus.prreview.classification.provenance.ProvenanceService;
 import io.quarkus.prreview.classification.provenance.model.Provenance;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.classification.submission.JevSubmission;
-import io.quarkus.prreview.classification.submission.ProjectContextLoader;
+import io.quarkus.prreview.classification.submission.ProjectContextService;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.jev.JevClient;
@@ -43,21 +43,21 @@ import io.quarkus.prreview.triage.model.PrOutcome;
  * {@link NotAPullRequestException} is thrown.
  */
 @ApplicationScoped
-public class PrClassifier {
+public class PrClassifierService {
 
-    private static final Logger LOG = Logger.getLogger(PrClassifier.class);
+    private static final Logger LOG = Logger.getLogger(PrClassifierService.class);
 
     private final GhClient gh;
     private final JevClient jev;
     private final SummaryService summaries;
     private final List<ClassificationCheck> checks;
-    private final ProjectContextLoader projectContext;
-    private final SizeSource size;
-    private final CiSource ci;
-    private final ProvenanceSource provenance;
+    private final ProjectContextService projectContext;
+    private final SizeService size;
+    private final CiService ci;
+    private final ProvenanceService provenance;
 
-    public PrClassifier(GhClient gh, JevClient jev, SummaryService summaries, @All List<ClassificationCheck> checks,
-            ProjectContextLoader projectContext, SizeSource size, CiSource ci, ProvenanceSource provenance) {
+    public PrClassifierService(GhClient gh, JevClient jev, SummaryService summaries, @All List<ClassificationCheck> checks,
+            ProjectContextService projectContext, SizeService size, CiService ci, ProvenanceService provenance) {
         this.gh = gh;
         this.size = size;
         this.ci = ci;

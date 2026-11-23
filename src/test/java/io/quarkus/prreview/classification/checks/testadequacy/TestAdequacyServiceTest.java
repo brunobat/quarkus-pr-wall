@@ -14,11 +14,11 @@ import dev.langchain4j.model.decision.request.ChoiceQuestion;
  * of the app, the {@code jev} stub and the README rely on. The wording is left free, so it can be tried against
  * {@code jev} without changing this test; only that every text is present is checked.
  */
-class TestAdequacyCheckTest {
+class TestAdequacyServiceTest {
 
     @Test
     void yesNoQuestionsHaveTheirTexts() {
-        for (var question : List.of(TestAdequacyCheck.BEHAVIOUR, TestAdequacyCheck.TESTS_CHANGED)) {
+        for (var question : List.of(TestAdequacyService.BEHAVIOUR, TestAdequacyService.TESTS_CHANGED)) {
             assertFalse(question.text().isBlank());
             assertFalse(question.yesWhen().isBlank());
             assertFalse(question.noWhen().isBlank());
@@ -27,12 +27,12 @@ class TestAdequacyCheckTest {
 
     @Test
     void reachOptions() {
-        assertOptions(TestAdequacyCheck.REACH, List.of("all", "some", "none", "no-runtime-change", "undetermined"));
+        assertOptions(TestAdequacyService.REACH, List.of("all", "some", "none", "no-runtime-change", "undetermined"));
     }
 
     @Test
     void assertOptions() {
-        assertOptions(TestAdequacyCheck.ASSERTS, List.of("all", "some", "none", "nothing-executed", "undetermined"));
+        assertOptions(TestAdequacyService.ASSERTS, List.of("all", "some", "none", "nothing-executed", "undetermined"));
     }
 
     private static void assertOptions(ChoiceQuestion question, List<String> ids) {

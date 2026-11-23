@@ -14,17 +14,17 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import io.quarkus.arc.Unremovable;
-import io.quarkus.prreview.classification.github.GitHubFacts;
-import io.quarkus.prreview.classification.provenance.who.LoginMemo;
+import io.quarkus.prreview.classification.github.GitHubFactsService;
+import io.quarkus.prreview.classification.provenance.who.LoginMemoService;
 import io.quarkus.prreview.classification.model.JevResult;
-import io.quarkus.prreview.classification.submission.ProjectContextLoader;
+import io.quarkus.prreview.classification.submission.ProjectContextService;
 import io.quarkus.prreview.clients.jev.JevClient;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.report.ReportWriter;
 import io.quarkus.prreview.report.markdown.MarkdownReport;
 import io.quarkus.prreview.report.terminal.TerminalRenderer;
 import io.quarkus.prreview.triage.NotAPullRequestException;
-import io.quarkus.prreview.triage.PrClassifier;
+import io.quarkus.prreview.triage.PrClassifierService;
 import io.quarkus.prreview.triage.model.PrOutcome;
 import picocli.CommandLine;
 
@@ -39,19 +39,19 @@ public class ReviewCommand implements Callable<Integer> {
     CommandLine.Model.CommandSpec spec;
 
     @Inject
-    PrClassifier classifier;
+    PrClassifierService classifier;
 
     @Inject
-    GitHubFacts githubFacts;
+    GitHubFactsService githubFacts;
 
     @Inject
-    LoginMemo loginMemo;
+    LoginMemoService loginMemo;
 
     @Inject
     JevClient jev;
 
     @Inject
-    ProjectContextLoader projectContext;
+    ProjectContextService projectContext;
 
     @Inject
     ReviewConfig config;

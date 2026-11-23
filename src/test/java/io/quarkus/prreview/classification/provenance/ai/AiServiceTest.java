@@ -14,12 +14,12 @@ import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 
 /** Every case is about what a PR declares or which account opened it; nothing here judges the code. */
-class AiRulesTest {
+class AiServiceTest {
 
     static final SignalList SIGNALS = new SignalList("test", List.of("co-authored-by: claude",
             "generated with claude code"));
     static final SignalList AUTOMATION = new SignalList("test", List.of("dependabot", "quarkus-bot"));
-    static final AiRules RULES = new AiRules(SIGNALS, AUTOMATION);
+    static final AiService RULES = new AiService(SIGNALS, AUTOMATION);
     static final Person ALICE = Person.of("alice", Who.COMMUNITY);
 
     static GhAuthorship pr(String body, GhCommit... commits) {
@@ -91,7 +91,7 @@ class AiRulesTest {
 
     @Test
     void emptyListsNeverDeclareAndMakeEveryBotAnAgent() {
-        AiRules empty = new AiRules(new SignalList("x", List.of()), new SignalList("x", List.of()));
+        AiService empty = new AiService(new SignalList("x", List.of()), new SignalList("x", List.of()));
 
         assertEquals(AiLabel.NONE, empty.label(pr("Generated with Claude Code"), ALICE, List.of()));
         assertEquals(new AiLabel(AiLabel.Kind.AGENT, "dependabot[bot]"),

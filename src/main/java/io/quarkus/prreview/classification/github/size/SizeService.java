@@ -4,7 +4,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import org.jboss.logging.Logger;
 
-import io.quarkus.prreview.classification.github.GitHubFacts;
+import io.quarkus.prreview.classification.github.GitHubFactsService;
 import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.source.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
@@ -14,14 +14,14 @@ import io.quarkus.prreview.log.FailureLog;
 
 /** The size classification source: GitHub's counts for a PR, or why they are unavailable. Never throws for gh. */
 @ApplicationScoped
-public class SizeSource {
+public class SizeService {
 
-    private static final Logger LOG = Logger.getLogger(SizeSource.class);
+    private static final Logger LOG = Logger.getLogger(SizeService.class);
 
     private final GhClient gh;
-    private final GitHubFacts facts;
+    private final GitHubFactsService facts;
 
-    public SizeSource(GhClient gh, GitHubFacts facts) {
+    public SizeService(GhClient gh, GitHubFactsService facts) {
         this.gh = gh;
         this.facts = facts;
     }

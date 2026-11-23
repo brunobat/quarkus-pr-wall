@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import io.quarkus.prreview.classification.provenance.model.Person;
 import io.quarkus.prreview.classification.provenance.model.Who;
-import io.quarkus.prreview.classification.provenance.who.WhoRules;
+import io.quarkus.prreview.classification.provenance.who.WhoService;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 import tools.jackson.databind.json.JsonMapper;
@@ -39,7 +39,7 @@ class GhClientLiveTest {
         GhAuthorship authorship = gh.authorship(MEMBER_PR);
 
         assertEquals("MEMBER", gh.association(MEMBER_PR));
-        assertEquals(Person.of(authorship.login(), Who.TEAM), new WhoRules(gh).prAuthor(MEMBER_PR, authorship));
+        assertEquals(Person.of(authorship.login(), Who.TEAM), new WhoService(gh).prAuthor(MEMBER_PR, authorship));
     }
 
     @Test
