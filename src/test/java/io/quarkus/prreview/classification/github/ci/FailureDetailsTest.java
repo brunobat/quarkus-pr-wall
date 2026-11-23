@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.quarkus.prreview.classification.github.ci.botcomment.BotCommentParserTest;
+import io.quarkus.prreview.classification.github.ci.model.Approval;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.ci.model.FailureRow;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
@@ -40,7 +41,7 @@ class FailureDetailsTest {
 
     @Test
     void failingTestsComeFromTheHeadCommitsCommentWithFlakyAndLinks() {
-        List<List<FailureRow>> rows = rows(CiSource.of(checks(HEAD), COMMENTS));
+        List<List<FailureRow>> rows = rows(CiSource.of(checks(HEAD), COMMENTS, Approval.NOT_WAITING));
 
         String scan = "https://develocity.quarkus.io/s/hzvs2pygcxpvk";
         assertEquals(List.of(
@@ -67,7 +68,7 @@ class FailureDetailsTest {
 
     @Test
     void aFlakyTestInAJobThatPassedIsNotShown() {
-        CiChecks ci = CiSource.of(checks(HEAD), COMMENTS);
+        CiChecks ci = CiSource.of(checks(HEAD), COMMENTS, Approval.NOT_WAITING);
 
         assertFalse(ci.notPassed().stream().anyMatch(f -> f.check().name().equals("JVM Tests - JDK 17 Windows")));
         assertFalse(ci.notPassed().stream().flatMap(f -> f.rows().stream())
@@ -76,21 +77,23 @@ class FailureDetailsTest {
 
     @Test
     void aCommentForAnEarlierCommitIsNeverUsed() {
-        List<List<FailureRow>> rows = rows(CiSource.of(checks("ba9690af333f6fbc224371cb62200c3b47b7314a"), COMMENTS));
+        List<List<FailureRow>> rows = rows(CiSource.of(checks("ba9690af333f6fbc224371cb62200c3b47b7314a"), COMMENTS,
+                Approval.NOT_WAITING));
 
         rows.forEach(r -> assertEquals(UNAVAILABLE, r));
     }
 
     @Test
     void withoutAnyQuarkusBotCommentThereIsNoSource() {
-        List<List<FailureRow>> rows = rows(CiSource.of(checks(HEAD), List.of(new GhComment("someone", "hi", "x"))));
+        List<List<FailureRow>> rows = rows(CiSource.of(checks(HEAD), List.of(new GhComment("someone", "hi", "x")),
+                Approval.NOT_WAITING));
 
         rows.forEach(r -> assertEquals(List.of(FailureRow.withoutTest("no source for failure details")), r));
     }
 
     @Test
     void commentsThatCouldNotBeReadLeaveTheChecksAndSayDetailsUnavailable() {
-        CiChecks ci = CiSource.of(checks(HEAD), null);
+        CiChecks ci = CiSource.of(checks(HEAD), null, Approval.NOT_WAITING);
 
         assertEquals(6, ci.checks().size());
         assertEquals(5, ci.notPassed().size());

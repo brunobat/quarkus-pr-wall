@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import dev.langchain4j.model.output.TokenUsage;
 import io.quarkus.prreview.classification.checks.testadequacy.TestAdequacyCheck;
 import io.quarkus.prreview.classification.github.ci.model.CiCheck;
+import io.quarkus.prreview.classification.github.ci.model.Approval;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
 import io.quarkus.prreview.classification.github.ci.model.FailureRow;
@@ -522,9 +523,13 @@ class RenderingTest {
     }
 
     static CiChecks ci(List<CiCheck> checks) {
+        return ci(checks, Approval.NOT_WAITING);
+    }
+
+    static CiChecks ci(List<CiCheck> checks, Approval approval) {
         return new CiChecks("ba9690af", checks, checks.stream().filter(c -> !List.of("SUCCESS", "SKIPPED", "NEUTRAL")
                 .contains(c.value())).map(c -> new FailedCheck(c, List.of(FailureRow.withoutTest("details unavailable"))))
-                .toList());
+                .toList(), approval);
     }
 
     @Test
@@ -533,9 +538,22 @@ class RenderingTest {
         CiCheck neutral = new CiCheck(CiCheck.Kind.CHECK_RUN, "Build scans", "", "NEUTRAL", "");
         Map<SourceResult<CiChecks>, String[]> cases = new LinkedHashMap<>();
         cases.put(SourceResult.unavailable("gh: x"), new String[] { "CI: unavailable\n", "unavailable\n" });
-        cases.put(new SourceResult.Available<>(ci(List.of())), new String[] { "CI: none\n", "none\n" });
+        cases.put(new SourceResult.Available<>(ci(List.of())), new String[] {
+                "CI: no workflow runs on the head commit\n", "No workflow runs on the head commit.\n" });
         cases.put(new SourceResult.Available<>(ci(List.of(ok, neutral))), new String[] {
                 "CI: all 2 passed, skipped or neutral\n", "All 2 passed, skipped or neutral.\n" });
+        cases.put(new SourceResult.Available<>(ci(List.of(ok, neutral), Approval.WAITING)), new String[] {
+                "CI: workflows waiting for maintainer approval; only 2 checks ran (all 2 passed, skipped or neutral)\n",
+                "Workflows waiting for maintainer approval; only 2 checks ran (all 2 passed, skipped or neutral).\n" });
+        cases.put(new SourceResult.Available<>(ci(List.of(), Approval.WAITING)), new String[] {
+                "CI: workflows waiting for maintainer approval; no checks ran\n",
+                "Workflows waiting for maintainer approval; no checks ran.\n" });
+        cases.put(new SourceResult.Available<>(ci(List.of(ok, neutral), Approval.UNAVAILABLE)), new String[] {
+                "CI: all 2 passed, skipped or neutral (approval status unavailable)\n",
+                "All 2 passed, skipped or neutral (approval status unavailable).\n" });
+        cases.put(new SourceResult.Available<>(ci(List.of(), Approval.UNAVAILABLE)), new String[] {
+                "CI: no workflow runs on the head commit (approval status unavailable)\n",
+                "No workflow runs on the head commit (approval status unavailable).\n" });
         cases.forEach((ci, expected) -> {
             PrOutcome outcome = withCi(ci);
             assertTrue(TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT)).contains(
@@ -543,6 +561,25 @@ class RenderingTest {
             assertTrue(MarkdownReport.render(outcome).contains("## CI checks (GitHub)\n\n" + expected[1]
                     + "\n## Provenance (GitHub)"), MarkdownReport.render(outcome));
         });
+    }
+
+    @Test
+    void waitingWithAFailedCheckKeepsTheTable() {
+        List<CiCheck> checks = List.of(new CiCheck(CiCheck.Kind.CHECK_RUN, "a", "W", "SUCCESS", ""),
+                new CiCheck(CiCheck.Kind.CHECK_RUN, "b", "W", "SUCCESS", ""),
+                new CiCheck(CiCheck.Kind.CHECK_RUN, "JVM Tests", "W", "FAILURE", "https://github.com/q/q/runs/2"));
+        PrOutcome outcome = withCi(new SourceResult.Available<>(ci(checks, Approval.WAITING)));
+
+        String block = TerminalRenderer.render(outcome, new ReportWriter.Written(REPORT));
+        assertTrue(block.contains("CI: workflows waiting for maintainer approval; only 3 checks ran (1 of 3 not passed)\n"
+                + "  Check"), block);
+        assertTrue(block.contains("  JVM Tests (W)  FAILURE"), block);
+        String report = MarkdownReport.render(outcome);
+        assertTrue(report.contains("## CI checks (GitHub)\n\nWorkflows waiting for maintainer approval; only 3 checks ran"
+                + " (1 of 3 not passed).\n\n| Check |"), report);
+        assertTrue(outcome.waitingForApproval());
+        assertFalse(withCi(new SourceResult.Available<>(ci(checks, Approval.UNAVAILABLE))).waitingForApproval());
+        assertFalse(withCi(SourceResult.unavailable("gh: x")).waitingForApproval());
     }
 
     @Test
@@ -591,7 +628,7 @@ class RenderingTest {
         CiCheck check = new CiCheck(CiCheck.Kind.CHECK_RUN, "JVM Tests - JDK 21", "Quarkus CI", "FAILURE",
                 "https://github.com/q/q/actions/runs/1/job/2");
         return withCi(new SourceResult.Available<>(new CiChecks("ba9690af", List.of(check),
-                List.of(new FailedCheck(check, rows)))));
+                List.of(new FailedCheck(check, rows)), Approval.NOT_WAITING)));
     }
 
     @Test

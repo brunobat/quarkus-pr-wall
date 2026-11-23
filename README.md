@@ -214,8 +214,19 @@ nothing is concluded from them, and they are **never sent to `jev` or Claude**.
   the diff (more than 300 files).
 - **CI checks:** every check on the PR's **head commit**: check runs (by name and workflow) and commit statuses.
   A check passed when its value is `SUCCESS`, `SKIPPED` or `NEUTRAL`; any other value, including one still
-  running, counts as not passed. The line says `none` when the head commit has no checks, `all N passed, skipped
-  or neutral`, or `N of M not passed` followed by a table:
+  running, counts as not passed. The line says `all N passed, skipped or neutral`, or `N of M not passed` followed
+  by a table. The head commit's **check suites** are read too (`gh api repos/<GH_REPO>/commits/<sha>/check-suites`),
+  for one thing only: whether GitHub marks a suite as awaiting a maintainer's approval to run its workflows
+  (conclusion `action_required` with no check runs). Queued suites, and suites that have runs, are not that marking.
+
+  | Situation on the head commit | CI line |
+  |---|---|
+  | a suite awaits approval, some checks ran | `workflows waiting for maintainer approval; only 2 checks ran (all 2 passed, skipped or neutral)` |
+  | a suite awaits approval, no checks ran | `workflows waiting for maintainer approval; no checks ran` |
+  | nothing awaits approval, no checks | `no workflow runs on the head commit` |
+  | the check suites could not be read | the line as above, plus ` (approval status unavailable)` |
+
+  The table of checks that did not pass follows as usual:
 
   | Column | What it shows |
   |---|---|

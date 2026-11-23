@@ -103,12 +103,12 @@ public final class MarkdownReport {
 
     private static void appendCiTable(StringBuilder md, CiChecks ci) {
         String count = CiFormat.count(ci);
+        String sentence = Character.toUpperCase(count.charAt(0)) + count.substring(1) + ".";
         if (ci.notPassed().isEmpty()) {
-            md.append(ci.checks().isEmpty() ? count : Character.toUpperCase(count.charAt(0)) + count.substring(1) + ".")
-                    .append("\n");
+            md.append(sentence).append("\n");
             return;
         }
-        md.append(count).append(".\n\n");
+        md.append(sentence).append("\n\n");
         md.append("| ").append(String.join(" | ", CiFormat.COLUMNS)).append(" |\n|---|---|---|---|---|\n");
         for (FailedCheck failed : ci.notPassed()) {
             CiCheck check = failed.check();

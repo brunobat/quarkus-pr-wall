@@ -1,1 +1,1 @@
-gh: HTTP 502: Bad Gateway (https://api.github.com/repos/quarkusio/quarkus/commits/1450000000000000000000000000000000000145/check-suites?per_page=100)
+HTTP 502: Bad Gateway (https://api.github.com/repos/quarkusio/quarkus/commits/1450000000000000000000000000000000000145/check-suites?per_page=100)

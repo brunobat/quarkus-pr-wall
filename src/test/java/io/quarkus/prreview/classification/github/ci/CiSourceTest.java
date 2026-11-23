@@ -8,10 +8,12 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.quarkus.prreview.classification.github.ci.model.CiCheck;
+import io.quarkus.prreview.classification.github.ci.model.Approval;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.ci.model.FailedCheck;
 import io.quarkus.prreview.classification.github.ci.model.FailureRow;
 import io.quarkus.prreview.clients.gh.model.GhCheck;
+import io.quarkus.prreview.clients.gh.model.GhCheckSuite;
 import io.quarkus.prreview.clients.gh.model.GhChecks;
 import io.quarkus.prreview.clients.gh.model.GhComment;
 
@@ -50,7 +52,7 @@ class CiSourceTest {
         rollup.add(42, run("Odd", "Quarkus CI", "COMPLETED", "SOMETHING_NEW"));
         rollup.add(status("CI Merge Gate", "FAILURE"));
 
-        CiChecks ci = CiSource.of(new GhChecks(HEAD, rollup), WELCOME_ONLY);
+        CiChecks ci = CiSource.of(new GhChecks(HEAD, rollup), WELCOME_ONLY, Approval.NOT_WAITING);
 
         assertEquals(67, ci.checks().size());
         assertEquals(HEAD, ci.headCommit());
@@ -67,7 +69,7 @@ class CiSourceTest {
     void successSkippedAndNeutralAreNotListed() {
         CiChecks ci = CiSource.of(new GhChecks(HEAD, List.of(run("a", "W", "COMPLETED", "SUCCESS"),
                 run("b", "W", "COMPLETED", "SKIPPED"), run("Build scans", "", "COMPLETED", "NEUTRAL"),
-                status("CI Merge Gate", "SUCCESS"))), List.of());
+                status("CI Merge Gate", "SUCCESS"))), List.of(), Approval.NOT_WAITING);
 
         assertEquals(4, ci.checks().size());
         assertEquals(List.of(), ci.notPassed());
@@ -75,9 +77,32 @@ class CiSourceTest {
 
     @Test
     void noChecksIsAnEmptyList() {
-        CiChecks ci = CiSource.of(new GhChecks(HEAD, List.of()), List.of());
+        CiChecks ci = CiSource.of(new GhChecks(HEAD, List.of()), List.of(), Approval.NOT_WAITING);
 
         assertEquals(List.of(), ci.checks());
         assertEquals(List.of(), ci.notPassed());
+    }
+
+    @Test
+    void aSuiteWithActionRequiredAndNoRunsIsWaitingForApproval() {
+        GhCheckSuite awaiting = new GhCheckSuite("completed", "action_required", 0);
+        GhCheckSuite passed = new GhCheckSuite("completed", "success", 2);
+
+        assertEquals(Approval.WAITING, CiSource.approval(List.of(passed, awaiting)));
+        assertEquals(Approval.NOT_WAITING, CiSource.approval(List.of()));
+        assertEquals(Approval.NOT_WAITING, CiSource.approval(List.of(passed)));
+        // Only that marking counts: a suite with runs, or one only queued, is not waiting for approval.
+        assertEquals(Approval.NOT_WAITING, CiSource.approval(List.of(new GhCheckSuite("completed", "action_required", 3))));
+        assertEquals(Approval.NOT_WAITING, CiSource.approval(List.of(new GhCheckSuite("queued", null, 0),
+                new GhCheckSuite("queued", null, 0))));
+        assertEquals(Approval.NOT_WAITING, CiSource.approval(List.of(new GhCheckSuite("completed", "action_required",
+                null))));
+    }
+
+    @Test
+    void theApprovalStateIsKeptWithTheChecks() {
+        for (Approval approval : Approval.values()) {
+            assertEquals(approval, CiSource.of(new GhChecks(HEAD, List.of()), List.of(), approval).approval());
+        }
     }
 }

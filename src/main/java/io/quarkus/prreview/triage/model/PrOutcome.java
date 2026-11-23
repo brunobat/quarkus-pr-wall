@@ -2,6 +2,7 @@ package io.quarkus.prreview.triage.model;
 
 import java.util.List;
 
+import io.quarkus.prreview.classification.github.ci.model.Approval;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.size.model.PrSize;
 import io.quarkus.prreview.classification.model.CheckResult;
@@ -32,6 +33,12 @@ public record PrOutcome(int number, List<String> checks, PullRequest pullRequest
     /** Whether GitHub marks the PR as a draft; {@code false} when its metadata was not read. */
     public boolean draft() {
         return pullRequest != null && pullRequest.draft();
+    }
+
+    /** Whether GitHub marks a check suite on the head commit as awaiting approval; {@code false} when unknown. */
+    public boolean waitingForApproval() {
+        return ci instanceof SourceResult.Available<CiChecks> available
+                && available.facts().approval() == Approval.WAITING;
     }
 
     /** The reason given by a GitHub source that was not asked. */

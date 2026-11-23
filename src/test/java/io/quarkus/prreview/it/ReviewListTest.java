@@ -227,12 +227,51 @@ class ReviewListTest {
     }
 
     @Test
-    void noChecksIsNoneAndUnreadableChecksAreUnavailable(QuarkusMainLauncher launcher) throws IOException {
+    void noChecksIsNoWorkflowRunsAndUnreadableChecksAreUnavailable(QuarkusMainLauncher launcher) throws IOException {
         LaunchResult result = launcher.launch("review", "103", "406", "--output-dir", out.toString());
 
-        assertTrue(block(result.getOutputStream(), 103).contains("CI: none\n"), result.getOutput());
+        assertTrue(block(result.getOutputStream(), 103).contains("CI: no workflow runs on the head commit\n"),
+                result.getOutput());
         assertTrue(block(result.getOutputStream(), 406).contains("CI: unavailable\n"), result.getOutput());
-        assertTrue(Files.readString(out.resolve("review-103.md")).contains("## CI checks (GitHub)\n\nnone\n"));
+        assertTrue(Files.readString(out.resolve("review-103.md"))
+                .contains("## CI checks (GitHub)\n\nNo workflow runs on the head commit.\n"));
+    }
+
+    @Test
+    void workflowsWaitingForApprovalAreReported(QuarkusMainLauncher launcher) throws IOException {
+        // 140: two passing checks and a suite awaiting approval; 141: the same with a failed check; 142: awaiting
+        // approval with no checks; 144: no checks and only queued suites; 145: the suites cannot be read.
+        long before = ghCalls();
+        LaunchResult result = launcher.launch("review", "140", "141", "142", "144", "145", "--output-dir",
+                out.toString());
+
+        List<String> stdout = result.getOutputStream();
+        assertTrue(block(stdout, 140).contains("CI: workflows waiting for maintainer approval; only 2 checks ran (all 2"
+                + " passed, skipped or neutral)\n"), result.getOutput());
+        assertTrue(block(stdout, 141).contains("CI: workflows waiting for maintainer approval; only 3 checks ran (1 of 3"
+                + " not passed)\n  Check "), result.getOutput());
+        assertTrue(block(stdout, 141).contains("  Lint (Quarkus Bot)  FAILURE"), result.getOutput());
+        assertTrue(block(stdout, 142).contains("CI: workflows waiting for maintainer approval; no checks ran\n"),
+                result.getOutput());
+        assertTrue(block(stdout, 144).contains("CI: no workflow runs on the head commit\n"), result.getOutput());
+        assertTrue(block(stdout, 145).contains("CI: all 1 passed, skipped or neutral (approval status unavailable)\n"),
+                result.getOutput());
+        assertTrue(Files.readString(out.resolve("review-140.md")).contains("## CI checks (GitHub)\n\nWorkflows waiting"
+                + " for maintainer approval; only 2 checks ran (all 2 passed, skipped or neutral).\n"));
+        assertTrue(Files.readString(out.resolve("review-142.md")).contains("## CI checks (GitHub)\n\nWorkflows waiting"
+                + " for maintainer approval; no checks ran.\n"));
+
+        // One warning line for the failed suites read, and no stack trace.
+        List<String> lines = result.getOutput().lines().toList();
+        assertEquals(1, lines.stream().filter(l -> l.contains(" WARN ") && l.endsWith("PR #145: approval status"
+                + " unavailable: gh: HTTP 502: Bad Gateway (https://api.github.com/repos/quarkusio/quarkus/commits/"
+                + "1450000000000000000000000000000000000145/check-suites?per_page=100)")).count(), result.getOutput());
+        assertTrue(lines.stream().noneMatch(l -> l.startsWith("\tat ")), result.getOutput());
+        // One suites read per PR, for its head commit.
+        List<String> suites = callsSince(before).stream().filter(c -> c.contains("/check-suites")).toList();
+        assertEquals(5, suites.size(), suites.toString());
+        assertTrue(suites.contains("api repos/quarkusio/quarkus/commits/1440000000000000000000000000000000000144"
+                + "/check-suites?per_page=100"), suites.toString());
     }
 
     @Test
@@ -280,7 +319,7 @@ class ReviewListTest {
         assertTrue(block(stdout, 101).contains("Size: 2 files changed, +12 -3\n"), result.getOutput());
         assertTrue(block(stdout, 101).contains("CI: 5 of 9 not passed\n"), result.getOutput());
         assertTrue(block(stdout, 101).contains("GracefulShutdownFilterTest"), result.getOutput());
-        assertTrue(block(stdout, 103).contains("CI: none\n"), result.getOutput());
+        assertTrue(block(stdout, 103).contains("CI: no workflow runs on the head commit\n"), result.getOutput());
         assertTrue(block(stdout, 107).contains("no source for failure details"), result.getOutput());
     }
 
@@ -428,9 +467,9 @@ class ReviewListTest {
         return calls.stream().filter(c -> c.startsWith("pr view ") && c.contains(" author,body,")).toList();
     }
 
-    /** The {@code gh api} calls, in order. */
+    /** The {@code gh api} calls that look up who wrote a PR, in order: every one but the CI check-suites reads. */
     private static List<String> apiCalls(List<String> calls) {
-        return calls.stream().filter(c -> c.startsWith("api ")).toList();
+        return calls.stream().filter(c -> c.startsWith("api ") && !c.contains("/check-suites")).toList();
     }
 
     /** A block up to and including its report line, without any log line printed after it. */

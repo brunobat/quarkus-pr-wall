@@ -1,5 +1,6 @@
 package io.quarkus.prreview.report;
 
+import io.quarkus.prreview.classification.github.ci.model.Approval;
 import io.quarkus.prreview.classification.github.ci.model.CiCheck;
 import io.quarkus.prreview.classification.github.ci.model.CiChecks;
 import io.quarkus.prreview.classification.github.ci.model.FailureRow;
@@ -14,12 +15,24 @@ public final class CiFormat {
     private CiFormat() {
     }
 
-    /** {@code 8 of 67 not passed}, {@code all 67 passed, skipped or neutral}, or {@code none}: counts only. */
+    /**
+     * The CI line after {@code CI: }: the counts ({@code 8 of 67 not passed}, {@code all 67 passed, skipped or
+     * neutral}, or {@code no workflow runs on the head commit}), led by {@code workflows waiting for maintainer
+     * approval} when GitHub marks a suite so, and followed by {@code (approval status unavailable)} when the suites
+     * could not be read.
+     */
     public static String count(CiChecks ci) {
         int total = ci.checks().size();
-        if (total == 0) {
-            return "none";
+        if (ci.approval() == Approval.WAITING) {
+            return "workflows waiting for maintainer approval; "
+                    + (total == 0 ? "no checks ran" : "only " + total + " checks ran (" + counts(ci) + ")");
         }
+        String counts = total == 0 ? "no workflow runs on the head commit" : counts(ci);
+        return ci.approval() == Approval.UNAVAILABLE ? counts + " (approval status unavailable)" : counts;
+    }
+
+    private static String counts(CiChecks ci) {
+        int total = ci.checks().size();
         if (ci.notPassed().isEmpty()) {
             return "all " + total + " passed, skipped or neutral";
         }

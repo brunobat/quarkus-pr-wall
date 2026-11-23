@@ -356,7 +356,7 @@ class GhClientTest {
         assertEquals(List.of(), client.checkSuites(SHA));
         GhException e = assertThrows(GhException.class,
                 () -> client.checkSuites("1450000000000000000000000000000000000145"));
-        assertTrue(e.getMessage().startsWith("gh: HTTP 502: Bad Gateway"), e.getMessage());
+        assertTrue(e.getMessage().startsWith("HTTP 502: Bad Gateway"), e.getMessage());
     }
 
     @Test

@@ -8,6 +8,7 @@ import java.util.List;
  * @param headCommit the head commit's full SHA
  * @param checks every check run and commit status on the head commit, in GitHub's order
  * @param notPassed the checks whose value is not {@code SUCCESS}, {@code SKIPPED} or {@code NEUTRAL}, in GitHub's order
+ * @param approval whether a check suite on the head commit awaits approval, as GitHub marks it
  */
-public record CiChecks(String headCommit, List<CiCheck> checks, List<FailedCheck> notPassed) {
+public record CiChecks(String headCommit, List<CiCheck> checks, List<FailedCheck> notPassed, Approval approval) {
 }
