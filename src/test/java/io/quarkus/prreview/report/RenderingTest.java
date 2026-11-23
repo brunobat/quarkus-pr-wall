@@ -540,7 +540,7 @@ class RenderingTest {
         CiCheck ok = new CiCheck(CiCheck.Kind.CHECK_RUN, "a", "W", "SUCCESS", "");
         CiCheck neutral = new CiCheck(CiCheck.Kind.CHECK_RUN, "Build scans", "", "NEUTRAL", "");
         Map<SourceResult<CiChecks>, String[]> cases = new LinkedHashMap<>();
-        cases.put(SourceResult.unavailable("gh: x"), new String[] { "CI: unavailable\n", "unavailable\n" });
+        cases.put(SourceResult.unavailable(), new String[] { "CI: unavailable\n", "unavailable\n" });
         cases.put(new SourceResult.Available<>(ci(List.of())), new String[] {
                 "CI: no workflow runs on the head commit\n", "No workflow runs on the head commit.\n" });
         cases.put(new SourceResult.Available<>(ci(List.of(ok, neutral))), new String[] {
@@ -643,7 +643,7 @@ class RenderingTest {
         assertTrue(MarkdownReport.render(unreadable).contains(
                 "All 1 passed, skipped or neutral.\n\nFlaky: unavailable.\n\n## Provenance"),
                 MarkdownReport.render(unreadable));
-        PrOutcome noCi = withCi(SourceResult.unavailable("gh: x"));
+        PrOutcome noCi = withCi(SourceResult.unavailable());
         assertFalse(TerminalRenderer.render(noCi, new ReportWriter.Written(REPORT)).contains("Flaky"));
         assertFalse(MarkdownReport.render(noCi).contains("Flaky"));
     }
@@ -675,7 +675,7 @@ class RenderingTest {
                 + " (1 of 3 not passed).\n\n| Check |"), report);
         assertTrue(outcome.waitingForApproval());
         assertFalse(withCi(new SourceResult.Available<>(ci(checks, Approval.UNAVAILABLE))).waitingForApproval());
-        assertFalse(withCi(SourceResult.unavailable("gh: x")).waitingForApproval());
+        assertFalse(withCi(SourceResult.unavailable()).waitingForApproval());
     }
 
     @Test

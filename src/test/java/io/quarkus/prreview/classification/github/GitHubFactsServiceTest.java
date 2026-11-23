@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import io.quarkus.prreview.classification.github.ci.CiService;
 import io.quarkus.prreview.classification.github.model.PrSize;
+import io.quarkus.prreview.classification.model.SourceResult;
 import io.quarkus.prreview.clients.gh.GhClient;
 import io.quarkus.prreview.clients.gh.GhException;
 import io.quarkus.prreview.clients.gh.model.GhAuthorship;
@@ -136,8 +137,8 @@ class GitHubFactsServiceTest {
 
         facts.prefetch(List.of(1));
 
-        assertEquals("Unavailable[reason=gh: HTTP 403: forbidden]", size.gather(1).toString());
-        assertEquals("Unavailable[reason=gh: HTTP 403: forbidden]", ci.gather(1).toString());
+        assertEquals(SourceResult.unavailable(), size.gather(1));
+        assertEquals(SourceResult.unavailable(), ci.gather(1));
     }
 
     @Test

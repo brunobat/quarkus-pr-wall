@@ -1,8 +1,9 @@
 package io.quarkus.prreview.classification.model;
 
 /**
- * What one classification source found for a PR: its facts, or the reason they could not be obtained. Every PR has a
- * result from every source, whatever happened to the others.
+ * What one classification source found for a PR: its facts, or that they could not be obtained. Every PR has a
+ * result from every source, whatever happened to the others. Why a source was unavailable is in its one warning
+ * line, not here.
  *
  * @param <T> the source's own fact type
  */
@@ -12,11 +13,11 @@ public sealed interface SourceResult<T> permits SourceResult.Available, SourceRe
     record Available<T>(T facts) implements SourceResult<T> {
     }
 
-    /** @param reason why the facts could not be obtained, one line */
-    record Unavailable<T>(String reason) implements SourceResult<T> {
+    /** The facts could not be obtained. */
+    record Unavailable<T>() implements SourceResult<T> {
     }
 
-    static <T> SourceResult<T> unavailable(String reason) {
-        return new Unavailable<>(reason);
+    static <T> SourceResult<T> unavailable() {
+        return new Unavailable<>();
     }
 }

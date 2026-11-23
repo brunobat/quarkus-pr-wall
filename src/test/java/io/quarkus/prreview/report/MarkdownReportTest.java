@@ -77,7 +77,7 @@ class MarkdownReportTest {
 
     @Test
     void withoutCiTheCommitIsNotShown() {
-        String report = MarkdownReport.render(outcome(PR, SourceResult.unavailable("gh: HTTP 502")));
+        String report = MarkdownReport.render(outcome(PR, SourceResult.unavailable()));
 
         assertTrue(report.startsWith("# PR #7: Title\n\nLink: https://github.com/q/q/pull/7 · State: OPEN (draft)\n\n"
                 + "## Size (GitHub)\n"), report);

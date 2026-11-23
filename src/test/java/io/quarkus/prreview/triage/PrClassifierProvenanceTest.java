@@ -49,7 +49,7 @@ class PrClassifierProvenanceTest {
 
         PrOutcome outcome = classifier.classify(101);
 
-        assertEquals(SourceResult.unavailable("something broke"), outcome.provenance());
+        assertEquals(SourceResult.unavailable(), outcome.provenance());
         assertEquals("jev: jev is down", ((JevResult.NotAnswered) outcome.jev()).reason());
     }
 
@@ -70,7 +70,7 @@ class PrClassifierProvenanceTest {
             } catch (InterruptedException e) {
                 stopped.countDown();
             }
-            return SourceResult.unavailable("too late");
+            return SourceResult.unavailable();
         });
 
         assertThrows(IllegalStateException.class, () -> classifier.classify(101));

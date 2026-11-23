@@ -111,12 +111,11 @@ public class PrClassifierService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             task.cancel(true);
-            return SourceResult.unavailable("interrupted");
+            return SourceResult.unavailable();
         } catch (ExecutionException e) {
             Throwable cause = e.getCause() == null ? e : e.getCause();
             LOG.warnf(cause, "PR #%d: provenance failed", number);
-            String message = cause.getMessage() == null ? cause.getClass().getName() : cause.getMessage();
-            return SourceResult.unavailable(PlainText.oneLine(message));
+            return SourceResult.unavailable();
         }
     }
 

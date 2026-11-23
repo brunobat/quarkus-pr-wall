@@ -53,7 +53,7 @@ class ProvenanceServiceTest {
     void anAuthorshipThatCannotBeReadMakesTheSourceUnavailable() {
         when(gh.authorship(7)).thenThrow(new GhException("no pull requests\nfound"));
 
-        assertEquals(SourceResult.unavailable("gh: no pull requests found"), source.gather(7));
+        assertEquals(SourceResult.unavailable(), source.gather(7));
     }
 
     @Test

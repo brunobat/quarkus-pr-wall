@@ -21,7 +21,6 @@ import io.quarkus.prreview.clients.gh.model.GhAuthorship;
 import io.quarkus.prreview.clients.gh.model.GhCommit;
 import io.quarkus.prreview.config.ReviewConfig;
 import io.quarkus.prreview.util.FailureLog;
-import io.quarkus.prreview.util.PlainText;
 
 /**
  * The authorship-provenance classification source: who wrote a PR, from GitHub's facts only, or why that could not be
@@ -62,7 +61,7 @@ public class ProvenanceService {
             authorship = facts.authorship(pr).orElseGet(() -> gh.authorship(pr));
         } catch (GhException e) {
             FailureLog.warn(LOG, "PR #" + pr + ": provenance unavailable: gh", e);
-            return SourceResult.unavailable("gh: " + PlainText.oneLine(e.getMessage()));
+            return SourceResult.unavailable();
         }
         Instant readAt = Instant.now();
         Person author = who.prAuthor(pr, authorship);
