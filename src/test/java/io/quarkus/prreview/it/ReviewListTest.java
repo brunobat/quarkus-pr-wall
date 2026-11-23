@@ -104,7 +104,7 @@ class ReviewListTest {
         LaunchResult result = launcher.launch("review", "404", "406", "--output-dir", out.toString());
 
         assertEquals(1, result.exitCode(), result.getOutput());
-        assertTrue(block(result.getOutputStream(), 404).contains("  not classified: gh: no pull requests found"),
+        assertTrue(block(result.getOutputStream(), 404).contains("  not classified: gh: GraphQL: Could not resolve to a PullRequest with the number of 404."),
                 result.getOutput());
         assertTrue(block(result.getOutputStream(), 406).contains("  not classified: gh: "), result.getOutput());
         assertTrue(Files.readString(out.resolve("review-404.md")).startsWith("# PR #404\n"));

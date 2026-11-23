@@ -50,7 +50,7 @@ class PrOutcomeTest {
         JevResult.NotAnswered jev = (JevResult.NotAnswered) outcome.jev();
 
         assertEquals(404, outcome.number());
-        assertEquals("gh: no pull requests found for branch \"404\"", jev.reason());
+        assertEquals("gh: GraphQL: Could not resolve to a PullRequest with the number of 404. (repository.pullRequest)", jev.reason());
         assertNull(outcome.pullRequest());
         assertNull(jev.jevModel());
         assertNull(jev.submissionChars());

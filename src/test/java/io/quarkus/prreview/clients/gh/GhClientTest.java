@@ -50,7 +50,7 @@ class GhClientTest {
     @Test
     void unknownPrCarriesGhMessage() {
         GhException e = assertThrows(GhException.class, () -> client.fetch(404));
-        assertTrue(e.getMessage().contains("no pull requests found"), e.getMessage());
+        assertTrue(e.getMessage().contains("Could not resolve to a PullRequest with the number of 404"), e.getMessage());
         assertNull(e.pullRequest());
     }
 
@@ -83,7 +83,7 @@ class GhClientTest {
     @Test
     void sizeOfAnUnknownPrIsAGhFailure() {
         GhException e = assertThrows(GhException.class, () -> client.size(404));
-        assertTrue(e.getMessage().contains("no pull requests found"), e.getMessage());
+        assertTrue(e.getMessage().contains("Could not resolve to a PullRequest with the number of 404"), e.getMessage());
     }
 
     @Test
@@ -127,7 +127,7 @@ class GhClientTest {
     @Test
     void commentsThatCannotBeReadAreAGhFailure() {
         GhException e = assertThrows(GhException.class, () -> client.comments(404));
-        assertTrue(e.getMessage().contains("no pull requests found"), e.getMessage());
+        assertTrue(e.getMessage().contains("Could not resolve to a PullRequest with the number of 404"), e.getMessage());
     }
 
     @Test
@@ -172,6 +172,20 @@ class GhClientTest {
         GhException e = assertThrows(GhException.class, () -> client.association(104));
         assertTrue(e.getMessage().contains("HTTP 502"), e.getMessage());
         assertThrows(GhException.class, () -> client.association(404));
+    }
+
+    @Test
+    void aNumberIsNotAPullRequestOnlyWhenGitHubAnswers404() throws IOException {
+        assertTrue(client.isNotAPullRequest(404));
+        assertFalse(client.isNotAPullRequest(101));
+        // No status at all, e.g. a network failure: the number may still be a PR.
+        assertFalse(client.isNotAPullRequest(131));
+
+        List<String> log = Files.readAllLines(FakeGh.CALLS_LOG);
+        assertEquals(List.of("api repos/quarkusio/quarkus/pulls/404 -i", "api repos/quarkusio/quarkus/pulls/101 -i",
+                "api repos/quarkusio/quarkus/pulls/131 -i"), log.subList(log.size() - 3, log.size()));
+        assertEquals(List.of(FAKE_GH, "api", "repos/quarkusio/quarkus/pulls/404", "-i"),
+                client.command(List.of("api", "repos/quarkusio/quarkus/pulls/404", "-i")));
     }
 
     @Test

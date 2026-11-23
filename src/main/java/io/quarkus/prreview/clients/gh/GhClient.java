@@ -231,6 +231,22 @@ public class GhClient {
     }
 
     /**
+     * Whether GitHub answers that the configured repository has no pull request with this number: HTTP 404 on its
+     * REST path, read from the status line rather than from {@code gh}'s message. Any other status, or no status at
+     * all (e.g. a network failure), is {@code false}: the number may still be a PR. Never cached.
+     */
+    public boolean isNotAPullRequest(int pr) {
+        Result result;
+        try {
+            result = execute(List.of("api", "repos/" + apiRepo() + "/pulls/" + pr, "-i"));
+        } catch (GhException e) {
+            return false;
+        }
+        var status = STATUS_LINE.matcher(result.stdout().lines().findFirst().orElse("").strip());
+        return status.matches() && Integer.parseInt(status.group(1)) == 404;
+    }
+
+    /**
      * Whether {@code login} is a member of the configured repository's org, as GitHub shows it to this token: a
      * 2xx answer is a member, a 404 is not, and any other status is a failure. A private member looks like a
      * non-member to a token that does not belong to the org.
